@@ -1,4 +1,4 @@
-project(ParICA)
+project(CLICA)
 
 cmake_minimum_required(VERSION 2.8)
 
@@ -7,7 +7,7 @@ set (PARICA_VERSION_MINOR 0)
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 find_package(OpenCL QUIET REQUIRED)
-include_directories(${OPENCL_INCLUDE_DIRS})
+include_directories(${OPENCL_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/include)
 
 #QT Creator Hackery
 file( GLOB_RECURSE QtCreatorCompatibility_SRC

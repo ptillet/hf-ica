@@ -1,13 +1,16 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include "viennacl/matrix.hpp"
 #include "matrix_io.hpp"
+#include "clica.h"
 
 typedef double NumericT;
-static const unsigned int size = 1024;
 
 int main(){
-    viennacl::matrix<NumericT> mixed_signals;
-    viennacl::matrix<NumericT> whitened_data;
+    viennacl::matrix<NumericT, viennacl::row_major> mixed_signals;
+    viennacl::matrix<NumericT, viennacl::row_major> true_whitened_data;
+    viennacl::matrix<NumericT, viennacl::row_major> clica_whitened_data;
     read_mtx(mixed_signals,"../tests/data/mixed_signals.mtx");
-    read_mtx(whitened_data,"../tests/data/whitened_data.mtx");
-    std::cout << whitened_data(1,44) << std::endl;
+    read_mtx(true_whitened_data,"../tests/data/original_signals.mtx");
+    clica::whiten(mixed_signals, clica_whitened_data);
 }

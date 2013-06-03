@@ -1,5 +1,3 @@
-foreach(test whiten)
-    add_executable(${test} ${test}.cpp)
-    target_link_libraries(${test} ${OPENCL_LIBRARIES})
-    set_target_properties(${test} PROPERTIES COMPILE_FLAGS "-DVIENNACL_WITH_OPENCL")
-endforeach()
+ add_executable(whiten whiten.cpp ${PROJECT_SOURCE_DIR}/src/whiten.cpp)
+ target_link_libraries(whiten ${OPENCL_LIBRARIES})
+ set_target_properties(whiten PROPERTIES COMPILE_FLAGS "-DVIENNACL_WITH_OPENCL")
