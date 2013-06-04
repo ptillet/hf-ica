@@ -18,6 +18,8 @@ add_custom_target( QtCreatorCompatibility SOURCES ${QtCreatorCompatibility_SRC} 
 INCLUDE_DIRECTORIES(".")
 
 INCLUDE(CTest)
+ENABLE_TESTING()
 add_subdirectory(tests)
 
+add_subdirectory(examples)
 
