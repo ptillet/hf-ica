@@ -3,8 +3,12 @@
 #include "viennacl/rand/uniform.hpp"
 #include "viennacl/linalg/prod.hpp"
 
+#include "tests/matrix_io.hpp"
+
 #include "clica.h"
 #include "plot.hpp"
+
+#define DATA_PATH "/home/philippe/Development/CLICA/tests/data/"
 
 typedef double NumericT;
 
@@ -32,10 +36,8 @@ int main(){
     viennacl::matrix<NumericT> data = viennacl::linalg::prod(mixing,src);
     viennacl::matrix<NumericT> independent_components(C,N);
 
-//    plot(src);
-//    plot(data);
-
+    plot(src);
+    plot(data);
     clica::inplace_linear_ica(data,independent_components);
-
     plot(independent_components);
 }
