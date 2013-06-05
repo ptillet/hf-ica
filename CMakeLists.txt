@@ -8,18 +8,21 @@ set (PARICA_VERSION_MINOR 0)
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 find_package(OpenCL QUIET REQUIRED)
 include_directories(${OPENCL_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/include)
+include_directories(".")
+
+INCLUDE(CTest)
+ENABLE_TESTING()
+add_subdirectory(tests)
 
 #QT Creator Hackery
 file( GLOB_RECURSE QtCreatorCompatibility_SRC
     *.hpp *.h *.cl)
 add_custom_target( QtCreatorCompatibility SOURCES ${QtCreatorCompatibility_SRC} )
 
-
-INCLUDE_DIRECTORIES(".")
-
-INCLUDE(CTest)
-ENABLE_TESTING()
-add_subdirectory(tests)
+set(SRC_PATH "${PROJECT_SOURCE_DIR}/src")
+set(SRC ${SRC_PATH}/linear_ica.cpp
+        ${SRC_PATH}/whiten.cpp)
+add_library(clica ${SRC})
 
 add_subdirectory(examples)
 
