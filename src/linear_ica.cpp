@@ -1,3 +1,12 @@
+/* ===========================
+ *
+ * Copyright (c) 2013 Philippe Tillet - National Chiao Tung University
+ *
+ * CLICA - Hybrid ICA using ViennaCL + Eigen
+ *
+ * License : MIT X11 - See the LICENSE file in the root folder
+ * ===========================*/
+
 //#define VIENNACL_DEBUG_BUILD
 #define FMINCL_WITH_EIGEN
 
@@ -162,7 +171,7 @@ void inplace_linear_ica(MAT & data, MAT & out){
     fmincl::optimization_options options;
 
     options.direction = fmincl::cg<fmincl::polak_ribiere, fmincl::no_restart>();
-    options.line_search = fmincl::strong_wolfe_powell(1e-3,0.3,1.4);
+    options.line_search = fmincl::strong_wolfe_powell(1e-3,0.05,1.4);
     //    options.direction = fmincl::quasi_newton<fmincl::bfgs>();
     //    options.line_search = fmincl::strong_wolfe_powell(1e-4,0.9,1.4);
     options.max_iter = 2000;

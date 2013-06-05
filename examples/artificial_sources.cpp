@@ -1,3 +1,12 @@
+/* ===========================
+ *
+ * Copyright (c) 2013 Philippe Tillet - National Chiao Tung University
+ *
+ * CLICA - Hybrid ICA using ViennaCL + Eigen
+ *
+ * License : MIT X11 - See the LICENSE file in the root folder
+ * ===========================*/
+
 #include <cmath>
 #include "viennacl/matrix.hpp"
 #include "viennacl/rand/uniform.hpp"
@@ -22,7 +31,7 @@ int main(){
         double t = (double)i/N*T;
         c_src[0].push_back(std::sin(3*t));
         c_src[1].push_back(std::cos(10*t));
-        c_src[2].push_back(std::sin(10*t)*std::cos(3*t));
+        c_src[2].push_back(std::sin(5*t)*std::cos(3*t));
         c_src[3].push_back(rand()/(double)RAND_MAX);
     }
     viennacl::matrix<NumericT> mixing(C,C);
@@ -34,10 +43,10 @@ int main(){
         }
     }
     viennacl::matrix<NumericT> data = viennacl::linalg::prod(mixing,src);
-    viennacl::matrix<NumericT> independent_components(C,N);
 
-    plot(src);
-    plot(data);
+
+    read_mtx(data,DATA_PATH "mixed_signals.mtx");
+    viennacl::matrix<NumericT> independent_components(data.size1(),data.size2());
     clica::inplace_linear_ica(data,independent_components);
     plot(independent_components);
 }
