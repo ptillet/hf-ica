@@ -8,8 +8,10 @@
  * ===========================*/
 
 //#define VIENNACL_DEBUG_BUILD
+//#define VIENNACL_DEBUG_ALL
 #define FMINCL_WITH_EIGEN
 
+#include "tests/benchmark-utils.hpp"
 
 #include "fmincl/minimize.hpp"
 
@@ -20,7 +22,6 @@
 
 #include "clica.h"
 
-#include "tests/benchmark-utils.hpp"
 #include "Eigen/Dense"
 
 namespace clica{
@@ -43,7 +44,7 @@ public:
         using namespace viennacl::generator;
 
         Timer t;
-        t.start();
+
         size_t nchans = viennacl::traits::size1(data_);
         size_t nframes = viennacl::traits::size2(data_);
 
@@ -63,57 +64,30 @@ public:
         viennacl::copy(bias,gpu_bias);
         GMAT gpu_z1 = viennacl::linalg::prod(Gweights,data_);
         GMAT gpu_z2(nchans, nframes);
+        GVEC gpu_m2(nchans);
+        GVEC gpu_m4(nchans);
+        GVEC gpu_kurt(nchans);
+        GVEC gpu_alphas(nchans);
+        GMAT gpu_logp(nchans, nframes);
+        GVEC gpu_means_logp(nchans);
         {
             custom_operation op;
             op.add(smat(gpu_z2) = smat(gpu_z1) + repmat(svec(gpu_bias),1,nframes));
-            op.execute();
-        }
-        GVEC gpu_m2(nchans);
-        viennacl::backend::finish();
-        {
-            custom_operation op;
             op.add(svec(gpu_m2) = pow(1/cnframes*reduce_rows<add_type>(pow(smat(gpu_z2),2)),2));
-            op.execute();
-        }
-        GVEC gpu_m4(nchans);
-        viennacl::backend::finish();
-        {
-            custom_operation op;
             op.add(svec(gpu_m4) = 1/cnframes*reduce_rows<add_type>(pow(smat(gpu_z2),4)));
-            op.execute();
-        }
-        GVEC gpu_kurt(nchans);
-        viennacl::backend::finish();
-        {
-            custom_operation op;
             op.add(svec(gpu_kurt) = element_div(svec(gpu_m4),svec(gpu_m2))-3);
-            op.execute();
-        }
-        GVEC gpu_alphas(nchans);
-        {
-            custom_operation op;
             op.add(svec(gpu_alphas) = 5*(svec(gpu_kurt)<0) + 1*(svec(gpu_kurt)>=0));
-            op.execute();
-        }
-        GMAT gpu_logp(nchans, nframes);
-        viennacl::backend::finish();
-        {
-            custom_operation op;
             op.add(smat(gpu_logp) = log(repmat(svec(gpu_alphas),1,nframes))
                     - log(static_cast<NumericT>(2.0))
                     - lgamma(element_div(1,repmat(svec(gpu_alphas),1,nframes)))
                     - pow(fabs(smat(gpu_z2)),repmat(svec(gpu_alphas),1,nframes)));
-            op.execute();
-        }
-        GVEC gpu_means_logp(nchans);
-        viennacl::backend::finish();
-        {
-            custom_operation op;
             op.add(svec(gpu_means_logp) = 1/cnframes*reduce_rows<add_type>(smat(gpu_logp)));
             op.execute();
         }
-        viennacl::copy(gpu_means_logp, cmeans_logp);
         viennacl::backend::finish();
+        viennacl::copy(gpu_means_logp, cmeans_logp);
+
+
         double detweights = cpu_weights.determinant();
         double H = std::log(std::abs(detweights)) + cmeans_logp.sum();
 
