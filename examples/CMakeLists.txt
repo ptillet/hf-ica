@@ -1,5 +1,4 @@
 foreach(PROG artificial_sources)
     add_executable(${PROG} ${PROG}.cpp)
     target_link_libraries(${PROG} clica ${OPENCL_LIBRARIES})
-    set_target_properties(${PROG} PROPERTIES COMPILE_FLAGS "-DVIENNACL_WITH_OPENCL")
 endforeach(PROG)

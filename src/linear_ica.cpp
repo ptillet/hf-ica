@@ -7,18 +7,9 @@
  * License : MIT X11 - See the LICENSE file in the root folder
  * ===========================*/
 
-//#define VIENNACL_DEBUG_BUILD
-//#define VIENNACL_DEBUG_ALL
-#define FMINCL_WITH_EIGEN
-
 #include "tests/benchmark-utils.hpp"
 
 #include "fmincl/minimize.hpp"
-
-#include "viennacl/generator/custom_operation.hpp"
-#include "viennacl/matrix.hpp"
-#include "viennacl/vector.hpp"
-#include "viennacl/linalg/prod.hpp"
 
 #include "clica.h"
 
@@ -26,122 +17,106 @@
 
 namespace clica{
 
-template<class GMAT>
+template<class MAT>
 struct ica_functor{
 private:
-    typedef typename GMAT::value_type::value_type NumericT;
-    typedef viennacl::vector<NumericT> GVEC;
-
-    typedef viennacl::generator::matrix< GMAT> smat;
-    typedef viennacl::generator::vector<NumericT> svec;
-
-    typedef Eigen::Matrix<NumericT,Eigen::Dynamic,Eigen::Dynamic> CPU_MAT;
-    typedef Eigen::Matrix<NumericT,Eigen::Dynamic, 1> CPU_VEC;
+    typedef double NumericT;
+private:
+    template <typename T> int sgn(T val) const {
+        return (T(0) < val) - (val < T(0));
+    }
 public:
-    ica_functor(GMAT const & data) : data_(data){ }
+    ica_functor(MAT const & data) : data_(data){ }
 
-    double operator()(CPU_VEC const & x, CPU_VEC * grad) const {
-        using namespace viennacl::generator;
-
+    double operator()(Eigen::VectorXd const & x, Eigen::VectorXd * grad) const {
         Timer t;
 
-        size_t nchans = viennacl::traits::size1(data_);
-        size_t nframes = viennacl::traits::size2(data_);
+        t.start();
 
-        NumericT cnframes = static_cast<NumericT>(nframes);
+        size_t nchans = data_.rows();
+        size_t nframes = data_.cols();
+        NumericT cnframes = nframes;
 
+        Eigen::MatrixXd W(nchans,nchans);
+        Eigen::VectorXd b(nchans);
 
-        CPU_MAT cpu_weights(nchans, nchans);
-        CPU_VEC bias(nchans),cdbias(nchans), cmeans_logp(nchans);
         //Rerolls the variables into the appropriates datastructures
-        std::memcpy(cpu_weights.data(), x.data(),sizeof(NumericT)*nchans*nchans);
-        std::memcpy(bias.data(), x.data()+nchans*nchans, sizeof(NumericT)*nchans);
+        std::memcpy(W.data(), x.data(),sizeof(NumericT)*nchans*nchans);
+        std::memcpy(b.data(), x.data()+nchans*nchans, sizeof(NumericT)*nchans);
 
-        //Creates GPU structures
-        viennacl::matrix<NumericT> Gweights(nchans,nchans);
-        GVEC gpu_bias(nchans);
-        viennacl::copy(cpu_weights,Gweights);
-        viennacl::copy(bias,gpu_bias);
-        GMAT gpu_z1 = viennacl::linalg::prod(Gweights,data_);
-        GMAT gpu_z2(nchans, nframes);
-        GVEC gpu_m2(nchans);
-        GVEC gpu_m4(nchans);
-        GVEC gpu_kurt(nchans);
-        GVEC gpu_alphas(nchans);
-        GMAT gpu_logp(nchans, nframes);
-        GVEC gpu_means_logp(nchans);
-        {
-            custom_operation op;
-            op.add(smat(gpu_z2) = smat(gpu_z1) + repmat(svec(gpu_bias),1,nframes));
-            op.add(svec(gpu_m2) = pow(1/cnframes*reduce_rows<add_type>(pow(smat(gpu_z2),2)),2));
-            op.add(svec(gpu_m4) = 1/cnframes*reduce_rows<add_type>(pow(smat(gpu_z2),4)));
-            op.add(svec(gpu_kurt) = element_div(svec(gpu_m4),svec(gpu_m2))-3);
-            op.add(svec(gpu_alphas) = 5*(svec(gpu_kurt)<0) + 1*(svec(gpu_kurt)>=0));
-            op.add(smat(gpu_logp) = log(repmat(svec(gpu_alphas),1,nframes))
-                    - log(static_cast<NumericT>(2.0))
-                    - lgamma(element_div(1,repmat(svec(gpu_alphas),1,nframes)))
-                    - pow(fabs(smat(gpu_z2)),repmat(svec(gpu_alphas),1,nframes)));
-            op.add(svec(gpu_means_logp) = 1/cnframes*reduce_rows<add_type>(smat(gpu_logp)));
-            op.execute();
+        Eigen::MatrixXd z1 = W*data_;
+        Eigen::MatrixXd z2 = z1; z2.colwise()+=b;
+
+        Eigen::VectorXd alpha(nchans);
+        for(unsigned int i = 0 ; i < nchans ; ++i){
+            NumericT m2 = 0, m4 = 0;
+            for(unsigned int j = 0; j < nframes ; ++j){
+                m2 += std::pow(z2(i,j),2);
+                m4 += std::pow(z2(i,j),4);
+            }
+            m2 = std::pow(1/cnframes*m2,2);
+            m4 = 1/cnframes*m4;
+            double kurt = m4/m2 - 3;
+            alpha(i) = 5*(kurt<0) + 1*(kurt>=0);
         }
-        viennacl::backend::finish();
-        viennacl::copy(gpu_means_logp, cmeans_logp);
 
+        Eigen::VectorXd means_logp(nchans);
+        for(unsigned int i = 0 ; i < nchans ; ++i){
+            double current = 0;
+            double a = alpha[i];
+            for(unsigned int j = 0; j < nframes ; ++j){
+                current -= std::pow(std::fabs(z2(i,j)),a);
+            }
+            means_logp[i] = 1/cnframes*current + std::log(a) - std::log(2) - lgamma(1/a);
+        }
 
-        double detweights = cpu_weights.determinant();
-        double H = std::log(std::abs(detweights)) + cmeans_logp.sum();
-
+        double detweights = W.determinant();
+        double H = std::log(std::abs(detweights)) + means_logp.sum();
         if(grad){
-            GMAT gpu_phi(nchans, nframes);
-            viennacl::backend::finish();
-            {
-                custom_operation op;
-                op.add(smat(gpu_phi) = element_prod(element_prod(repmat(svec(gpu_alphas),1,nframes), pow(fabs(smat(gpu_z2)),repmat(svec(gpu_alphas),1,nframes)-1)), sign(smat(gpu_z2))));
-                op.execute();
+            Eigen::MatrixXd phi(nchans,nframes);
+            for(unsigned int i = 0 ; i < nchans ; ++i){
+                for(unsigned int j = 0 ; j < nframes ; ++j){
+                    double a = alpha(i);
+                    double z = z2(i,j);
+                    phi(i,j) = a*std::pow(std::abs(z),a-1)*sgn(z);
+                }
             }
-            GMAT phi_z1 = viennacl::linalg::prod(gpu_phi,viennacl::trans(gpu_z1));
-            CPU_MAT cpu_phi_z1(nchans,nchans);
-            viennacl::copy(phi_z1, cpu_phi_z1);
-            GVEC gpu_dbias(nchans);
-            viennacl::backend::finish();
-            {
-                custom_operation op;
-                op.add(svec(gpu_dbias) = 1/cnframes*reduce_rows<add_type>(smat(gpu_phi)));
-                op.execute();
-            }
-            viennacl::copy(gpu_dbias,cdbias);
-            CPU_MAT dweights(nchans, nchans);
-            dweights = (CPU_MAT::Identity(nchans,nchans) - 1/cnframes*cpu_phi_z1);
-            dweights = -dweights*cpu_weights.transpose().inverse();
-
+            Eigen::MatrixXd phi_z1 = phi*z1.transpose();
+            Eigen::VectorXd dbias = 1/cnframes*phi.rowwise().sum();
+            Eigen::MatrixXd dweights(nchans, nchans);
+            dweights = (Eigen::MatrixXd::Identity(nchans,nchans) - 1/cnframes*phi_z1);
+            dweights = -dweights*W.transpose().inverse();
             std::memcpy(grad->data(), dweights.data(),sizeof(NumericT)*nchans*nchans);
-            std::memcpy(grad->data()+nchans*nchans, cdbias.data(), sizeof(NumericT)*nchans);
+            std::memcpy(grad->data()+nchans*nchans, dbias.data(), sizeof(NumericT)*nchans);
         }
 
         return -H;
     }
 
 private:
-    GMAT const & data_;
+    MAT const & data_;
 };
 
 template<class MAT>
 void inplace_linear_ica(MAT & data, MAT & out){
-    typedef typename MAT::value_type::value_type NumericT;
-    typedef viennacl::vector<NumericT> VEC;
-    typedef Eigen::Matrix<NumericT,Eigen::Dynamic,Eigen::Dynamic> CPU_MAT;
-    typedef Eigen::Matrix<NumericT,Eigen::Dynamic, 1> CPU_VEC;
+    typedef double NumericT;
 
-    size_t nchans = data.size1();
-    size_t nframes = data.size2();
+    size_t nchans = data.rows();
+    size_t nframes = data.cols();
 
-    MAT white_data(nchans, nframes);
-    whiten(data,white_data);
-    CPU_VEC X = CPU_VEC::Zero(nchans*nchans + nchans);
+    Eigen::MatrixXd W(nchans,nchans);
+    Eigen::VectorXd b(nchans);
+
+    //Optimization Vector
+    Eigen::VectorXd X = Eigen::VectorXd::Zero(nchans*nchans + nchans);
     for(unsigned int i = 0 ; i < nchans; ++i) X[i*(nchans+1)] = 1;
     for(unsigned int i = nchans*nchans ; i < nchans*(nchans+1) ; ++i) X[i] = 0;
-    ica_functor<MAT> fun(white_data);
 
+    //Whiten Data
+    Eigen::MatrixXd white_data(nchans, nframes);
+    whiten(data,white_data);
+
+    ica_functor<MAT> fun(white_data);
     fmincl::optimization_options options;
 
     options.direction = fmincl::cg<fmincl::polak_ribiere, fmincl::no_restart>();
@@ -150,27 +125,18 @@ void inplace_linear_ica(MAT & data, MAT & out){
     //    options.line_search = fmincl::strong_wolfe_powell(1e-4,0.9,1.4);
     options.max_iter = 2000;
     options.verbosity_level = 2;
-    CPU_VEC SOL =  fmincl::minimize(fun,X, options);
+    //fmincl::utils::check_grad(fun,X);
+    Eigen::VectorXd S =  fmincl::minimize(fun,X, options);
 
-    CPU_MAT cpu_optim_weights(nchans,nchans);
-    CPU_VEC cpu_optim_bias(nchans);
-    MAT gpu_optim_weights(nchans,nchans);
-    VEC gpu_optim_bias(nchans);
-    std::memcpy(cpu_optim_weights.data(), SOL.data(),sizeof(NumericT)*nchans*nchans);
-    std::memcpy(cpu_optim_bias.data(), SOL.data()+nchans*nchans, sizeof(NumericT)*nchans);
-    viennacl::copy(cpu_optim_weights,gpu_optim_weights);
-    viennacl::copy(cpu_optim_bias,gpu_optim_bias);
-    out = viennacl::linalg::prod(gpu_optim_weights,white_data);
-//    {
-//        custom_operation op;
-//        op.add(smat(gpu_z2) = smat(gpu_z1) + repmat(svec(gpu_bias),1,nframes));
-//        op.execute();
-//    }
-    viennacl::backend::finish();
+    //Copies into datastructures
+    std::memcpy(W.data(), S.data(),sizeof(NumericT)*nchans*nchans);
+    std::memcpy(b.data(), S.data()+nchans*nchans, sizeof(NumericT)*nchans);
+
+    out = W*white_data + b;
 
 }
 
-template void inplace_linear_ica<viennacl::matrix<double, viennacl::row_major> >(viennacl::matrix<double, viennacl::row_major> &, viennacl::matrix<double, viennacl::row_major> &);
+template void inplace_linear_ica<Eigen::MatrixXd>(Eigen::MatrixXd &, Eigen::MatrixXd &);
 
 }
 
