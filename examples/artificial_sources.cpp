@@ -23,7 +23,7 @@ int main(){
     Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic> c_src(C,N);
     Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic> mixing(C,C);
     for(unsigned int i=0 ; i< N ; ++i){
-        double t = (double)i/N*T;
+        double t = (double)i/(N-1)*T;
         c_src(0,i) = std::sin(3*t);
         c_src(1,i) = std::cos(10*t);
         c_src(2,i) = std::cos(5*t) + std::sin(2*t);
