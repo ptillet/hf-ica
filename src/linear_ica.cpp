@@ -132,7 +132,8 @@ void inplace_linear_ica(MAT & data, MAT & out){
     std::memcpy(W.data(), S.data(),sizeof(NumericT)*nchans*nchans);
     std::memcpy(b.data(), S.data()+nchans*nchans, sizeof(NumericT)*nchans);
 
-    out = W*white_data + b;
+    out = W*white_data;
+    out.colwise() += b;
 
 }
 
