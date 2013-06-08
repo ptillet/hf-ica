@@ -57,7 +57,7 @@ public:
             m2 = std::pow(1/cnframes*m2,2);
             m4 = 1/cnframes*m4;
             double kurt = m4/m2 - 3;
-            alpha(i) = 5*(kurt<0) + 1*(kurt>=0);
+            alpha(i) = 4*(kurt<0) + 1*(kurt>=0);
         }
 
         Eigen::VectorXd means_logp(nchans);
@@ -119,13 +119,13 @@ void inplace_linear_ica(MAT & data, MAT & out){
     ica_functor<MAT> fun(white_data);
     fmincl::optimization_options options;
 
-    options.direction = fmincl::cg<fmincl::polak_ribiere, fmincl::no_restart>();
-    options.line_search = fmincl::strong_wolfe_powell(1e-3,0.05,1.4);
-    //    options.direction = fmincl::quasi_newton<fmincl::bfgs>();
-    //    options.line_search = fmincl::strong_wolfe_powell(1e-4,0.9,1.4);
+//    options.direction = fmincl::cg<fmincl::polak_ribiere, fmincl::no_restart>();
+//    options.line_search = fmincl::strong_wolfe_powell(1e-3,0.05,1.4);
+    options.direction = fmincl::quasi_newton<fmincl::bfgs>();
+    options.line_search = fmincl::strong_wolfe_powell(1e-4,0.9,1.4);
     options.max_iter = 2000;
     options.verbosity_level = 2;
-    //fmincl::utils::check_grad(fun,X);
+    fmincl::utils::check_grad(fun,X);
     Eigen::VectorXd S =  fmincl::minimize(fun,X, options);
 
     //Copies into datastructures

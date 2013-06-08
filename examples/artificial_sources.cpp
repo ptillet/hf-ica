@@ -15,7 +15,7 @@
 
 typedef double NumericT;
 
-static const unsigned int C=4;
+static const unsigned int C=3;
 static const unsigned int N=1000;
 static const unsigned int T=10;
 
@@ -26,14 +26,11 @@ int main(){
         double t = (double)i/N*T;
         c_src(0,i) = std::sin(3*t);
         c_src(1,i) = std::cos(10*t);
-        c_src(2,i) = std::sin(5*t)*std::cos(3*t);
-        c_src(3,i) = rand()/(double)RAND_MAX;
+        c_src(2,i) = std::cos(5*t) + std::sin(2*t);
     }
-    for(unsigned int i = 0 ; i < C ; ++i){
-        for(unsigned int j = 0 ; j < C ; ++j){
-            mixing(i,j) = (NumericT)rand()/RAND_MAX;
-        }
-    }
+    mixing << 0.1, 0.3, 0.2,
+              0.5, 0.2, 0.4,
+              0.1, 0.8, 0.3;
     Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic> data = mixing*c_src;
     Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic> independent_components(C,N);
     clica::inplace_linear_ica(data,independent_components);
