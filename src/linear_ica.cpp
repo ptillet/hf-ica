@@ -7,7 +7,6 @@
  * License : MIT X11 - See the LICENSE file in the root folder
  * ===========================*/
 
-#include "tests/benchmark-utils.hpp"
 
 #include "fmincl/minimize.hpp"
 
@@ -29,10 +28,6 @@ public:
     ica_functor(MAT const & data) : data_(data){ }
 
     double operator()(Eigen::VectorXd const & x, Eigen::VectorXd * grad) const {
-        Timer t;
-
-        t.start();
-
         size_t nchans = data_.rows();
         size_t nframes = data_.cols();
         NumericT cnframes = nframes;
@@ -119,18 +114,20 @@ void inplace_linear_ica(MAT & data, MAT & out){
     ica_functor<MAT> fun(white_data);
     fmincl::optimization_options options;
 
+//    options.line_search = fmincl::strong_wolfe_powell(1e-4,0.2);
 //    options.direction = fmincl::cg<fmincl::polak_ribiere, fmincl::no_restart>();
-//    options.line_search = fmincl::strong_wolfe_powell(1e-3,0.05,1.4);
     options.direction = fmincl::quasi_newton<fmincl::bfgs>();
-    options.line_search = fmincl::strong_wolfe_powell(1e-4,0.9,1.4);
+    options.line_search = fmincl::strong_wolfe_powell(1e-4,0.9);
     options.max_iter = 2000;
     options.verbosity_level = 2;
-    fmincl::utils::check_grad(fun,X);
+
+//    fmincl::utils::check_grad(fun,X);
     Eigen::VectorXd S =  fmincl::minimize(fun,X, options);
 
     //Copies into datastructures
     std::memcpy(W.data(), S.data(),sizeof(NumericT)*nchans*nchans);
     std::memcpy(b.data(), S.data()+nchans*nchans, sizeof(NumericT)*nchans);
+
 
     out = W*white_data;
     out.colwise() += b;
