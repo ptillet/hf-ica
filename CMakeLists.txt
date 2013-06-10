@@ -27,3 +27,4 @@ set_target_properties(clica PROPERTIES COMPILE_FLAGS "-DFMINCL_WITH_EIGEN")
 
 add_subdirectory(examples)
 
+set(CMAKE_BUILD_TYPE release)

@@ -60,7 +60,7 @@ public:
             double current = 0;
             double a = alpha[i];
             for(unsigned int j = 0; j < nframes ; ++j){
-                current -= std::pow(std::fabs(z2(i,j)),a);
+                current -= std::pow(std::fabs(z2(i,j)),(int)a);
             }
             means_logp[i] = 1/cnframes*current + std::log(a) - std::log(2) - lgamma(1/a);
         }
@@ -73,11 +73,11 @@ public:
                 for(unsigned int j = 0 ; j < nframes ; ++j){
                     double a = alpha(i);
                     double z = z2(i,j);
-                    phi(i,j) = a*std::pow(std::abs(z),a-1)*sgn(z);
+                    phi(i,j) = a*std::pow(std::abs(z),(int)(a-1))*sgn(z);
                 }
             }
             MAT phi_z1 = phi*z1.transpose();
-            Eigen::VectorXd dbias = 1/cnframes*phi.rowwise().sum();
+            Eigen::VectorXd dbias = phi.rowwise().mean();
             MAT dweights(nchans, nchans);
             dweights = (MAT::Identity(nchans,nchans) - 1/cnframes*phi_z1);
             dweights = -dweights*W.transpose().inverse();

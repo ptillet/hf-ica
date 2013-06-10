@@ -27,8 +27,8 @@ int main(){
         double t = (double)i/(N-1)*T - T/2;
         c_src(0,i) = std::sin(3*t) + std::cos(6*t);
         c_src(1,i) = std::cos(10*t);
-        c_src(2,i) = std::sin(t*t) + std::exp(t*t/(2*std::cosh(t)));
-        c_src(3,i) = 0.5*(double)rand()/RAND_MAX;
+        c_src(2,i) = std::sin(5*t);
+        c_src(3,i) = std::sin(t*t);
     }
     mixing << 0.1, 0.3, 0.2, 0.04,
               0.5, 0.2, 0.4, 0.8,
