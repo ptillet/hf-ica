@@ -17,12 +17,13 @@ namespace clica{
     namespace detail{
 
         template<class NumericT>
-        static void get_sphere(Eigen::Matrix<NumericT,Eigen::Dynamic,Eigen::Dynamic> & Cov, Eigen::Matrix<NumericT,Eigen::Dynamic,Eigen::Dynamic> & Sphere){
-            Eigen::JacobiSVD<Eigen::Matrix<NumericT,Eigen::Dynamic,Eigen::Dynamic> > svd(Cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
+        static void get_sphere(Eigen::Matrix<NumericT,Eigen::Dynamic,Eigen::Dynamic,Eigen::RowMajor> & Cov, Eigen::Matrix<NumericT,Eigen::Dynamic,Eigen::Dynamic,Eigen::RowMajor> & Sphere){
+            typedef Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> MAT;
+            Eigen::JacobiSVD<MAT> svd(Cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
             Eigen::VectorXd svals = svd.singularValues();
             for(unsigned int i = 0 ; i < svals.size() ; ++i) svals[i] = 1/sqrt(svals[i]);
-            Eigen::Matrix<NumericT,Eigen::Dynamic,Eigen::Dynamic>  U = svd.matrixU();
-            Eigen::Matrix<NumericT,Eigen::Dynamic,Eigen::Dynamic>  V = U.transpose();
+            MAT U = svd.matrixU();
+            MAT V = U.transpose();
             V = svals.asDiagonal()*V;
             Sphere = U*V;
             Sphere *= 2;
@@ -38,14 +39,15 @@ namespace clica{
         unsigned int nframes = data.cols();
         double cnframes = nframes;
         Eigen::VectorXd means = 1/cnframes*copy.rowwise().sum();
+
         copy.colwise() -= means;
-        Eigen::MatrixXd Cov = copy*copy.transpose();
+        MAT Cov = copy*copy.transpose();
         Cov = 1/(cnframes-1)*Cov;
-        Eigen::MatrixXd Sphere(nchans,nchans);
+        MAT Sphere(nchans,nchans);
         detail::get_sphere(Cov, Sphere);
         out = Sphere*data;
     }
 
 }
 
-template void clica::whiten<Eigen::MatrixXd>(Eigen::MatrixXd &, Eigen::MatrixXd &);
+template void clica::whiten< Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> >(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &, Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &);

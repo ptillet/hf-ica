@@ -16,10 +16,10 @@
 
 namespace clica{
 
-template<class MAT>
+template<class NumericT>
 struct ica_functor{
 private:
-    typedef double NumericT;
+    typedef Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> MAT;
 private:
     template <typename T> int sgn(T val) const {
         return (T(0) < val) - (val < T(0));
@@ -32,15 +32,15 @@ public:
         size_t nframes = data_.cols();
         NumericT cnframes = nframes;
 
-        Eigen::MatrixXd W(nchans,nchans);
+        MAT W(nchans,nchans);
         Eigen::VectorXd b(nchans);
 
         //Rerolls the variables into the appropriates datastructures
         std::memcpy(W.data(), x.data(),sizeof(NumericT)*nchans*nchans);
         std::memcpy(b.data(), x.data()+nchans*nchans, sizeof(NumericT)*nchans);
 
-        Eigen::MatrixXd z1 = W*data_;
-        Eigen::MatrixXd z2 = z1; z2.colwise()+=b;
+        MAT z1 = W*data_;
+        MAT z2 = z1; z2.colwise()+=b;
 
         Eigen::VectorXd alpha(nchans);
         for(unsigned int i = 0 ; i < nchans ; ++i){
@@ -68,7 +68,7 @@ public:
         double detweights = W.determinant();
         double H = std::log(std::abs(detweights)) + means_logp.sum();
         if(grad){
-            Eigen::MatrixXd phi(nchans,nframes);
+            MAT phi(nchans,nframes);
             for(unsigned int i = 0 ; i < nchans ; ++i){
                 for(unsigned int j = 0 ; j < nframes ; ++j){
                     double a = alpha(i);
@@ -76,10 +76,10 @@ public:
                     phi(i,j) = a*std::pow(std::abs(z),a-1)*sgn(z);
                 }
             }
-            Eigen::MatrixXd phi_z1 = phi*z1.transpose();
+            MAT phi_z1 = phi*z1.transpose();
             Eigen::VectorXd dbias = 1/cnframes*phi.rowwise().sum();
-            Eigen::MatrixXd dweights(nchans, nchans);
-            dweights = (Eigen::MatrixXd::Identity(nchans,nchans) - 1/cnframes*phi_z1);
+            MAT dweights(nchans, nchans);
+            dweights = (MAT::Identity(nchans,nchans) - 1/cnframes*phi_z1);
             dweights = -dweights*W.transpose().inverse();
             std::memcpy(grad->data(), dweights.data(),sizeof(NumericT)*nchans*nchans);
             std::memcpy(grad->data()+nchans*nchans, dbias.data(), sizeof(NumericT)*nchans);
@@ -99,7 +99,7 @@ void inplace_linear_ica(MAT & data, MAT & out){
     size_t nchans = data.rows();
     size_t nframes = data.cols();
 
-    Eigen::MatrixXd W(nchans,nchans);
+    MAT W(nchans,nchans);
     Eigen::VectorXd b(nchans);
 
     //Optimization Vector
@@ -108,10 +108,10 @@ void inplace_linear_ica(MAT & data, MAT & out){
     for(unsigned int i = nchans*nchans ; i < nchans*(nchans+1) ; ++i) X[i] = 0;
 
     //Whiten Data
-    Eigen::MatrixXd white_data(nchans, nframes);
+    MAT white_data(nchans, nframes);
     whiten(data,white_data);
 
-    ica_functor<MAT> fun(white_data);
+    ica_functor<NumericT> fun(white_data);
     fmincl::optimization_options options;
 
 //    options.line_search = fmincl::strong_wolfe_powell(1e-4,0.2);
@@ -134,7 +134,7 @@ void inplace_linear_ica(MAT & data, MAT & out){
 
 }
 
-template void inplace_linear_ica<Eigen::MatrixXd>(Eigen::MatrixXd &, Eigen::MatrixXd &);
+template void inplace_linear_ica< Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> >(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &, Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &);
 
 }
 
