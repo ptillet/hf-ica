@@ -7,7 +7,7 @@
  * License : MIT X11 - See the LICENSE file in the root folder
  * ===========================*/
 
-
+#define FMINCL_WITH_EIGEN
 #include "fmincl/minimize.hpp"
 
 #include "clica.h"
@@ -19,7 +19,7 @@ namespace clica{
 template<class NumericT>
 struct ica_functor{
 private:
-    typedef Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> MAT;
+    typedef Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic> MAT;
 private:
     template <typename T> int sgn(T val) const {
         return (T(0) < val) - (val < T(0));
@@ -92,9 +92,10 @@ private:
     MAT const & data_;
 };
 
-template<class MAT>
-void inplace_linear_ica(MAT & data, MAT & out){
-    typedef double NumericT;
+template<class T, class U>
+void inplace_linear_ica(T & data, U & out){
+    typedef typename T::Scalar ScalarType;
+    typedef Eigen::Matrix<ScalarType, Eigen::Dynamic, Eigen::Dynamic> MAT;
 
     size_t nchans = data.rows();
     size_t nframes = data.cols();
@@ -111,7 +112,7 @@ void inplace_linear_ica(MAT & data, MAT & out){
     MAT white_data(nchans, nframes);
     whiten(data,white_data);
 
-    ica_functor<NumericT> fun(white_data);
+    ica_functor<ScalarType> fun(white_data);
     fmincl::optimization_options options;
 
 //    options.line_search = fmincl::strong_wolfe_powell(1e-4,0.2);
@@ -124,8 +125,8 @@ void inplace_linear_ica(MAT & data, MAT & out){
     Eigen::VectorXd S =  fmincl::minimize(fun,X, options);
 
     //Copies into datastructures
-    std::memcpy(W.data(), S.data(),sizeof(NumericT)*nchans*nchans);
-    std::memcpy(b.data(), S.data()+nchans*nchans, sizeof(NumericT)*nchans);
+    std::memcpy(W.data(), S.data(),sizeof(ScalarType)*nchans*nchans);
+    std::memcpy(b.data(), S.data()+nchans*nchans, sizeof(ScalarType)*nchans);
 
 
     out = W*white_data;
@@ -133,7 +134,13 @@ void inplace_linear_ica(MAT & data, MAT & out){
 
 }
 
-template void inplace_linear_ica< Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> >(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &, Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &);
+typedef Eigen::MatrixXd MatDType;
+typedef Eigen::Map<MatDType> MapMatDType;
+
+template void inplace_linear_ica<MatDType, MatDType>(MatDType &, MatDType &);
+template void inplace_linear_ica<MatDType, MapMatDType >(MatDType &, MapMatDType&);
+template void inplace_linear_ica<MapMatDType, MatDType >(MapMatDType &, MatDType&);
+template void inplace_linear_ica<MapMatDType, MapMatDType >(MapMatDType &, MapMatDType&);
 
 }
 

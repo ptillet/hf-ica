@@ -12,11 +12,11 @@
 
 namespace clica{
 
-template<class MAT>
-void whiten(MAT & data, MAT & out);
+template<class T, class U>
+void whiten(T & data, U & out);
 
-template<class MAT>
-void inplace_linear_ica(MAT & in, MAT & out);
+template<class T, class U>
+void inplace_linear_ica(T & in, U & out);
 
 }
 

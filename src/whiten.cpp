@@ -16,9 +16,8 @@ namespace clica{
 
     namespace detail{
 
-        template<class NumericT>
-        static void get_sphere(Eigen::Matrix<NumericT,Eigen::Dynamic,Eigen::Dynamic,Eigen::RowMajor> & Cov, Eigen::Matrix<NumericT,Eigen::Dynamic,Eigen::Dynamic,Eigen::RowMajor> & Sphere){
-            typedef Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> MAT;
+        template<class MAT>
+        static void get_sphere(MAT & Cov, MAT & Sphere){
             Eigen::JacobiSVD<MAT> svd(Cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
             Eigen::VectorXd svals = svd.singularValues();
             for(unsigned int i = 0 ; i < svals.size() ; ++i) svals[i] = 1/sqrt(svals[i]);
@@ -32,8 +31,10 @@ namespace clica{
     }
 
 
-    template<class MAT>
-    void whiten(MAT & data, MAT & out){
+    template<class T, class U>
+    void whiten(T & data, U & out){
+        typedef typename T::Scalar ScalarType;
+        typedef Eigen::Matrix<ScalarType, Eigen::Dynamic, Eigen::Dynamic> MAT;
         MAT copy(data);
         unsigned int nchans = data.rows();
         unsigned int nframes = data.cols();
@@ -48,6 +49,11 @@ namespace clica{
         out = Sphere*data;
     }
 
-}
+    typedef Eigen::MatrixXd MatDType;
+    typedef Eigen::Map<MatDType> MapMatDType;
 
-template void clica::whiten< Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> >(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &, Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &);
+    template void whiten<MatDType, MatDType>(MatDType &, MatDType &);
+    template void whiten<MatDType, MapMatDType >(MatDType &, MapMatDType&);
+    template void whiten<MapMatDType, MatDType >(MapMatDType &, MatDType&);
+    template void whiten<MapMatDType, MapMatDType >(MapMatDType &, MapMatDType&);
+}

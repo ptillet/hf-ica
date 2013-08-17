@@ -1,5 +1,0 @@
-foreach(F clica_independent_components)
-	add_library(${F}_mex SHARED ${F}.cpp)
-	target_link_libraries(${F}_mex clica ${OPENCL_LIBRARIES})
-	set_target_properties(${F}_mex PROPERTIES OUTPUT_NAME ${F})
-endforeach()

@@ -1,4 +1,4 @@
-project(CLICA)
+project(ParICA)
 
 cmake_minimum_required(VERSION 2.8)
 
@@ -23,7 +23,7 @@ set(SRC_PATH "${PROJECT_SOURCE_DIR}/src")
 set(SRC ${SRC_PATH}/linear_ica.cpp
         ${SRC_PATH}/whiten.cpp)
 add_library(clica ${SRC})
-set_target_properties(clica PROPERTIES COMPILE_FLAGS "-DFMINCL_WITH_EIGEN")
+set_target_properties(clica PROPERTIES COMPILE_FLAGS "-fPIC")
 
 add_subdirectory(examples)
 add_subdirectory(matlab)

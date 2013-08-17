@@ -60,4 +60,4 @@ include_directories(${CMAKE_SOURCE_DIR}/src/) # So we can include <mlpack/...>.
 # Set MATLAB toolbox install directory.
 set(MATLAB_TOOLBOX_DIR "${MATLAB_ROOT}/toolbox")
 
-add_subdirectory(clica)
+add_subdirectory(functions)
