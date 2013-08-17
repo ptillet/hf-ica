@@ -43,6 +43,7 @@ public:
         MAT z2 = z1; z2.colwise()+=b;
 
         Eigen::VectorXd alpha(nchans);
+
         for(unsigned int i = 0 ; i < nchans ; ++i){
             NumericT m2 = 0, m4 = 0;
             for(unsigned int j = 0; j < nframes ; ++j){
@@ -56,6 +57,7 @@ public:
         }
 
         Eigen::VectorXd means_logp(nchans);
+
         for(unsigned int i = 0 ; i < nchans ; ++i){
             double current = 0;
             double a = alpha[i];
@@ -69,6 +71,7 @@ public:
         double H = std::log(std::abs(detweights)) + means_logp.sum();
         if(grad){
             MAT phi(nchans,nframes);
+
             for(unsigned int i = 0 ; i < nchans ; ++i){
                 for(unsigned int j = 0 ; j < nframes ; ++j){
                     double a = alpha(i);
@@ -92,8 +95,17 @@ private:
     MAT const & data_;
 };
 
+fmincl::optimization_options make_default_options(){
+    fmincl::optimization_options options;
+    options.direction = new fmincl::quasi_newton(new fmincl::bfgs());
+    options.max_iter = 200;
+    options.verbosity_level = 0;
+    return options;
+}
+
+
 template<class T, class U>
-void inplace_linear_ica(T & data, U & out){
+void inplace_linear_ica(T & data, U & out, fmincl::optimization_options const & options){
     typedef typename T::Scalar ScalarType;
     typedef Eigen::Matrix<ScalarType, Eigen::Dynamic, Eigen::Dynamic> MAT;
 
@@ -113,14 +125,6 @@ void inplace_linear_ica(T & data, U & out){
     whiten(data,white_data);
 
     ica_functor<ScalarType> fun(white_data);
-    fmincl::optimization_options options;
-
-//    options.line_search = fmincl::strong_wolfe_powell(1e-4,0.2);
-//    options.direction = fmincl::cg<fmincl::polak_ribiere, fmincl::no_restart>();
-    options.direction = new fmincl::quasi_newton(new fmincl::bfgs());
-    options.max_iter = 2000;
-    options.verbosity_level = 2;
-
 //    fmincl::utils::check_grad(fun,X);
     Eigen::VectorXd S =  fmincl::minimize(fun,X, options);
 
@@ -137,10 +141,10 @@ void inplace_linear_ica(T & data, U & out){
 typedef Eigen::MatrixXd MatDType;
 typedef Eigen::Map<MatDType> MapMatDType;
 
-template void inplace_linear_ica<MatDType, MatDType>(MatDType &, MatDType &);
-template void inplace_linear_ica<MatDType, MapMatDType >(MatDType &, MapMatDType&);
-template void inplace_linear_ica<MapMatDType, MatDType >(MapMatDType &, MatDType&);
-template void inplace_linear_ica<MapMatDType, MapMatDType >(MapMatDType &, MapMatDType&);
+template void inplace_linear_ica<MatDType, MatDType>(MatDType &, MatDType &, fmincl::optimization_options const & );
+template void inplace_linear_ica<MatDType, MapMatDType >(MatDType &, MapMatDType&, fmincl::optimization_options const & );
+template void inplace_linear_ica<MapMatDType, MatDType >(MapMatDType &, MatDType&, fmincl::optimization_options const & );
+template void inplace_linear_ica<MapMatDType, MapMatDType >(MapMatDType &, MapMatDType&, fmincl::optimization_options const & );
 
 }
 

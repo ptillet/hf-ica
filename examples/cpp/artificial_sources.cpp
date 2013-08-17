@@ -13,16 +13,17 @@
 #include "plot.hpp"
 #include "tests/benchmark-utils.hpp"
 
+#define BENCHMARK_COUNT 50
 
 typedef double NumericT;
-
+typedef Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic> MatType;
 static const unsigned int C=4;
 static const unsigned int N=1000;
 static const unsigned int T=20;
 
 int main(){
-    Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic> c_src(C,N);
-    Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic> mixing(C,C);
+    MatType c_src(C,N);
+    MatType mixing(C,C);
     for(unsigned int i=0 ; i< N ; ++i){
         double t = (double)i/(N-1)*T - T/2;
         c_src(0,i) = std::sin(3*t) + std::cos(6*t);
@@ -34,12 +35,12 @@ int main(){
               0.5, 0.2, 0.4, 0.8,
               0.1, 0.8, 0.3, 0.2,
               0.05, 0.2, 0.1, 0.3;
-    Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic> data = mixing*c_src;
-    Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic> independent_components(C,N);
+    MatType data = mixing*c_src;
+    MatType independent_components(C,N);
     plot(data);
     Timer t;
     t.start();
     clica::inplace_linear_ica(data,independent_components);
-    std::cout << t.get() << std::endl;
+    std::cout << "Execution Time : " << t.get() << "s" << std::endl;
     plot(independent_components);
 }

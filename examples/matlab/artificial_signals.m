@@ -25,7 +25,9 @@ plot(data(i,:)./max(data(i,:)));
 end
 drawnow;
 
+tic
 independent = linear_parica(data);
+toc
 plot(independent)
 hold on;
 for i=1:numdim
