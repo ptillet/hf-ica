@@ -116,8 +116,7 @@ void inplace_linear_ica(MAT & data, MAT & out){
 
 //    options.line_search = fmincl::strong_wolfe_powell(1e-4,0.2);
 //    options.direction = fmincl::cg<fmincl::polak_ribiere, fmincl::no_restart>();
-    options.direction = fmincl::quasi_newton<fmincl::bfgs>();
-    options.line_search = fmincl::strong_wolfe_powell(1e-4,0.9);
+    options.direction = new fmincl::quasi_newton(new fmincl::bfgs());
     options.max_iter = 2000;
     options.verbosity_level = 2;
 

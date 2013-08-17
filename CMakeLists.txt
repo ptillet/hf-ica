@@ -26,5 +26,6 @@ add_library(clica ${SRC})
 set_target_properties(clica PROPERTIES COMPILE_FLAGS "-DFMINCL_WITH_EIGEN")
 
 add_subdirectory(examples)
+add_subdirectory(matlab)
 
 set(CMAKE_BUILD_TYPE release)

@@ -1,6 +1,6 @@
-foreach(PROG whiten)
+foreach(PROG)
     add_executable(${PROG}-test ${PROG}.cpp)
     target_link_libraries(${PROG}-test clica ${OPENCL_LIBRARIES})
     set_target_properties(${PROG}-test PROPERTIES COMPILE_FLAGS "-DVIENNACL_WITH_OPENCL")
-    add_test(whiten whiten-test)
+    add_test(${PROG} ${PROG}-test)
 endforeach(PROG)

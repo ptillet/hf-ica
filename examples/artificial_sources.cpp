@@ -36,6 +36,7 @@ int main(){
               0.05, 0.2, 0.1, 0.3;
     Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> data = mixing*c_src;
     Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> independent_components(C,N);
+    plot(data);
     Timer t;
     t.start();
     clica::inplace_linear_ica(data,independent_components);
