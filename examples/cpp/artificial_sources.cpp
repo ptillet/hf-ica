@@ -18,7 +18,7 @@
 typedef double NumericT;
 typedef Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic,Eigen::ColMajor> MatType;
 static const unsigned int C=4;
-static const unsigned int N=1000;
+static const unsigned int N=10000;
 static const unsigned int T=20;
 
 int main(){

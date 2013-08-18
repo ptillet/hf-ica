@@ -29,7 +29,7 @@ end
 drawnow;
 
 tic
-independent = linear_parica(data);
+independent = linear_parica(data,struct('verbosityLevel',1));
 toc
 %tic
 %[W, Sphere] = binica(data,'extended',1);
