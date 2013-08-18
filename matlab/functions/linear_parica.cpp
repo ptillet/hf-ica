@@ -2,7 +2,7 @@
 #include <matrix.h>
 #include <mex.h>
 
-#include "clica.h"
+#include "parica.h"
 #include <Eigen/Dense>
 
 typedef double NumericT;
@@ -28,5 +28,5 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     Eigen::Map<Eigen::MatrixXd> map_data(data,size1,size2);
     Eigen::Map<Eigen::MatrixXd> map_result(result,size1,size2);
 
-    clica::inplace_linear_ica(map_data, map_result);
+    parica::inplace_linear_ica(map_data, map_result);
 }

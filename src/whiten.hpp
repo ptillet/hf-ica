@@ -12,17 +12,19 @@
 #include "Eigen/Dense"
 #include "Eigen/SVD"
 
-namespace clica{
+#include "result_of.hpp"
+
+namespace parica{
 
     namespace detail{
 
-        template<class MAT>
-        static void get_sphere(MAT & Cov, MAT & Sphere){
-            Eigen::JacobiSVD<MAT> svd(Cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
+        template<class M1, class M2>
+        static void get_sphere(M1 & Cov, M2 & Sphere){
+            Eigen::JacobiSVD<M1> svd(Cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
             Eigen::VectorXd svals = svd.singularValues();
             for(unsigned int i = 0 ; i < svals.size() ; ++i) svals[i] = 1/sqrt(svals[i]);
-            MAT U = svd.matrixU();
-            MAT V = U.transpose();
+            M1 U = svd.matrixU();
+            M1 V = U.transpose();
             V = svals.asDiagonal()*V;
             Sphere = U*V;
             Sphere *= 2;
@@ -34,26 +36,17 @@ namespace clica{
     template<class T, class U>
     void whiten(T & data, U & out){
         typedef typename T::Scalar ScalarType;
-        typedef Eigen::Matrix<ScalarType, Eigen::Dynamic, Eigen::Dynamic> MAT;
-        MAT copy(data);
+        typename result_of::data_storage<ScalarType>::type copy(data);
         unsigned int nchans = data.rows();
         unsigned int nframes = data.cols();
         double cnframes = nframes;
         Eigen::VectorXd means = 1/cnframes*copy.rowwise().sum();
-
         copy.colwise() -= means;
-        MAT Cov = copy*copy.transpose();
+        typename result_of::weights<ScalarType>::type Cov = copy*copy.transpose();
         Cov = 1/(cnframes-1)*Cov;
-        MAT Sphere(nchans,nchans);
+        typename result_of::weights<ScalarType>::type Sphere(nchans,nchans);
         detail::get_sphere(Cov, Sphere);
         out = Sphere*data;
     }
 
-    typedef Eigen::MatrixXd MatDType;
-    typedef Eigen::Map<MatDType> MapMatDType;
-
-    template void whiten<MatDType, MatDType>(MatDType &, MatDType &);
-    template void whiten<MatDType, MapMatDType >(MatDType &, MapMatDType&);
-    template void whiten<MapMatDType, MatDType >(MapMatDType &, MatDType&);
-    template void whiten<MapMatDType, MapMatDType >(MapMatDType &, MapMatDType&);
 }

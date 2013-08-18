@@ -10,42 +10,42 @@
 #define FMINCL_WITH_EIGEN
 #include "fmincl/minimize.hpp"
 
-#include "clica.h"
-
+#include "whiten.hpp"
+#include "result_of.hpp"
 #include "Eigen/Dense"
 
-namespace clica{
+namespace parica{
 
-template<class NumericT>
+template<class ScalarType>
 struct ica_functor{
 private:
-    typedef Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic> MAT;
+    typedef typename result_of::data_storage<ScalarType>::type DataMatrixType;
 private:
     template <typename T> int sgn(T val) const {
         return (T(0) < val) - (val < T(0));
     }
 public:
-    ica_functor(MAT const & data) : data_(data){ }
+    ica_functor(DataMatrixType const & data) : data_(data){ }
 
     double operator()(Eigen::VectorXd const & x, Eigen::VectorXd * grad) const {
         size_t nchans = data_.rows();
         size_t nframes = data_.cols();
-        NumericT cnframes = nframes;
+        ScalarType cnframes = nframes;
 
-        MAT W(nchans,nchans);
+        typename result_of::weights<ScalarType>::type W(nchans,nchans);
         Eigen::VectorXd b(nchans);
 
         //Rerolls the variables into the appropriates datastructures
-        std::memcpy(W.data(), x.data(),sizeof(NumericT)*nchans*nchans);
-        std::memcpy(b.data(), x.data()+nchans*nchans, sizeof(NumericT)*nchans);
+        std::memcpy(W.data(), x.data(),sizeof(ScalarType)*nchans*nchans);
+        std::memcpy(b.data(), x.data()+nchans*nchans, sizeof(ScalarType)*nchans);
 
-        MAT z1 = W*data_;
-        MAT z2 = z1; z2.colwise()+=b;
+        DataMatrixType z1 = W*data_;
+        DataMatrixType z2 = z1; z2.colwise()+=b;
 
         Eigen::VectorXd alpha(nchans);
 
         for(unsigned int i = 0 ; i < nchans ; ++i){
-            NumericT m2 = 0, m4 = 0;
+            ScalarType m2 = 0, m4 = 0;
             for(unsigned int j = 0; j < nframes ; ++j){
                 m2 += std::pow(z2(i,j),2);
                 m4 += std::pow(z2(i,j),4);
@@ -70,7 +70,7 @@ public:
         double detweights = W.determinant();
         double H = std::log(std::abs(detweights)) + means_logp.sum();
         if(grad){
-            MAT phi(nchans,nframes);
+            DataMatrixType phi(nchans,nframes);
 
             for(unsigned int i = 0 ; i < nchans ; ++i){
                 for(unsigned int j = 0 ; j < nframes ; ++j){
@@ -79,21 +79,22 @@ public:
                     phi(i,j) = a*std::pow(std::abs(z),(int)(a-1))*sgn(z);
                 }
             }
-            MAT phi_z1 = phi*z1.transpose();
+            DataMatrixType phi_z1 = phi*z1.transpose();
             Eigen::VectorXd dbias = phi.rowwise().mean();
-            MAT dweights(nchans, nchans);
-            dweights = (MAT::Identity(nchans,nchans) - 1/cnframes*phi_z1);
+            DataMatrixType dweights(nchans, nchans);
+            dweights = (DataMatrixType::Identity(nchans,nchans) - 1/cnframes*phi_z1);
             dweights = -dweights*W.transpose().inverse();
-            std::memcpy(grad->data(), dweights.data(),sizeof(NumericT)*nchans*nchans);
-            std::memcpy(grad->data()+nchans*nchans, dbias.data(), sizeof(NumericT)*nchans);
+            std::memcpy(grad->data(), dweights.data(),sizeof(ScalarType)*nchans*nchans);
+            std::memcpy(grad->data()+nchans*nchans, dbias.data(), sizeof(ScalarType)*nchans);
         }
 
         return -H;
     }
 
 private:
-    MAT const & data_;
+    DataMatrixType const & data_;
 };
+
 
 fmincl::optimization_options make_default_options(){
     fmincl::optimization_options options;
@@ -107,12 +108,11 @@ fmincl::optimization_options make_default_options(){
 template<class T, class U>
 void inplace_linear_ica(T & data, U & out, fmincl::optimization_options const & options){
     typedef typename T::Scalar ScalarType;
-    typedef Eigen::Matrix<ScalarType, Eigen::Dynamic, Eigen::Dynamic> MAT;
 
     size_t nchans = data.rows();
     size_t nframes = data.cols();
 
-    MAT W(nchans,nchans);
+    typename result_of::weights<ScalarType>::type W(nchans,nchans);
     Eigen::VectorXd b(nchans);
 
     //Optimization Vector
@@ -121,7 +121,7 @@ void inplace_linear_ica(T & data, U & out, fmincl::optimization_options const & 
     for(unsigned int i = nchans*nchans ; i < nchans*(nchans+1) ; ++i) X[i] = 0;
 
     //Whiten Data
-    MAT white_data(nchans, nframes);
+    typename result_of::data_storage<ScalarType>::type white_data(nchans, nframes);
     whiten(data,white_data);
 
     ica_functor<ScalarType> fun(white_data);
@@ -138,13 +138,22 @@ void inplace_linear_ica(T & data, U & out, fmincl::optimization_options const & 
 
 }
 
-typedef Eigen::MatrixXd MatDType;
-typedef Eigen::Map<MatDType> MapMatDType;
+//Double col-major
+typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor> MatXdc;
+typedef Eigen::Map<MatXdc> MapMatXdc;
+template void inplace_linear_ica<MatXdc, MatXdc>(MatXdc &, MatXdc &, fmincl::optimization_options const & );
+template void inplace_linear_ica<MatXdc, MapMatXdc >(MatXdc &, MapMatXdc&, fmincl::optimization_options const & );
+template void inplace_linear_ica<MapMatXdc, MatXdc >(MapMatXdc &, MatXdc&, fmincl::optimization_options const & );
+template void inplace_linear_ica<MapMatXdc, MapMatXdc >(MapMatXdc &, MapMatXdc&, fmincl::optimization_options const & );
 
-template void inplace_linear_ica<MatDType, MatDType>(MatDType &, MatDType &, fmincl::optimization_options const & );
-template void inplace_linear_ica<MatDType, MapMatDType >(MatDType &, MapMatDType&, fmincl::optimization_options const & );
-template void inplace_linear_ica<MapMatDType, MatDType >(MapMatDType &, MatDType&, fmincl::optimization_options const & );
-template void inplace_linear_ica<MapMatDType, MapMatDType >(MapMatDType &, MapMatDType&, fmincl::optimization_options const & );
+//Double row-major
+typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> MatXdr;
+typedef Eigen::Map<MatXdr> MapMatXdr;
+template void inplace_linear_ica<MatXdr, MatXdr>(MatXdr &, MatXdr &, fmincl::optimization_options const & );
+template void inplace_linear_ica<MatXdr, MapMatXdr >(MatXdr &, MapMatXdr&, fmincl::optimization_options const & );
+template void inplace_linear_ica<MapMatXdr, MatXdr >(MapMatXdr &, MatXdr&, fmincl::optimization_options const & );
+template void inplace_linear_ica<MapMatXdr, MapMatXdr >(MapMatXdr &, MapMatXdr&, fmincl::optimization_options const & );
+
 
 }
 

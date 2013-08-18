@@ -6,7 +6,10 @@ orig_data = [sin(500*t) + 0.2*cos(100*t) ;
                 sin(t)] ;
 orig_data = 0.01*orig_data;
 numdim = size(orig_data,1);
-A = random('uniform',0,1,numdim,numdim);
+A = [0.2 0.3 0.8 0.4;
+	0.1 0.5 0.2 0.3;
+	0.4 0.7 0.7 0.1;
+	0.6 0.1 0.2 0.3];
 data = A*orig_data;
 hold on;
 

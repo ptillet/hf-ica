@@ -13,7 +13,7 @@
 #define FMINCL_WITH_EIGEN
 #include "fmincl/optimization_otions.hpp"
 
-namespace clica{
+namespace parica{
 
 
 fmincl::optimization_options make_default_options();

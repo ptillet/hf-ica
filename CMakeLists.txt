@@ -20,8 +20,7 @@ file( GLOB_RECURSE QtCreatorCompatibility_SRC
 add_custom_target( QtCreatorCompatibility SOURCES ${QtCreatorCompatibility_SRC} )
 
 set(SRC_PATH "${PROJECT_SOURCE_DIR}/src")
-set(SRC ${SRC_PATH}/linear_ica.cpp
-        ${SRC_PATH}/whiten.cpp)
+set(SRC ${SRC_PATH}/linear_ica.cpp)
 add_library(clica ${SRC})
 set_target_properties(clica PROPERTIES COMPILE_FLAGS "-fPIC")
 

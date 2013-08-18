@@ -9,14 +9,14 @@
 
 #include <cmath>
 #include "Eigen/Dense"
-#include "clica.h"
+#include "parica.h"
 #include "plot.hpp"
 #include "tests/benchmark-utils.hpp"
 
 #define BENCHMARK_COUNT 50
 
 typedef double NumericT;
-typedef Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic> MatType;
+typedef Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic,Eigen::ColMajor> MatType;
 static const unsigned int C=4;
 static const unsigned int N=1000;
 static const unsigned int T=20;
@@ -40,7 +40,8 @@ int main(){
     plot(data);
     Timer t;
     t.start();
-    clica::inplace_linear_ica(data,independent_components);
-    std::cout << "Execution Time : " << t.get() << "s" << std::endl;
+    for(unsigned int i = 0 ; i < BENCHMARK_COUNT ; ++i)
+        parica::inplace_linear_ica(data,independent_components);
+    std::cout << "Execution Time : " << t.get()/BENCHMARK_COUNT << "s" << std::endl;
     plot(independent_components);
 }
