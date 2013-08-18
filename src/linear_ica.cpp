@@ -52,6 +52,7 @@ public:
 
         Eigen::VectorXd alpha(nchans);
 
+
         for(unsigned int i = 0 ; i < nchans ; ++i){
             ScalarType m2 = 0, m4 = 0;
             for(unsigned int j = 0; j < nframes ; j+=2){

@@ -24,6 +24,13 @@ else(DEBUG)
   set(CMAKE_C_FLAGS "-O")
 endif(DEBUG)
 
+#Append OpenMP
+if(OPENMP_FOUND)
+    set(OPENMP_MEX_FLAGS "CFLAGS=\"\$CFLAGS -fopenmp\" LDFLAGS=\"\$LDFLAGS -fopenmp\"")
+else()
+    set(OPENMP_MEX_FLAGS "")
+endif(OPENMP_FOUND)
+
 # Don't give -fPIC; mex will do that for us.
 set(CMAKE_SHARED_LIBRARY_C_FLAGS "")
 set(CMAKE_SHARED_LIBRARY_CXX_FLAGS "")
@@ -35,7 +42,7 @@ set(CMAKE_SHARED_MODULE_PREFIX "")
 # Set custom commands for mex compilation, because the flags are (in general)
 # odd and different.
 set(CMAKE_CXX_COMPILE_OBJECT "<CMAKE_CXX_COMPILER> -outdir <OBJECT_DIR> <FLAGS> -c <SOURCE>")
-set(CMAKE_CXX_CREATE_SHARED_MODULE "<CMAKE_CXX_COMPILER> -cxx <LINK_FLAGS> -output <TARGET> <OBJECTS> <LINK_LIBRARIES>")
+set(CMAKE_CXX_CREATE_SHARED_MODULE "<CMAKE_CXX_COMPILER> -cxx <LINK_FLAGS> -output <TARGET> <OBJECTS> <LINK_LIBRARIES> ${OPENMP_MEX_FLAGS}")
 set(CMAKE_CXX_CREATE_SHARED_LIBRARY "${CMAKE_CXX_CREATE_SHARED_MODULE}")
 
 # mex is weird because it doesn't respect the -o option, but in general it

@@ -13,7 +13,7 @@
 #include "plot.hpp"
 #include "tests/benchmark-utils.hpp"
 
-#define BENCHMARK_COUNT 10
+#define BENCHMARK_COUNT 100
 
 typedef double NumericT;
 typedef Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic,Eigen::ColMajor> MatType;
