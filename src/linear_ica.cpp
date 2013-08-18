@@ -51,17 +51,14 @@ public:
         z2.colwise()+=b;
 
         Eigen::VectorXd alpha(nchans);
-
+        Eigen::VectorXd means_logp(nchans);
 
         for(unsigned int i = 0 ; i < nchans ; ++i){
             ScalarType m2 = 0, m4 = 0;
-            for(unsigned int j = 0; j < nframes ; j+=2){
-                double val0 = z2(i,j);
-                double val1 = z2(i,j+1);
-                m2 += std::pow(val0,2);
-                m2 += std::pow(val1,2);
-                m4 += std::pow(val0,4);
-                m4 += std::pow(val1,4);
+            for(unsigned int j = 0; j < nframes ; j++){
+                double val = z2(i,j);
+                m2 += std::pow(val,2);
+                m4 += std::pow(val,4);
             }
             m2 = std::pow(1/cnframes*m2,2);
             m4 = 1/cnframes*m4;
@@ -69,16 +66,13 @@ public:
             alpha(i) = 4*(kurt<0) + 1*(kurt>=0);
         }
 
-        Eigen::VectorXd means_logp(nchans);
 
         for(unsigned int i = 0 ; i < nchans ; ++i){
             double current = 0;
             double a = alpha[i];
-            for(unsigned int j = 0; j < nframes ; j+=2){
-                double val0 = z2(i,j);
-                double val1 = z2(i,j+1);
-                current += std::pow(std::fabs(val0),(int)a);
-                current += std::pow(std::fabs(val1),(int)a);
+            for(unsigned int j = 0; j < nframes ; j++){
+                double val = z2(i,j);
+                current += std::pow(std::fabs(val),(int)a);
             }
             means_logp[i] = -1/cnframes*current + std::log(a) - std::log(2) - lgamma(1/a);
         }
@@ -89,8 +83,8 @@ public:
 
 
             for(unsigned int i = 0 ; i < nchans ; ++i){
+                double a = alpha(i);
                 for(unsigned int j = 0 ; j < nframes ; ++j){
-                    double a = alpha(i);
                     double z = z2(i,j);
                     phi(i,j) = a*std::pow(std::abs(z),(int)(a-1))*sgn(z);
                 }
@@ -118,8 +112,8 @@ private:
 
 fmincl::optimization_options make_default_options(){
     fmincl::optimization_options options;
-    options.direction = new fmincl::quasi_newton(new fmincl::bfgs());
-    options.max_iter = 200;
+    options.direction = new fmincl::quasi_newton();
+    options.max_iter = 100;
     options.verbosity_level = 0;
     return options;
 }
