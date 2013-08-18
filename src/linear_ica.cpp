@@ -25,7 +25,14 @@ private:
         return (T(0) < val) - (val < T(0));
     }
 public:
-    ica_functor(DataMatrixType const & data) : data_(data){ }
+    ica_functor(DataMatrixType const & data) : data_(data){
+        std::size_t chans = data.rows();
+        std::size_t frames = data.cols();
+        z1.resize(chans,frames);
+        z2.resize(chans,frames);
+        phi.resize(chans,frames);
+        phi_z1.resize(chans,chans);
+    }
 
     double operator()(Eigen::VectorXd const & x, Eigen::VectorXd * grad) const {
         size_t nchans = data_.rows();
@@ -39,16 +46,21 @@ public:
         std::memcpy(W.data(), x.data(),sizeof(ScalarType)*nchans*nchans);
         std::memcpy(b.data(), x.data()+nchans*nchans, sizeof(ScalarType)*nchans);
 
-        DataMatrixType z1 = W*data_;
-        DataMatrixType z2 = z1; z2.colwise()+=b;
+        z1 = W*data_;
+        z2 = z1;
+        z2.colwise()+=b;
 
         Eigen::VectorXd alpha(nchans);
 
         for(unsigned int i = 0 ; i < nchans ; ++i){
             ScalarType m2 = 0, m4 = 0;
-            for(unsigned int j = 0; j < nframes ; ++j){
-                m2 += std::pow(z2(i,j),2);
-                m4 += std::pow(z2(i,j),4);
+            for(unsigned int j = 0; j < nframes ; j+=2){
+                double val0 = z2(i,j);
+                double val1 = z2(i,j+1);
+                m2 += std::pow(val0,2);
+                m2 += std::pow(val1,2);
+                m4 += std::pow(val0,4);
+                m4 += std::pow(val1,4);
             }
             m2 = std::pow(1/cnframes*m2,2);
             m4 = 1/cnframes*m4;
@@ -61,16 +73,19 @@ public:
         for(unsigned int i = 0 ; i < nchans ; ++i){
             double current = 0;
             double a = alpha[i];
-            for(unsigned int j = 0; j < nframes ; ++j){
-                current -= std::pow(std::fabs(z2(i,j)),(int)a);
+            for(unsigned int j = 0; j < nframes ; j+=2){
+                double val0 = z2(i,j);
+                double val1 = z2(i,j+1);
+                current += std::pow(std::fabs(val0),(int)a);
+                current += std::pow(std::fabs(val1),(int)a);
             }
-            means_logp[i] = 1/cnframes*current + std::log(a) - std::log(2) - lgamma(1/a);
+            means_logp[i] = -1/cnframes*current + std::log(a) - std::log(2) - lgamma(1/a);
         }
 
         double detweights = W.determinant();
         double H = std::log(std::abs(detweights)) + means_logp.sum();
         if(grad){
-            DataMatrixType phi(nchans,nframes);
+
 
             for(unsigned int i = 0 ; i < nchans ; ++i){
                 for(unsigned int j = 0 ; j < nframes ; ++j){
@@ -79,7 +94,7 @@ public:
                     phi(i,j) = a*std::pow(std::abs(z),(int)(a-1))*sgn(z);
                 }
             }
-            DataMatrixType phi_z1 = phi*z1.transpose();
+            phi_z1 = phi*z1.transpose();
             Eigen::VectorXd dbias = phi.rowwise().mean();
             DataMatrixType dweights(nchans, nchans);
             dweights = (DataMatrixType::Identity(nchans,nchans) - 1/cnframes*phi_z1);
@@ -93,6 +108,10 @@ public:
 
 private:
     DataMatrixType const & data_;
+    mutable DataMatrixType z1;
+    mutable DataMatrixType z2;
+    mutable DataMatrixType phi;
+    mutable DataMatrixType phi_z1;
 };
 
 

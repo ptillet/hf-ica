@@ -31,7 +31,10 @@ drawnow;
 tic
 independent = linear_parica(data);
 toc
-plot(independent)
+%tic
+%[W, Sphere] = binica(data,'extended',1);
+%independent = W*Sphere*data;
+%toc
 hold on;
 for i=1:numdim
 subplot(4,numdim,numdim*2+i);

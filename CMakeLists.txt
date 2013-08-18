@@ -22,14 +22,14 @@ add_custom_target( QtCreatorCompatibility SOURCES ${QtCreatorCompatibility_SRC} 
 set(SRC_PATH "${PROJECT_SOURCE_DIR}/src")
 set(SRC ${SRC_PATH}/linear_ica.cpp)
 add_library(clica ${SRC})
-set_target_properties(clica PROPERTIES COMPILE_FLAGS "-fPIC")
+set_target_properties(clica PROPERTIES COMPILE_FLAGS "-fPIC -DEIGEN_DONT_PARALLELIZE")
 
-#OpenMP
-#find_package(OpenMP)
-#if (OPENMP_FOUND)
-#    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-#    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-#endif()
+##OpenMP
+find_package(OpenMP)
+if (OPENMP_FOUND)
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
 
 add_subdirectory(examples)
 add_subdirectory(matlab)
