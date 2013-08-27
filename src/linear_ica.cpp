@@ -14,7 +14,11 @@
 #include "result_of.hpp"
 #include "Eigen/Dense"
 
+#include "utils.hpp"
+
 #include "tests/benchmark-utils.hpp"
+
+#include "cblas.h"
 
 namespace parica{
 
@@ -22,17 +26,24 @@ template<class ScalarType>
 struct ica_functor{
 private:
     typedef typename result_of::data_storage<ScalarType>::type DataMatrixType;
+    static const int alpha_sub = 4;
+    static const int alpha_super = 1;
 private:
-    template <typename T> int sgn(T val) const {
-        return (T(0) < val) - (val < T(0));
+    template <typename T>
+    inline int sgn(T val) const {
+        return (val>0)?1:-1;
     }
 public:
-    ica_functor(DataMatrixType const & data) : data_(data){
-        std::size_t chans = data.rows();
-        std::size_t frames = data.cols();
-        z1.resize(chans,frames);
-        phi.resize(chans,frames);
-        phi_z1.resize(chans,chans);
+    ica_functor(DataMatrixType const & data) : data_(data), nchans_(data.rows()), nframes_(data.cols()){
+        z1.resize(nchans_,nframes_);
+        phi.resize(nchans_,nframes_);
+        phi_z1.resize(nchans_,nchans_);
+        dweights.resize(nchans_,nchans_);
+        dbias.resize(nchans_);
+        W.resize(nchans_,nchans_);
+        b_.resize(nchans_);
+        alpha.resize(nchans_);
+        means_logp.resize(nchans_);
     }
 
     double operator()(Eigen::VectorXd const & x, Eigen::VectorXd * grad) const {
@@ -40,74 +51,80 @@ public:
 
         size_t nchans = data_.rows();
         size_t nframes = data_.cols();
-        ScalarType cnframes = nframes;
-
-        typename result_of::weights<ScalarType>::type W(nchans,nchans);
-        Eigen::VectorXd b(nchans);
+        ScalarType casted_nframes = nframes;
 
         //Rerolls the variables into the appropriates datastructures
         std::memcpy(W.data(), x.data(),sizeof(ScalarType)*nchans*nchans);
-        std::memcpy(b.data(), x.data()+nchans*nchans, sizeof(ScalarType)*nchans);
-
-        z1 = W*data_;
-        Eigen::VectorXd alpha(nchans);
-        Eigen::VectorXd means_logp(nchans);
+        std::memcpy(b_.data(), x.data()+nchans*nchans, sizeof(ScalarType)*nchans);
+        cblas_dgemm(CblasRowMajor,CblasNoTrans,CblasNoTrans
+                   ,nchans,nframes,nchans,1,W.data(),nchans,data_.data(),nframes,0,z1.data(),nframes);
 
         for(unsigned int i = 0 ; i < nchans ; ++i){
             ScalarType m2 = 0, m4 = 0;
+            double b = b_(i);
             for(unsigned int j = 0; j < nframes ; j++){
-                double val = z1(i,j) + b(i);
+                double val = z1(i,j) + b;
                 m2 += std::pow(val,2);
                 m4 += std::pow(val,4);
             }
-            m2 = std::pow(1/cnframes*m2,2);
-            m4 = 1/cnframes*m4;
+            m2 = std::pow(1/casted_nframes*m2,2);
+            m4 = 1/casted_nframes*m4;
             double kurt = m4/m2 - 3;
-            alpha(i) = 4*(kurt<0) + 1*(kurt>=0);
+            alpha(i) = alpha_sub*(kurt<0) + alpha_super*(kurt>=0);
         }
 
 
         for(unsigned int i = 0 ; i < nchans ; ++i){
             double current = 0;
             double a = alpha[i];
+            double b = b_(i);
             for(unsigned int j = 0; j < nframes ; j++){
-                double val = z1(i,j) + b(i);
-                current += std::pow(std::fabs(val),(int)a);
+                double val = z1(i,j) + b;
+                double fabs_val = std::fabs(val);
+                current += (a==alpha_sub)?compile_time_pow<alpha_sub>()(fabs_val):compile_time_pow<alpha_super>()(fabs_val);
             }
-            means_logp[i] = -1/cnframes*current + std::log(a) - std::log(2) - lgamma(1/a);
+            means_logp[i] = -1/casted_nframes*current + std::log(a) - std::log(2) - lgamma(1/a);
         }
 
         double detweights = W.determinant();
         double H = std::log(std::abs(detweights)) + means_logp.sum();
 
         if(grad){
-
             for(unsigned int i = 0 ; i < nchans ; ++i){
                 double a = alpha(i);
+                double b = b_(i);
                 for(unsigned int j = 0 ; j < nframes ; ++j){
-                    double val = z1(i,j) + b(i);
-                    phi(i,j) = a*std::pow(std::abs(val),int(a-1))*sgn(val);
+                    double val = z1(i,j) + b;
+                    double fabs_val = std::fabs(val);
+                    double fabs_val_pow = (a==alpha_sub)?compile_time_pow<alpha_sub-1>()(fabs_val):compile_time_pow<alpha_super-1>()(fabs_val);
+                    phi(i,j) = a*fabs_val_pow*sgn(val);
                 }
             }
             t.start();
-            phi_z1 = phi*z1.transpose();
-            Eigen::VectorXd dbias = phi.rowwise().mean();
-            DataMatrixType dweights(nchans, nchans);
-            dweights = (DataMatrixType::Identity(nchans,nchans) - 1/cnframes*phi_z1);
+            cblas_dgemm(CblasRowMajor, CblasNoTrans,CblasTrans
+                       ,nchans,nchans,nframes,1,phi.data(),nframes,z1.data(),nframes,0,phi_z1.data(),nchans);
+            dbias = phi.rowwise().mean();
+            dweights = (DataMatrixType::Identity(nchans,nchans) - 1/casted_nframes*phi_z1);
             dweights = -dweights*W.transpose().inverse();
             std::memcpy(grad->data(), dweights.data(),sizeof(ScalarType)*nchans*nchans);
             std::memcpy(grad->data()+nchans*nchans, dbias.data(), sizeof(ScalarType)*nchans);
         }
-
-
         return -H;
     }
 
 private:
     DataMatrixType const & data_;
+    std::size_t nchans_;
+    std::size_t nframes_;
     mutable DataMatrixType z1;
     mutable DataMatrixType phi;
     mutable DataMatrixType phi_z1;
+    mutable DataMatrixType dweights;
+    mutable Eigen::VectorXd dbias;
+    mutable typename result_of::weights<ScalarType>::type W;
+    mutable Eigen::VectorXd b_;
+    mutable Eigen::VectorXd alpha;
+    mutable Eigen::VectorXd means_logp;
 };
 
 

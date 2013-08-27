@@ -13,7 +13,7 @@
 #include "tests/benchmark-utils.hpp"
 #include <cstdlib>
 
-#define BENCHMARK_COUNT 1
+#define BENCHMARK_COUNT 5
 
 typedef double NumericT;
 typedef Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic,Eigen::ColMajor> MatType;
@@ -37,7 +37,7 @@ int main(){
     MatType data = mixing*c_src;
     MatType independent_components(C,N);
     fmincl::optimization_options options = parica::make_default_options();
-    options.verbosity_level = 2;
+    options.verbosity_level = 0;
     Timer t;
     t.start();
     for(unsigned int i = 0 ; i < BENCHMARK_COUNT ; ++i)

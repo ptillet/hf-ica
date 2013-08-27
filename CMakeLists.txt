@@ -23,6 +23,7 @@ set(SRC_PATH "${PROJECT_SOURCE_DIR}/src")
 set(SRC ${SRC_PATH}/linear_ica.cpp)
 add_library(clica ${SRC})
 set_target_properties(clica PROPERTIES COMPILE_FLAGS "-fPIC")
+target_link_libraries(clica openblas)
 
 ##OpenMP
 find_package(OpenMP)
