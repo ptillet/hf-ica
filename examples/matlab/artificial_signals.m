@@ -1,4 +1,4 @@
-numtrainingcases=2000;
+numtrainingcases=1000;
 t = linspace(0,10,numtrainingcases);
 orig_data = [sin(500*t) + 0.2*cos(100*t) ;
                 sin(10*t).*cos(30*t)
@@ -29,7 +29,7 @@ end
 drawnow;
 
 tic
-independent = linear_parica(data,struct('verbosityLevel',1));
+independent = linear_parica(data,struct('verbosityLevel',0));
 toc
 %tic
 %[W, Sphere] = binica(data,'extended',1);

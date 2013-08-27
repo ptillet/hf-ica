@@ -14,6 +14,8 @@
 #include "result_of.hpp"
 #include "Eigen/Dense"
 
+#include "tests/benchmark-utils.hpp"
+
 namespace parica{
 
 template<class ScalarType>
@@ -29,12 +31,13 @@ public:
         std::size_t chans = data.rows();
         std::size_t frames = data.cols();
         z1.resize(chans,frames);
-        z2.resize(chans,frames);
         phi.resize(chans,frames);
         phi_z1.resize(chans,chans);
     }
 
     double operator()(Eigen::VectorXd const & x, Eigen::VectorXd * grad) const {
+        Timer t;
+
         size_t nchans = data_.rows();
         size_t nframes = data_.cols();
         ScalarType cnframes = nframes;
@@ -47,16 +50,13 @@ public:
         std::memcpy(b.data(), x.data()+nchans*nchans, sizeof(ScalarType)*nchans);
 
         z1 = W*data_;
-        z2 = z1;
-        z2.colwise()+=b;
-
         Eigen::VectorXd alpha(nchans);
         Eigen::VectorXd means_logp(nchans);
 
         for(unsigned int i = 0 ; i < nchans ; ++i){
             ScalarType m2 = 0, m4 = 0;
             for(unsigned int j = 0; j < nframes ; j++){
-                double val = z2(i,j);
+                double val = z1(i,j) + b(i);
                 m2 += std::pow(val,2);
                 m4 += std::pow(val,4);
             }
@@ -71,7 +71,7 @@ public:
             double current = 0;
             double a = alpha[i];
             for(unsigned int j = 0; j < nframes ; j++){
-                double val = z2(i,j);
+                double val = z1(i,j) + b(i);
                 current += std::pow(std::fabs(val),(int)a);
             }
             means_logp[i] = -1/cnframes*current + std::log(a) - std::log(2) - lgamma(1/a);
@@ -79,16 +79,17 @@ public:
 
         double detweights = W.determinant();
         double H = std::log(std::abs(detweights)) + means_logp.sum();
-        if(grad){
 
+        if(grad){
 
             for(unsigned int i = 0 ; i < nchans ; ++i){
                 double a = alpha(i);
                 for(unsigned int j = 0 ; j < nframes ; ++j){
-                    double z = z2(i,j);
-                    phi(i,j) = a*std::pow(std::abs(z),(int)(a-1))*sgn(z);
+                    double val = z1(i,j) + b(i);
+                    phi(i,j) = a*std::pow(std::abs(val),int(a-1))*sgn(val);
                 }
             }
+            t.start();
             phi_z1 = phi*z1.transpose();
             Eigen::VectorXd dbias = phi.rowwise().mean();
             DataMatrixType dweights(nchans, nchans);
@@ -98,13 +99,13 @@ public:
             std::memcpy(grad->data()+nchans*nchans, dbias.data(), sizeof(ScalarType)*nchans);
         }
 
+
         return -H;
     }
 
 private:
     DataMatrixType const & data_;
     mutable DataMatrixType z1;
-    mutable DataMatrixType z2;
     mutable DataMatrixType phi;
     mutable DataMatrixType phi_z1;
 };

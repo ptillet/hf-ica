@@ -16,6 +16,9 @@ set(CMAKE_CXX_COMPILER "${MATLAB_MEX}")
 # probably modify their mexopts.sh so that mex uses those flags by default.
 # There is no easy way to tell mex to compile with profiling symbols, so that is
 # not done even if PROFILE is set.
+
+set(CMAKE_BUILD_TYPE "")
+
 if(DEBUG)
   set(CMAKE_CXX_FLAGS "-g")
   set(CMAKE_C_FLAGS "-g")
@@ -42,7 +45,7 @@ set(CMAKE_SHARED_MODULE_PREFIX "")
 # Set custom commands for mex compilation, because the flags are (in general)
 # odd and different.
 set(CMAKE_CXX_COMPILE_OBJECT "<CMAKE_CXX_COMPILER> -outdir <OBJECT_DIR> <FLAGS> -c <SOURCE>")
-set(CMAKE_CXX_CREATE_SHARED_MODULE "<CMAKE_CXX_COMPILER> -cxx <LINK_FLAGS> -output <TARGET> <OBJECTS> <LINK_LIBRARIES> ${OPENMP_MEX_FLAGS}")
+set(CMAKE_CXX_CREATE_SHARED_MODULE "<CMAKE_CXX_COMPILER> -cxx <LINK_FLAGS> -output <TARGET> <OBJECTS> <LINK_LIBRARIES> ${CMAKE_CXX_FLAGS} ${OPENMP_MEX_FLAGS}")
 set(CMAKE_CXX_CREATE_SHARED_LIBRARY "${CMAKE_CXX_CREATE_SHARED_MODULE}")
 
 # mex is weird because it doesn't respect the -o option, but in general it
