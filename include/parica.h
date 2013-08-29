@@ -15,14 +15,27 @@
 
 namespace parica{
 
+namespace result_of{
+
+template<class ScalarType>
+struct internal_matrix_type{
+    //We consider we have one channel per row. Storing the data in row-major ensure better cache behavior and higher bandwidth
+    //It allows for example one core to process one channel without generating too many cache conflicts
+    typedef Eigen::Matrix<ScalarType, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> type;
+};
+
+template<class ScalarType>
+struct internal_vector_type{
+    typedef Eigen::Matrix<ScalarType, Eigen::Dynamic, 1 > type;
+};
+
+
+}
 
 fmincl::optimization_options make_default_options();
 
-template<class T, class U>
-void whiten(T & data, U & out);
-
-template<class T, class U>
-void inplace_linear_ica(T & data, U & out, fmincl::optimization_options const & options = make_default_options());
+template<class DataType, class OutType>
+void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimization_options const & options = make_default_options());
 
 }
 

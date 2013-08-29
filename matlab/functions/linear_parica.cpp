@@ -125,6 +125,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
     Eigen::Map<Eigen::MatrixXd> map_data(data,size1,size2);
     Eigen::Map<Eigen::MatrixXd> map_result(result,size1,size2);
-
-    parica::inplace_linear_ica(map_data, map_result,options);
+    parica::result_of::internal_matrix_type<double>::type data_eigen = map_data;
+    parica::result_of::internal_matrix_type<double>::type result_eigen(size1,size2);
+    parica::inplace_linear_ica(data_eigen, result_eigen,options);
+    map_result = result_eigen;
 }

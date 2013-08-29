@@ -9,44 +9,45 @@
 
 #include <iostream>
 
-#include "Eigen/Dense"
 #include "Eigen/SVD"
-
-#include "result_of.hpp"
+#include "parica.h"
 
 namespace parica{
 
     namespace detail{
 
-        template<class M1, class M2>
-        static void get_sphere(M1 & Cov, M2 & Sphere){
-            Eigen::JacobiSVD<M1> svd(Cov, Eigen::ComputeThinU | Eigen::ComputeThinV);
-            Eigen::VectorXd svals = svd.singularValues();
+        template<class ScalarType>
+        static void inv_sqrtm(typename result_of::internal_matrix_type<ScalarType>::type & in,typename result_of::internal_matrix_type<ScalarType>::type & out){
+            typedef typename result_of::internal_matrix_type<ScalarType>::type MatrixType;
+            typedef typename result_of::internal_vector_type<ScalarType>::type VectorType;
+            Eigen::JacobiSVD<MatrixType> svd(in, Eigen::ComputeThinU | Eigen::ComputeThinV);
+            VectorType svals = svd.singularValues();
             for(unsigned int i = 0 ; i < svals.size() ; ++i) svals[i] = 1/sqrt(svals[i]);
-            M1 U = svd.matrixU();
-            M1 V = U.transpose();
-            V = svals.asDiagonal()*V;
-            Sphere = U*V;
-            Sphere *= 2;
+            out = svd.matrixU()*svals.asDiagonal()*svd.matrixU().transpose();
+        }
+
+        template<class ScalarType>
+        static void get_sphere(typename result_of::internal_matrix_type<ScalarType>::type & cov,typename result_of::internal_matrix_type<ScalarType>::type & sphere){
+            inv_sqrtm<ScalarType>(cov,sphere);
+            sphere *= 2;
         }
 
     }
 
 
-    template<class T, class U>
-    void whiten(T & data, U & out){
-        typedef typename T::Scalar ScalarType;
-        typename result_of::data_storage<ScalarType>::type copy(data);
-        unsigned int nchans = data.rows();
-        unsigned int nframes = data.cols();
-        double cnframes = nframes;
-        Eigen::VectorXd means = 1/cnframes*copy.rowwise().sum();
-        copy.colwise() -= means;
-        typename result_of::weights<ScalarType>::type Cov = copy*copy.transpose();
-        Cov = 1/(cnframes-1)*Cov;
-        typename result_of::weights<ScalarType>::type Sphere(nchans,nchans);
-        detail::get_sphere(Cov, Sphere);
-        out = Sphere*data;
+    template<class ScalarType>
+    void whiten(typename result_of::internal_matrix_type<ScalarType>::type & data_copy, typename result_of::internal_matrix_type<ScalarType>::type & out){
+        typedef typename result_of::internal_matrix_type<ScalarType>::type MatrixType;
+        typedef typename result_of::internal_vector_type<ScalarType>::type VectorType;
+        unsigned int nchans = data_copy.rows();
+        unsigned int nframes = data_copy.cols();
+        VectorType means = 1/static_cast<ScalarType>(nframes)*data_copy.rowwise().sum();
+        data_copy.colwise() -= means;
+        MatrixType Cov = data_copy*data_copy.transpose();
+        Cov = 1/static_cast<ScalarType>(nframes-1)*Cov;
+        MatrixType Sphere(nchans,nchans);
+        detail::get_sphere<ScalarType>(Cov, Sphere);
+        out = Sphere*data_copy;
     }
 
 }
