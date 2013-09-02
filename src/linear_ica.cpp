@@ -47,8 +47,8 @@ public:
         means_logp.resize(nchans_);
     }
 
-    double operator()(VectorType const & x, VectorType * grad) const {
-        Timer t;
+    ScalarType operator()(VectorType const & x, VectorType * grad) const {
+        //Timer t;
 
         size_t nchans = data_.rows();
         size_t nframes = data_.cols();
@@ -57,7 +57,8 @@ public:
         //Rerolls the variables into the appropriates datastructures
         std::memcpy(W.data(), x.data(),sizeof(ScalarType)*nchans*nchans);
         std::memcpy(b_.data(), x.data()+nchans*nchans, sizeof(ScalarType)*nchans);
-        cblas_dgemm(CblasRowMajor,CblasNoTrans,CblasNoTrans,nchans,nframes,nchans,1,W.data(),nchans,data_.data(),nframes,0,z1.data(),nframes);
+        (*generic_gemm<ScalarType>::get_ptr())(CblasRowMajor,CblasNoTrans,CblasNoTrans,nchans,nframes,nchans,1,W.data(),nchans,data_.data(),nframes,0,z1.data(),nframes);
+
         for(unsigned int i = 0 ; i < nchans ; ++i){
             ScalarType m2 = 0, m4 = 0;
             ScalarType b = b_(i);
@@ -71,6 +72,7 @@ public:
             ScalarType kurt = m4/m2 - 3;
             alpha(i) = alpha_sub*(kurt<0) + alpha_super*(kurt>=0);
         }
+
 
         for(unsigned int i = 0 ; i < nchans ; ++i){
             ScalarType current = 0;
@@ -98,16 +100,13 @@ public:
                     phi(i,j) = a*fabs_val_pow*sgn(val);
                 }
             }
-            t.start();
-            cblas_dgemm(CblasRowMajor, CblasNoTrans,CblasTrans,nchans,nchans,nframes,1,phi.data(),nframes,z1.data(),nframes,0,phi_z1.data(),nchans);
+            (*generic_gemm<ScalarType>::get_ptr())(CblasRowMajor, CblasNoTrans,CblasTrans,nchans,nchans,nframes,1,phi.data(),nframes,z1.data(),nframes,0,phi_z1.data(),nchans);
             dbias = phi.rowwise().mean();
             dweights = (MatrixType::Identity(nchans,nchans) - 1/casted_nframes*phi_z1);
             dweights = -dweights*W.transpose().inverse();
             std::memcpy(grad->data(), dweights.data(),sizeof(ScalarType)*nchans*nchans);
             std::memcpy(grad->data()+nchans*nchans, dbias.data(), sizeof(ScalarType)*nchans);
         }
-
-
         return -H;
     }
 
@@ -176,7 +175,7 @@ void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimizati
 typedef result_of::internal_matrix_type<double>::type MatD;
 typedef result_of::internal_matrix_type<float>::type MatF;
 template void inplace_linear_ica<MatD,MatD>(MatD  const & data, MatD & out, fmincl::optimization_options const & options);
-//template void inplace_linear_ica<MatF,MatF>(MatF  const & data, MatF & out, fmincl::optimization_options const & options);
+template void inplace_linear_ica<MatF,MatF>(MatF  const & data, MatF & out, fmincl::optimization_options const & options);
 
 }
 
