@@ -1,5 +1,5 @@
 #ifndef PARICA_UTILS_HPP_
-#define PARICA_UTILS_HPP
+#define PARICA_UTILS_HPP_
 
 #include "cblas.h"
 

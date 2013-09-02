@@ -11,6 +11,7 @@
 
 #include "Eigen/SVD"
 #include "parica.h"
+#include "utils.hpp"
 
 namespace parica{
 
@@ -43,7 +44,8 @@ namespace parica{
         unsigned int nframes = data_copy.cols();
         VectorType means = 1/static_cast<ScalarType>(nframes)*data_copy.rowwise().sum();
         data_copy.colwise() -= means;
-        MatrixType Cov = data_copy*data_copy.transpose();
+        MatrixType Cov(nchans,nchans);
+        (*generic_gemm<ScalarType>::get_ptr())(CblasRowMajor, CblasNoTrans,CblasTrans,nchans,nchans,nframes,1,data_copy.data(),nframes,data_copy.data(),nframes,0,Cov.data(),nchans); //Cov = data_copy*trans(data_copy)
         Cov = 1/static_cast<ScalarType>(nframes-1)*Cov;
         MatrixType Sphere(nchans,nchans);
         detail::get_sphere<ScalarType>(Cov, Sphere);

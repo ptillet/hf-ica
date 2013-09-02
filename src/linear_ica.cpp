@@ -48,8 +48,6 @@ public:
     }
 
     ScalarType operator()(VectorType const & x, VectorType * grad) const {
-        //Timer t;
-
         size_t nchans = data_.rows();
         size_t nframes = data_.cols();
         ScalarType casted_nframes = nframes;
@@ -140,6 +138,7 @@ void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimizati
     typedef typename DataType::Scalar ScalarType;
     typedef typename result_of::internal_matrix_type<ScalarType>::type MatrixType;
     typedef typename result_of::internal_vector_type<ScalarType>::type VectorType;
+    Timer t;
 
     size_t nchans = data.rows();
     size_t nframes = data.cols();
@@ -166,8 +165,7 @@ void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimizati
     std::memcpy(W.data(), S.data(),sizeof(ScalarType)*nchans*nchans);
     std::memcpy(b.data(), S.data()+nchans*nchans, sizeof(ScalarType)*nchans);
 
-
-    out = W*white_data;
+    (*generic_gemm<ScalarType>::get_ptr())(CblasRowMajor,CblasNoTrans,CblasNoTrans,nchans,nframes,nchans,1,W.data(),nchans,white_data.data(),nframes,0,out.data(),nframes); //out = W*white_data;
     out.colwise() += b;
 }
 
