@@ -29,7 +29,7 @@ void fill_options(mxArray* options_mx, fmincl::optimization_options & options){
 
         //Quasi-Newton
         if(are_string_equal(direction_name,"qn")){
-            fmincl::quasi_newton * direction = new fmincl::quasi_newton();
+            fmincl::quasi_newton_tag * direction = new fmincl::quasi_newton_tag();
 
             //Quasi-Newton Update overriden
             if(mxArray * qn_update = mxGetField(options_mx,0,"qnUpdate")){
@@ -37,18 +37,18 @@ void fill_options(mxArray* options_mx, fmincl::optimization_options & options){
 
                 //"LBFGS"
                 if(are_string_equal(qn_update_name,"lbfgs")){
-                    fmincl::lbfgs * lbfgs = new fmincl::lbfgs();
+                    fmincl::lbfgs_tag * lbfgs = new fmincl::lbfgs_tag();
                     //Set LBFGS memory
                     if(mxArray * lbfgs_memory = mxGetField(options_mx,0,"lbfgsMemory")){
-                        lbfgs->m(mxGetScalar(lbfgs_memory));
+                        lbfgs->m = mxGetScalar(lbfgs_memory);
                     }
-                    direction->update(lbfgs);
+                    direction->update = lbfgs;
                 }
 
                 //"BFGS"
                 else if(are_string_equal(qn_update_name,"bfgs")){
-                    fmincl::qn_update * bfgs = new fmincl::bfgs();
-                    direction->update(bfgs);
+                    fmincl::qn_update_tag * bfgs = new fmincl::bfgs_tag();
+                    direction->update = bfgs;
                 }
 
                 //"Invalid"
@@ -61,14 +61,14 @@ void fill_options(mxArray* options_mx, fmincl::optimization_options & options){
 
         //Conjugate Gradients
         else if(are_string_equal(direction_name,"cg")){
-            fmincl::cg * direction = new fmincl::cg();
+            fmincl::cg_tag * direction = new fmincl::cg_tag();
 
             //CG Update overriden
             if(mxArray * cg_update = mxGetField(options_mx,0,"cgUpdate")){
                 char * cg_update_name = mxArrayToString(cg_update);
 
                 if(are_string_equal(cg_update_name,"PolakRibiere"))
-                    direction->update(new fmincl::polak_ribiere());
+                    direction->update = new fmincl::polak_ribiere_tag();
 
                 else
                     mexErrMsgIdAndTxt( "parica:invalidCgUpdate",
@@ -80,7 +80,7 @@ void fill_options(mxArray* options_mx, fmincl::optimization_options & options){
                 char * cg_restart_name = mxArrayToString(cg_restart);
 
                 if(are_string_equal(cg_restart_name,"noRestart"))
-                    direction->restart(new fmincl::no_restart());
+                    direction->restart = new fmincl::no_restart_tag();
 
                 else
                     mexErrMsgIdAndTxt( "parica:invalidCgRestart",

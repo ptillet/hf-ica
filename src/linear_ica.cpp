@@ -129,7 +129,7 @@ private:
 
 fmincl::optimization_options make_default_options(){
     fmincl::optimization_options options;
-    options.direction = new fmincl::quasi_newton();
+    options.direction = new fmincl::quasi_newton_tag();
     options.max_iter = 100;
     options.verbosity_level = 0;
     return options;
@@ -161,7 +161,7 @@ void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimizati
 
     ica_functor<ScalarType> fun(white_data);
 //    fmincl::utils::check_grad(fun,X);
-    VectorType S =  fmincl::minimize(fun,X, options);
+    VectorType S =  fmincl::minimize<fmincl::backend::EigenTypes<ScalarType> >(fun,X, options);
 
     //Copies into datastructures
     std::memcpy(W.data(), S.data(),sizeof(ScalarType)*nchans*nchans);
@@ -174,11 +174,9 @@ void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimizati
 
 
 typedef result_of::internal_matrix_type<double>::type MatD;
+typedef result_of::internal_matrix_type<float>::type MatF;
 template void inplace_linear_ica<MatD,MatD>(MatD  const & data, MatD & out, fmincl::optimization_options const & options);
-
-//Double row-major
-//template void inplace_linear_ica<double>(result_of::internal_matrix_type<double>::type const &, result_of::internal_matrix_type<double>::type &, fmincl::optimization_options const & );
-
+//template void inplace_linear_ica<MatF,MatF>(MatF  const & data, MatF & out, fmincl::optimization_options const & options);
 
 }
 
