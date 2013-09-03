@@ -12,15 +12,27 @@ inline bool are_string_equal(const char * a, const char * b){
     return std::strcmp(a,b)==0;
 }
 
-void fill_options(mxArray* options_mx, fmincl::optimization_options & options){
+struct parica_options_type{
+    bool use_float;
+    fmincl::optimization_options optimization;
+};
+
+
+void fill_options(mxArray* options_mx, parica_options_type & options){
 
     /*-Max Iter-*/
+    if(mxArray * use_float = mxGetField(options_mx,0, "useFloat")){
+        options.use_float = static_cast<bool>(mxGetScalar(use_float));
+    }
+
+    fmincl::optimization_options & optimization = options.optimization;
+    /*-Max Iter-*/
     if(mxArray * max_iter = mxGetField(options_mx,0, "maxIter"))
-        options.max_iter = mxGetScalar(max_iter);
+        optimization.max_iter = mxGetScalar(max_iter);
 
     /*-Verbosity Level-*/
     if(mxArray * verbosity_level = mxGetField(options_mx,0, "verbosityLevel")){
-        options.verbosity_level = mxGetScalar(verbosity_level);
+        optimization.verbosity_level = mxGetScalar(verbosity_level);
     }
 
     /*-Direction-*/
@@ -56,7 +68,7 @@ void fill_options(mxArray* options_mx, fmincl::optimization_options & options){
                     mexErrMsgIdAndTxt( "parica:invalidQnUpdate",
                                        "Please specify a valid qnUpdate. Supported for now : \n \"lbfgs\", \"bfgs\" ");
             }
-            options.direction = direction;
+            optimization.direction = direction;
         }
 
         //Conjugate Gradients
@@ -87,7 +99,7 @@ void fill_options(mxArray* options_mx, fmincl::optimization_options & options){
                                        "Please specify a valid cgRestart. Supported for now : \n \"noRestart\" ");
             }
 
-            options.direction = direction;
+            optimization.direction = direction;
         }
     }
 }
@@ -95,7 +107,12 @@ void fill_options(mxArray* options_mx, fmincl::optimization_options & options){
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
-    fmincl::optimization_options options = parica::make_default_options();
+    parica_options_type options;
+    //Set default
+    options.use_float = true;
+    options.optimization = parica::make_default_options();
+
+
     if(nrhs>2)
         mexErrMsgIdAndTxt( "parica:invalidNumInputs",
                            "Invalid input arguments : independent_components = linear_parica(data [, options])");
@@ -125,8 +142,16 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
     Eigen::Map<Eigen::MatrixXd> map_data(data,size1,size2);
     Eigen::Map<Eigen::MatrixXd> map_result(result,size1,size2);
-    parica::result_of::internal_matrix_type<double>::type data_eigen = map_data;
-    parica::result_of::internal_matrix_type<double>::type result_eigen(size1,size2);
-    parica::inplace_linear_ica(data_eigen, result_eigen,options);
-    map_result = result_eigen;
+    if(options.use_float){
+        parica::result_of::internal_matrix_type<float>::type data_eigen = map_data.cast<float>();
+        parica::result_of::internal_matrix_type<float>::type result_eigen(size1,size2);
+        parica::inplace_linear_ica(data_eigen, result_eigen,options.optimization);
+        map_result = result_eigen.cast<double>();
+    }
+    else{
+        parica::result_of::internal_matrix_type<double>::type data_eigen = map_data;
+        parica::result_of::internal_matrix_type<double>::type result_eigen(size1,size2);
+        parica::inplace_linear_ica(data_eigen, result_eigen,options.optimization);
+        map_result = result_eigen;
+    }
 }

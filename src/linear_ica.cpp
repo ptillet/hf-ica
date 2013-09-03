@@ -52,6 +52,9 @@ public:
         size_t nframes = data_.cols();
         ScalarType casted_nframes = nframes;
 
+        //Timer t;
+        //t.start();
+
         //Rerolls the variables into the appropriates datastructures
         std::memcpy(W.data(), x.data(),sizeof(ScalarType)*nchans*nchans);
         std::memcpy(b_.data(), x.data()+nchans*nchans, sizeof(ScalarType)*nchans);
@@ -138,7 +141,6 @@ void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimizati
     typedef typename DataType::Scalar ScalarType;
     typedef typename result_of::internal_matrix_type<ScalarType>::type MatrixType;
     typedef typename result_of::internal_vector_type<ScalarType>::type VectorType;
-    Timer t;
 
     size_t nchans = data.rows();
     size_t nframes = data.cols();
@@ -153,6 +155,7 @@ void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimizati
     for(unsigned int i = 0 ; i < nchans; ++i) X[i*(nchans+1)] = 1;
     for(unsigned int i = nchans*nchans ; i < nchans*(nchans+1) ; ++i) X[i] = 0;
 
+
     //Whiten Data
     MatrixType white_data(nchans, nframes);
     whiten<ScalarType>(data_copy,white_data);
@@ -160,6 +163,7 @@ void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimizati
     ica_functor<ScalarType> fun(white_data);
 //    fmincl::utils::check_grad(fun,X);
     VectorType S =  fmincl::minimize<fmincl::backend::EigenTypes<ScalarType> >(fun,X, options);
+
 
     //Copies into datastructures
     std::memcpy(W.data(), S.data(),sizeof(ScalarType)*nchans*nchans);
