@@ -52,13 +52,12 @@ public:
         size_t nframes = data_.cols();
         ScalarType casted_nframes = nframes;
 
-        //Timer t;
-        //t.start();
 
         //Rerolls the variables into the appropriates datastructures
         std::memcpy(W.data(), x.data(),sizeof(ScalarType)*nchans*nchans);
         std::memcpy(b_.data(), x.data()+nchans*nchans, sizeof(ScalarType)*nchans);
-        (*generic_gemm<ScalarType>::get_ptr())(CblasRowMajor,CblasNoTrans,CblasNoTrans,nchans,nframes,nchans,1,W.data(),nchans,data_.data(),nframes,0,z1.data(),nframes);
+        gemm(1,W,data_,0,z1);
+
 
         for(unsigned int i = 0 ; i < nchans ; ++i){
             ScalarType m2 = 0, m4 = 0;
@@ -73,7 +72,6 @@ public:
             ScalarType kurt = m4/m2 - 3;
             alpha(i) = alpha_sub*(kurt<0) + alpha_super*(kurt>=0);
         }
-
 
         for(unsigned int i = 0 ; i < nchans ; ++i){
             ScalarType current = 0;
@@ -101,13 +99,18 @@ public:
                     phi(i,j) = a*fabs_val_pow*sgn(val);
                 }
             }
-            (*generic_gemm<ScalarType>::get_ptr())(CblasRowMajor, CblasNoTrans,CblasTrans,nchans,nchans,nframes,1,phi.data(),nframes,z1.data(),nframes,0,phi_z1.data(),nchans);
+            gemm(1,phi,z1.transpose(),0,phi_z1);
             dbias = phi.rowwise().mean();
             dweights = (MatrixType::Identity(nchans,nchans) - 1/casted_nframes*phi_z1);
-            dweights = -dweights*W.transpose().inverse();
+            MatrixType dweights_copy = dweights;
+            MatrixType Winv = W;
+            inplace_inverse(Winv);
+            gemm(1,dweights_copy,Winv.transpose(),0,dweights);
+            dweights = -dweights;
             std::memcpy(grad->data(), dweights.data(),sizeof(ScalarType)*nchans*nchans);
             std::memcpy(grad->data()+nchans*nchans, dbias.data(), sizeof(ScalarType)*nchans);
         }
+
         return -H;
     }
 
