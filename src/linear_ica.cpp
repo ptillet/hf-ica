@@ -57,9 +57,14 @@ public:
         //Rerolls the variables into the appropriates datastructures
         std::memcpy(W.data(), x.data(),sizeof(ScalarType)*nchans*nchans);
         std::memcpy(b_.data(), x.data()+nchans*nchans, sizeof(ScalarType)*nchans);
+
+        //z1 = W*data_;
         gemm(1,W,data_,0,z1);
 
 
+        //z2 = z1 + b(:, ones(nframes,1));
+        //kurt = (mean(z2.^2,2).^2) ./ mean(z2.^4,2) - 3
+        //alpha = alpha_sub*(kurt<0) + alpha_super*(kurt>0)
         for(unsigned int i = 0 ; i < nchans ; ++i){
             ScalarType m2 = 0, m4 = 0;
             ScalarType b = b_(i);
@@ -74,6 +79,8 @@ public:
             alpha(i) = alpha_sub*(kurt<0) + alpha_super*(kurt>=0);
         }
 
+        //mata = a(:,ones(nframes,1));
+        //logp = log(mata) - log(2) - gammaln(1./mata) - abs(z2).^mata;
         for(unsigned int i = 0 ; i < nchans ; ++i){
             ScalarType current = 0;
             ScalarType a = alpha[i];
@@ -85,11 +92,12 @@ public:
             }
             means_logp[i] = -1/casted_nframes*current + std::log(a) - std::log(2) - lgamma(1/a);
         }
-
-        ScalarType detweights = W.determinant();
-        ScalarType H = std::log(std::abs(detweights)) + means_logp.sum();
+        //H = log(abs(det(w))) + sum(means_logp);
+        ScalarType H = std::log(std::abs(W.determinant())) + means_logp.sum();
 
         if(grad){
+
+            //phi = mean(mata.*abs(z2).^(mata-1).*sign(z2),2);
             for(unsigned int i = 0 ; i < nchans ; ++i){
                 ScalarType a = alpha(i);
                 ScalarType b = b_(i);
@@ -100,14 +108,19 @@ public:
                     phi(i,j) = a*fabs_val_pow*sgn(val);
                 }
             }
-            gemm(1,phi,z1.transpose(),0,phi_z1);
+
+            //dbias = mean(phi,2)
             dbias = phi.rowwise().mean();
-            dweights = (MatrixType::Identity(nchans,nchans) - 1/casted_nframes*phi_z1);
-            MatrixType dweights_copy = dweights;
+
+            //dweights = -(eye(N) - 1/n*phi*z1')*inv(W')
+            gemm(1,phi,z1.transpose(),0,phi_z1);
+            MatrixType dweights_copy = (MatrixType::Identity(nchans,nchans) - 1/casted_nframes*phi_z1);
             MatrixType Winv = W;
             inplace_inverse(Winv);
             gemm(1,dweights_copy,Winv.transpose(),0,dweights);
             dweights = -dweights;
+
+            //Copy back
             std::memcpy(grad->data(), dweights.data(),sizeof(ScalarType)*nchans*nchans);
             std::memcpy(grad->data()+nchans*nchans, dbias.data(), sizeof(ScalarType)*nchans);
         }
@@ -173,7 +186,7 @@ void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimizati
     std::memcpy(W.data(), S.data(),sizeof(ScalarType)*nchans*nchans);
     std::memcpy(b.data(), S.data()+nchans*nchans, sizeof(ScalarType)*nchans);
 
-    (*generic_gemm<ScalarType>::get_ptr())(CblasRowMajor,CblasNoTrans,CblasNoTrans,nchans,nframes,nchans,1,W.data(),nchans,white_data.data(),nframes,0,out.data(),nframes); //out = W*white_data;
+    gemm(1,W,white_data,0,out);
     out.colwise() += b;
 }
 
