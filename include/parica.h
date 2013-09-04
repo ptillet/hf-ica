@@ -10,8 +10,8 @@
  * License : MIT X11 - See the LICENSE file in the root folder
  * ===========================*/
 
-#define FMINCL_WITH_EIGEN
 #include "fmincl/optimization_otions.hpp"
+#include "Eigen/Dense"
 
 namespace parica{
 

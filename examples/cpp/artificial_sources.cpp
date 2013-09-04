@@ -15,10 +15,10 @@
 
 #define BENCHMARK_COUNT 1
 
-typedef double NumericT;
+typedef float NumericT;
 typedef Eigen::Matrix<NumericT, Eigen::Dynamic, Eigen::Dynamic,Eigen::RowMajor> MatType;
-static const unsigned int C=128;
-static const unsigned int N=18000;
+static const unsigned int C=4;
+static const unsigned int N=1000;
 static const unsigned int T=20;
 
 int main(){

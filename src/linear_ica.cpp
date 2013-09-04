@@ -9,6 +9,7 @@
 
 #define FMINCL_WITH_EIGEN
 #include "fmincl/minimize.hpp"
+#include "fmincl/backends/eigen.hpp"
 
 #include "whiten.hpp"
 #include "parica.h"
