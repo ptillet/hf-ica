@@ -8,7 +8,6 @@ namespace parica{
 
     namespace detail{
 
-
         template<int N>
         struct compile_time_pow{
             template<class ScalarType>
