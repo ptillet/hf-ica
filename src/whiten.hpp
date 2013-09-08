@@ -41,18 +41,29 @@ namespace parica{
             delete[] UD;
         }
 
-    }
-
-    template<class ScalarType>
-    void normalize(ScalarType* data, std::size_t C, std::size_t N){
-        for(std::size_t i = 0 ; i < C ;++i){
-            ScalarType sum = 0;
-            for(std::size_t j = 0 ; j < N ; ++j)
-                sum += data[i*N+j];
-            ScalarType mean = sum/(ScalarType)N;
-            for(std::size_t j = 0 ; j < N ; ++j)
-                data[i*N+j] -= mean;
+        template<class ScalarType>
+        void mean(ScalarType* A, std::size_t C, std::size_t N, ScalarType* x){
+            for(std::size_t i = 0 ; i < C ;++i){
+                ScalarType sum = 0;
+                for(std::size_t j = 0 ; j < N ; ++j)
+                    sum += A[i*N+j];
+                x[i] = sum/(ScalarType)N;
+            }
         }
+
+
+        template<class ScalarType>
+        void normalize(ScalarType* A, std::size_t C, std::size_t N){
+            ScalarType * x = new ScalarType[C];
+
+            mean(A,C,N,x);
+            for(std::size_t i = 0 ; i < C ;++i)
+                for(std::size_t j = 0 ; j < N ; ++j)
+                    A[i*N+j] -= x[i];
+
+            delete[] x;
+        }
+
     }
 
 
@@ -62,7 +73,7 @@ namespace parica{
         ScalarType * Sphere = new ScalarType[nchans*nchans];
 
         //data_copy -= mean(data_copy,2);
-        normalize(data_copy,nchans,nframes);
+        detail::normalize(data_copy,nchans,nframes);
         //Cov = 1/(N-1)*data_copy*data_copy.transpose()
         ScalarType alpha = (ScalarType)(1)/(nframes-1);
         blas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasTrans,nchans,nchans,nframes,alpha,data_copy,nframes,data_copy,nframes,0,Cov,nchans);

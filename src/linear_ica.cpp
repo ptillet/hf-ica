@@ -63,9 +63,9 @@ public:
         std::memcpy(W.data(), x.data(),sizeof(ScalarType)*nchans*nchans);
         std::memcpy(b_.data(), x.data()+nchans*nchans, sizeof(ScalarType)*nchans);
         MatrixType WLU = W;
+
         //z1 = W*data_;
-        blas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasNoTrans,nchans,nframes,nchans
-                                          ,1,W.data(),nchans,data_.data(),nframes,0,z1.data(),nframes);
+        blas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasNoTrans,nchans,nframes,nchans,1,W.data(),nchans,data_.data(),nframes,0,z1.data(),nframes);
 
 
         //z2 = z1 + b(:, ones(nframes,1));
@@ -101,15 +101,18 @@ public:
         }
 
         //H = log(abs(det(w))) + sum(means_logp);
+
         //LU Decomposition
         blas_backend<ScalarType>::getrf(LAPACK_ROW_MAJOR,nchans,nchans,WLU.data(),nchans,ipiv_);
 
+        //det = prod(diag(WLU))
         ScalarType absdet = 1;
         for(std::size_t i = 0 ; i < nchans ; ++i)
             absdet*=std::abs(WLU(i,i));
 
-        ScalarType H = std::log(absdet) + means_logp.sum();
-
+        ScalarType H = std::log(absdet);
+        for(std::size_t i = 0; i < nchans ; ++i)
+            H+=means_logp[i];
 
         if(grad){
 
@@ -126,16 +129,19 @@ public:
             }
 
             //dbias = mean(phi,2)
-            dbias = phi.rowwise().mean();
+            detail::mean(phi.data(),nchans,nframes,dbias.data());
 
-            //dweights = -(eye(N) - 1/n*phi*z1')*inv(W)'
-            blas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasTrans,nchans,nchans,nframes
-                                              ,1,phi.data(),nframes,z1.data(),nframes,0,phi_z1t.data(),nchans);
+            /*dweights = -(eye(N) - 1/n*phi*z1')*inv(W)'*/
+
+            //WLU = inv(W)
             blas_backend<ScalarType>::getri(LAPACK_ROW_MAJOR,nchans,WLU.data(),nchans,ipiv_);
 
+            //lhs = I(N,N) - 1/N*phi*z1')
+            blas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasTrans,nchans,nchans,nframes ,1,phi.data(),nframes,z1.data(),nframes,0,phi_z1t.data(),nchans);
             MatrixType lhs = (MatrixType::Identity(nchans,nchans) - 1/casted_nframes*phi_z1t);
-            blas_backend<ScalarType>::gemm(CblasRowMajor, CblasNoTrans,CblasTrans,nchans,nchans,nchans
-                                              ,-1,lhs.data(),nchans,WLU.data(),nchans,0,dweights.data(),nchans);
+
+            //dweights = -lhs*Winv'
+            blas_backend<ScalarType>::gemm(CblasRowMajor, CblasNoTrans,CblasTrans,nchans,nchans,nchans,-1,lhs.data(),nchans,WLU.data(),nchans,0,dweights.data(),nchans);
 
             //Copy back
             std::memcpy(grad->data(), dweights.data(),sizeof(ScalarType)*nchans*nchans);
@@ -190,6 +196,7 @@ void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimizati
     std::size_t N = nchans*nchans + nchans;
 
     //Optimization Vector
+
     //Solution vector
     VectorType S(N);
     //Initial guess
@@ -211,8 +218,7 @@ void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimizati
     std::memcpy(b.data(), S.data()+nchans*nchans, sizeof(ScalarType)*nchans);
 
     //out = W*white_data;
-    blas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasNoTrans,nchans,nframes,nchans
-                                      ,1,W.data(),nchans,white_data.data(),nframes,0,out.data(),nframes);
+    blas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasNoTrans,nchans,nframes,nchans,1,W.data(),nchans,white_data.data(),nframes,0,out.data(),nframes);
     out.colwise() += b;
 }
 
