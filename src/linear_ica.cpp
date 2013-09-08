@@ -187,41 +187,55 @@ void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimizati
 
     size_t nchans = data.rows();
     size_t nframes = data.cols();
-
-    MatrixType data_copy(data);
-
-    MatrixType W(nchans,nchans);
-    VectorType b(nchans);
-
     std::size_t N = nchans*nchans + nchans;
+
+    ScalarType * data_copy = new ScalarType[nchans*nframes];
+    ScalarType * W = new ScalarType[nchans*nchans];
+    ScalarType * b = new ScalarType[nchans];
+    ScalarType * S = new ScalarType[N];
+    ScalarType * X = new ScalarType[N]; std::memset(X,0,N);
+    ScalarType * white_data = new ScalarType[nchans*nframes];
+
+    std::memcpy(data_copy,data.data(),nchans*nframes*sizeof(ScalarType));
 
     //Optimization Vector
 
     //Solution vector
-    VectorType S(N);
     //Initial guess
-    VectorType X = VectorType::Zero(N);
-    for(unsigned int i = 0 ; i < nchans; ++i) X[i*(nchans+1)] = 1;
-    for(unsigned int i = nchans*nchans ; i < nchans*(nchans+1) ; ++i) X[i] = 0;
+    for(unsigned int i = 0 ; i < nchans; ++i)
+        X[i*(nchans+1)] = 1;
+    for(unsigned int i = nchans*nchans ; i < nchans*(nchans+1) ; ++i)
+        X[i] = 0;
 
     //Whiten Data
-    MatrixType white_data(nchans, nframes);
-    whiten<ScalarType>(nchans, nframes, data_copy.data(),white_data.data());
+    whiten<ScalarType>(nchans, nframes, data_copy,white_data);
 
-    ica_functor<ScalarType> fun(white_data.data(),nchans,nframes);
+    ica_functor<ScalarType> fun(white_data,nchans,nframes);
+
 //    fmincl::utils::check_grad(fun,X);
-    ScalarType* Sptr = S.data();
-    ScalarType* Xptr = X.data();
-    fmincl::minimize<fmincl::backend::OpenBlasTypes<ScalarType> >(Sptr,fun,Xptr,N,options);
+    fmincl::minimize<fmincl::backend::OpenBlasTypes<ScalarType> >(S,fun,X,N,options);
 
 
     //Copies into datastructures
-    std::memcpy(W.data(), S.data(),sizeof(ScalarType)*nchans*nchans);
-    std::memcpy(b.data(), S.data()+nchans*nchans, sizeof(ScalarType)*nchans);
+    std::memcpy(W, S,sizeof(ScalarType)*nchans*nchans);
+    std::memcpy(b, S+nchans*nchans, sizeof(ScalarType)*nchans);
 
     //out = W*white_data;
-    blas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasNoTrans,nchans,nframes,nchans,1,W.data(),nchans,white_data.data(),nframes,0,out.data(),nframes);
-    out.colwise() += b;
+    blas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasNoTrans,nchans,nframes,nchans,1,W,nchans,white_data,nframes,0,out.data(),nframes);
+    for(std::size_t i = 0 ; i < nchans ; ++i){
+        ScalarType val = b[i];
+        for(std::size_t j = 0 ; j < nframes ; ++j){
+            out.data()[i*nframes+j] += val;
+        }
+    }
+
+    delete[] data_copy;
+    delete[] W;
+    delete[] b;
+    delete[] S;
+    delete[] X;
+    delete[] white_data;
+
 }
 
 
