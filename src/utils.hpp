@@ -7,6 +7,11 @@ namespace parica{
 
     namespace detail{
 
+        template<class ScalarType>
+        inline ScalarType get_ij(ScalarType* A, std::size_t /*M*/, std::size_t N, std::size_t i, std::size_t j){
+            return A[i*N+j];
+        }
+
         template<int N>
         struct compile_time_pow{
             template<class ScalarType>
