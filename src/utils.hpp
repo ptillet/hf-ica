@@ -1,8 +1,7 @@
 #ifndef PARICA_UTILS_HPP_
 #define PARICA_UTILS_HPP_
 
-#include "openblas_backend.hpp"
-#include "Eigen/Dense"
+#include "blas_backend.hpp"
 
 namespace parica{
 
@@ -29,8 +28,8 @@ namespace parica{
         {
             int *ipiv = new int[N+1];
             int info;
-            info = openblas_backend<ScalarType>::getrf(order,N,N,A,N,ipiv);
-            info = openblas_backend<ScalarType>::getri(order,N,A,N,ipiv);
+            info = blas_backend<ScalarType>::getrf(order,N,N,A,N,ipiv);
+            info = blas_backend<ScalarType>::getri(order,N,A,N,ipiv);
             delete ipiv;
         }
 
