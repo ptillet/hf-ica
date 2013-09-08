@@ -202,7 +202,7 @@ void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimizati
 
     //Whiten Data
     MatrixType white_data(nchans, nframes);
-    whiten<ScalarType>(data_copy,white_data);
+    whiten<ScalarType>(nchans, nframes, data_copy.data(),white_data.data());
 
     ica_functor<ScalarType> fun(white_data);
 //    fmincl::utils::check_grad(fun,X);
