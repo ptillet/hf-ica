@@ -23,7 +23,8 @@ namespace parica{
             typedef typename result_of::internal_vector_type<ScalarType>::type VectorType;
             Eigen::JacobiSVD<MatrixType> svd(in, Eigen::ComputeThinU | Eigen::ComputeThinV);
             VectorType svals = svd.singularValues();
-            for(unsigned int i = 0 ; i < svals.size() ; ++i) svals[i] = 1/sqrt(svals[i]);
+            for(unsigned int i = 0 ; i < svals.size() ; ++i)
+                svals[i] = 1/sqrt(svals[i]);
             out = svd.matrixU()*svals.asDiagonal()*svd.matrixU().transpose();
         }
 
@@ -45,7 +46,9 @@ namespace parica{
         VectorType means = 1/static_cast<ScalarType>(nframes)*data_copy.rowwise().sum();
         data_copy.colwise() -= means;
         MatrixType Cov(nchans,nchans);
-        (*generic_gemm<ScalarType>::get_ptr())(CblasRowMajor, CblasNoTrans,CblasTrans,nchans,nchans,nframes,1,data_copy.data(),nframes,data_copy.data(),nframes,0,Cov.data(),nchans); //Cov = data_copy*trans(data_copy)
+        //Cov = data_copy*data_copy.transpose()
+        openblas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasTrans,nchans,nchans,nframes
+                                           ,1,data_copy.data(),nframes,data_copy.data(),nframes,0,Cov.data(),nchans);
         Cov = 1/static_cast<ScalarType>(nframes-1)*Cov;
         MatrixType Sphere(nchans,nchans);
         detail::get_sphere<ScalarType>(Cov, Sphere);

@@ -7,19 +7,19 @@
  * License : MIT X11 - See the LICENSE file in the root folder
  * ===========================*/
 
-#define FMINCL_WITH_EIGEN
+#include "Eigen/Dense"
+#include "Eigen/LU"
 #include "fmincl/minimize.hpp"
 #include "fmincl/backends/eigen.hpp"
 
 #include "whiten.hpp"
 #include "parica.h"
-#include "Eigen/Dense"
-
-#include "utils.hpp"
+#include "cblas.h"
 
 #include "tests/benchmark-utils.hpp"
 
-#include "cblas.h"
+#include "utils.hpp"
+
 
 namespace parica{
 
@@ -37,9 +37,11 @@ private:
     }
 public:
     ica_functor(MatrixType const & data) : data_(data), nchans_(data.rows()), nframes_(data.cols()){
+        ipiv_ =  new int[nchans_+1];
+
         z1.resize(nchans_,nframes_);
         phi.resize(nchans_,nframes_);
-        phi_z1.resize(nchans_,nchans_);
+        phi_z1t.resize(nchans_,nchans_);
         dweights.resize(nchans_,nchans_);
         dbias.resize(nchans_);
         W.resize(nchans_,nchans_);
@@ -48,18 +50,25 @@ public:
         means_logp.resize(nchans_);
     }
 
+    ~ica_functor(){
+        delete ipiv_;
+    }
+
     ScalarType operator()(VectorType const & x, VectorType * grad) const {
         size_t nchans = data_.rows();
         size_t nframes = data_.cols();
         ScalarType casted_nframes = nframes;
 
+        Timer t;
+        t.start();
 
         //Rerolls the variables into the appropriates datastructures
         std::memcpy(W.data(), x.data(),sizeof(ScalarType)*nchans*nchans);
         std::memcpy(b_.data(), x.data()+nchans*nchans, sizeof(ScalarType)*nchans);
-
+        MatrixType WLU = W;
         //z1 = W*data_;
-        gemm(1,W,data_,0,z1);
+        openblas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasNoTrans,nchans,nframes,nchans
+                                          ,1,W.data(),nchans,data_.data(),nframes,0,z1.data(),nframes);
 
 
         //z2 = z1 + b(:, ones(nframes,1));
@@ -79,7 +88,8 @@ public:
             alpha(i) = alpha_sub*(kurt<0) + alpha_super*(kurt>=0);
         }
 
-        //mata = a(:,ones(nframes,1));
+
+        //mata = alpha(:,ones(nframes,1));
         //logp = log(mata) - log(2) - gammaln(1./mata) - abs(z2).^mata;
         for(unsigned int i = 0 ; i < nchans ; ++i){
             ScalarType current = 0;
@@ -88,12 +98,21 @@ public:
             for(unsigned int j = 0; j < nframes ; j++){
                 ScalarType val = z1(i,j) + b;
                 ScalarType fabs_val = std::fabs(val);
-                current += (a==alpha_sub)?compile_time_pow<alpha_sub>()(fabs_val):compile_time_pow<alpha_super>()(fabs_val);
+                current += (a==alpha_sub)?detail::compile_time_pow<alpha_sub>()(fabs_val):detail::compile_time_pow<alpha_super>()(fabs_val);
             }
             means_logp[i] = -1/casted_nframes*current + std::log(a) - std::log(2) - lgamma(1/a);
         }
+
         //H = log(abs(det(w))) + sum(means_logp);
-        ScalarType H = std::log(std::abs(W.determinant())) + means_logp.sum();
+        //LU Decomposition
+        openblas_backend<ScalarType>::getrf(LAPACK_ROW_MAJOR,nchans,nchans,WLU.data(),nchans,ipiv_);
+
+        ScalarType absdet = 1;
+        for(std::size_t i = 0 ; i < nchans ; ++i)
+            absdet*=std::abs(WLU(i,i));
+
+        ScalarType H = std::log(absdet) + means_logp.sum();
+
 
         if(grad){
 
@@ -104,7 +123,7 @@ public:
                 for(unsigned int j = 0 ; j < nframes ; ++j){
                     ScalarType val = z1(i,j) + b;
                     ScalarType fabs_val = std::fabs(val);
-                    ScalarType fabs_val_pow = (a==alpha_sub)?compile_time_pow<alpha_sub-1>()(fabs_val):compile_time_pow<alpha_super-1>()(fabs_val);
+                    ScalarType fabs_val_pow = (a==alpha_sub)?detail::compile_time_pow<alpha_sub-1>()(fabs_val):detail::compile_time_pow<alpha_super-1>()(fabs_val);
                     phi(i,j) = a*fabs_val_pow*sgn(val);
                 }
             }
@@ -112,13 +131,14 @@ public:
             //dbias = mean(phi,2)
             dbias = phi.rowwise().mean();
 
-            //dweights = -(eye(N) - 1/n*phi*z1')*inv(W')
-            gemm(1,phi,z1.transpose(),0,phi_z1);
-            MatrixType dweights_copy = (MatrixType::Identity(nchans,nchans) - 1/casted_nframes*phi_z1);
-            MatrixType Winv = W;
-            inplace_inverse(Winv);
-            gemm(1,dweights_copy,Winv.transpose(),0,dweights);
-            dweights = -dweights;
+            //dweights = -(eye(N) - 1/n*phi*z1')*inv(W)'
+            openblas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasTrans,nchans,nchans,nframes
+                                              ,1,phi.data(),nframes,z1.data(),nframes,0,phi_z1t.data(),nchans);
+            openblas_backend<ScalarType>::getri(LAPACK_ROW_MAJOR,nchans,WLU.data(),nchans,ipiv_);
+
+            MatrixType lhs = (MatrixType::Identity(nchans,nchans) - 1/casted_nframes*phi_z1t);
+            openblas_backend<ScalarType>::gemm(CblasRowMajor, CblasNoTrans,CblasTrans,nchans,nchans,nchans
+                                              ,-1,lhs.data(),nchans,WLU.data(),nchans,0,dweights.data(),nchans);
 
             //Copy back
             std::memcpy(grad->data(), dweights.data(),sizeof(ScalarType)*nchans*nchans);
@@ -132,9 +152,12 @@ private:
     MatrixType const & data_;
     std::size_t nchans_;
     std::size_t nframes_;
+
+    int *ipiv_;
+
     mutable MatrixType z1;
     mutable MatrixType phi;
-    mutable MatrixType phi_z1;
+    mutable MatrixType phi_z1t;
     mutable MatrixType dweights;
     mutable VectorType dbias;
     mutable MatrixType W;
@@ -167,11 +190,15 @@ void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimizati
     MatrixType W(nchans,nchans);
     VectorType b(nchans);
 
+    std::size_t N = nchans*nchans + nchans;
+
     //Optimization Vector
-    VectorType X = VectorType::Zero(nchans*nchans + nchans);
+    //Solution vector
+    VectorType S(N);
+    //Initial guess
+    VectorType X = VectorType::Zero(N);
     for(unsigned int i = 0 ; i < nchans; ++i) X[i*(nchans+1)] = 1;
     for(unsigned int i = nchans*nchans ; i < nchans*(nchans+1) ; ++i) X[i] = 0;
-
 
     //Whiten Data
     MatrixType white_data(nchans, nframes);
@@ -179,14 +206,16 @@ void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimizati
 
     ica_functor<ScalarType> fun(white_data);
 //    fmincl::utils::check_grad(fun,X);
-    VectorType S =  fmincl::minimize<fmincl::backend::EigenTypes<ScalarType> >(fun,X, options);
+    fmincl::minimize<fmincl::backend::EigenTypes<ScalarType> >(S,fun,X,N,options);
 
 
     //Copies into datastructures
     std::memcpy(W.data(), S.data(),sizeof(ScalarType)*nchans*nchans);
     std::memcpy(b.data(), S.data()+nchans*nchans, sizeof(ScalarType)*nchans);
 
-    gemm(1,W,white_data,0,out);
+    //out = W*white_data;
+    openblas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasNoTrans,nchans,nframes,nchans
+                                      ,1,W.data(),nchans,white_data.data(),nframes,0,out.data(),nframes);
     out.colwise() += b;
 }
 
