@@ -193,7 +193,7 @@ void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimizati
     ScalarType * W = new ScalarType[nchans*nchans];
     ScalarType * b = new ScalarType[nchans];
     ScalarType * S = new ScalarType[N];
-    ScalarType * X = new ScalarType[N]; std::memset(X,0,N);
+    ScalarType * X = new ScalarType[N]; std::memset(X,0,N*sizeof(ScalarType));
     ScalarType * white_data = new ScalarType[nchans*nframes];
 
     std::memcpy(data_copy,data.data(),nchans*nframes*sizeof(ScalarType));
