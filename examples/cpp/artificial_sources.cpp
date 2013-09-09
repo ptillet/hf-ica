@@ -23,12 +23,12 @@ static const unsigned int T=20;
 
 int main(){
     MatType c_src(C,N);
-    for(unsigned int i=0 ; i< N ; ++i){
-        double t = (double)i/(N-1)*T - T/2;
-        c_src(0,i) = std::sin(3*t) + std::cos(6*t);
-        c_src(1,i) = std::cos(10*t);
-        c_src(2,i) = std::sin(5*t);
-        c_src(3,i) = std::sin(t*t);
+    for(unsigned int c=0 ; c< N ; ++c){
+        double t = (double)c/(N-1)*T - T/2;
+        c_src(0,c) = std::sin(3*t) + std::cos(6*t);
+        c_src(1,c) = std::cos(10*t);
+        c_src(2,c) = std::sin(5*t);
+        c_src(3,c) = std::sin(t*t);
     }
     MatType mixing(C,C);
     for(std::size_t i = 0 ; i < C ; ++i)

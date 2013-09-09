@@ -42,24 +42,24 @@ namespace parica{
         }
 
         template<class ScalarType>
-        void mean(ScalarType* A, std::size_t C, std::size_t N, ScalarType* x){
-            for(std::size_t i = 0 ; i < C ;++i){
+        void mean(ScalarType* A, std::size_t NC, std::size_t NF, ScalarType* x){
+            for(std::size_t c = 0 ; c < NC ;++c){
                 ScalarType sum = 0;
-                for(std::size_t j = 0 ; j < N ; ++j)
-                    sum += A[i*N+j];
-                x[i] = sum/(ScalarType)N;
+                for(std::size_t f = 0 ; f < NF ; ++f)
+                    sum += A[c*NF+f];
+                x[c] = sum/(ScalarType)NF;
             }
         }
 
 
         template<class ScalarType>
-        void normalize(ScalarType* A, std::size_t C, std::size_t N){
-            ScalarType * x = new ScalarType[C];
+        void normalize(ScalarType* A, std::size_t NC, std::size_t NF){
+            ScalarType * x = new ScalarType[NC];
 
-            mean(A,C,N,x);
-            for(std::size_t i = 0 ; i < C ;++i)
-                for(std::size_t j = 0 ; j < N ; ++j)
-                    A[i*N+j] -= x[i];
+            mean(A,NC,NF,x);
+            for(std::size_t c = 0 ; c < NC ;++c)
+                for(std::size_t f = 0 ; f < NF ; ++f)
+                    A[c*NF+f] -= x[c];
 
             delete[] x;
         }
