@@ -204,11 +204,10 @@ void inplace_linear_ica(DataType const & dataMat, OutType & outMat, fmincl::opti
     //Optimization Vector
 
     //Solution vector
-    //Initial guess
+    //Initial guess W_0 = I
+    //b_0 = 0
     for(unsigned int i = 0 ; i < NC; ++i)
         X[i*(NC+1)] = 1;
-    for(unsigned int i = NC*NC ; i < NC*(NC+1) ; ++i)
-        X[i] = 0;
 
     //Whiten Data
     whiten<ScalarType>(NC, NF, data_copy,white_data);
