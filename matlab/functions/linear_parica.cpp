@@ -134,24 +134,24 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
     //Get dimensions
     const mwSize * dims = mxGetDimensions(prhs[0]);
-    std::size_t size1 = static_cast<std::size_t>(dims[0]);
-    std::size_t size2 = static_cast<std::size_t>(dims[1]);
+    std::size_t NC = static_cast<std::size_t>(dims[0]);
+    std::size_t NF = static_cast<std::size_t>(dims[1]);
 
-    mxArray* result_tmp = plhs[0] = mxCreateDoubleMatrix(size1,size2,mxREAL);
+    mxArray* result_tmp = plhs[0] = mxCreateDoubleMatrix(NC,NF,mxREAL);
     NumericT * result = mxGetPr(result_tmp);
 
-    Eigen::Map<Eigen::MatrixXd> map_data(data,size1,size2);
-    Eigen::Map<Eigen::MatrixXd> map_result(result,size1,size2);
+    Eigen::Map<Eigen::MatrixXd> map_data(data,NC,NF);
+    Eigen::Map<Eigen::MatrixXd> map_result(result,NC,NF);
     if(options.use_float){
         parica::result_of::internal_matrix_type<float>::type data_eigen = map_data.cast<float>();
-        parica::result_of::internal_matrix_type<float>::type result_eigen(size1,size2);
-        parica::inplace_linear_ica(data_eigen, result_eigen,options.optimization);
+        parica::result_of::internal_matrix_type<float>::type result_eigen(NC,NF);
+        parica::inplace_linear_ica(data_eigen.data(), result_eigen.data(),NC,NF,options.optimization);
         map_result = result_eigen.cast<double>();
     }
     else{
         parica::result_of::internal_matrix_type<double>::type data_eigen = map_data;
-        parica::result_of::internal_matrix_type<double>::type result_eigen(size1,size2);
-        parica::inplace_linear_ica(data_eigen, result_eigen,options.optimization);
+        parica::result_of::internal_matrix_type<double>::type result_eigen(NC,NF);
+        parica::inplace_linear_ica(data_eigen.data(), result_eigen.data(),NC,NF,options.optimization);
         map_result = result_eigen;
     }
 }

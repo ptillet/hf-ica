@@ -179,17 +179,8 @@ fmincl::optimization_options make_default_options(){
 }
 
 
-template<class DataType, class OutType>
-void inplace_linear_ica(DataType const & dataMat, OutType & outMat, fmincl::optimization_options const & options){
-    typedef typename DataType::Scalar ScalarType;
-    typedef typename result_of::internal_matrix_type<ScalarType>::type MatrixType;
-    typedef typename result_of::internal_vector_type<ScalarType>::type VectorType;
-
-    size_t NC = dataMat.rows();
-    size_t NF = dataMat.cols();
-    ScalarType const * data = dataMat.data();
-    ScalarType* out = outMat.data();
-
+template<class ScalarType>
+void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t NC, std::size_t NF, fmincl::optimization_options const & options){
     std::size_t N = NC*NC + NC;
 
     ScalarType * data_copy = new ScalarType[NC*NF];
@@ -240,11 +231,8 @@ void inplace_linear_ica(DataType const & dataMat, OutType & outMat, fmincl::opti
 
 }
 
-
-typedef result_of::internal_matrix_type<double>::type MatD;
-typedef result_of::internal_matrix_type<float>::type MatF;
-template void inplace_linear_ica<MatD,MatD>(MatD  const & data, MatD & out, fmincl::optimization_options const & options);
-template void inplace_linear_ica<MatF,MatF>(MatF  const & data, MatF & out, fmincl::optimization_options const & options);
+template void inplace_linear_ica<float>(float const * data, float * out, std::size_t NC, std::size_t NF, fmincl::optimization_options const & options);
+template void inplace_linear_ica<double>(double const * data, double * out, std::size_t NC, std::size_t NF, fmincl::optimization_options const & options);
 
 }
 

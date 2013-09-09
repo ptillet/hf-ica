@@ -34,8 +34,8 @@ struct internal_vector_type{
 
 fmincl::optimization_options make_default_options();
 
-template<class DataType, class OutType>
-void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimization_options const & options = make_default_options());
+template<class ScalarType>
+void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t NC, std::size_t NF, fmincl::optimization_options const & options);
 
 }
 

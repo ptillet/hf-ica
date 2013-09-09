@@ -55,12 +55,10 @@ namespace parica{
         template<class ScalarType>
         void normalize(ScalarType* A, std::size_t NC, std::size_t NF){
             ScalarType * x = new ScalarType[NC];
-
             mean(A,NC,NF,x);
             for(std::size_t c = 0 ; c < NC ;++c)
                 for(std::size_t f = 0 ; f < NF ; ++f)
                     A[c*NF+f] -= x[c];
-
             delete[] x;
         }
 
