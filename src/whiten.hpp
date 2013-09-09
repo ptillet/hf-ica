@@ -66,19 +66,19 @@ namespace parica{
 
 
     template<class ScalarType>
-    void whiten(std::size_t nchans, std::size_t nframes, ScalarType * data_copy, ScalarType * out){
+    void whiten(std::size_t nchans, std::size_t nframes, ScalarType * data, ScalarType * out){
         ScalarType * Cov = new ScalarType[nchans*nchans];
         ScalarType * Sphere = new ScalarType[nchans*nchans];
 
         //data_copy -= mean(data_copy,2);
-        detail::normalize(data_copy,nchans,nframes);
-        //Cov = 1/(N-1)*data_copy*data_copy.transpose()
+        detail::normalize(data,nchans,nframes);
+        //Cov = 1/(N-1)*data_copy*data_copy'
         ScalarType alpha = (ScalarType)(1)/(nframes-1);
-        blas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasTrans,nchans,nchans,nframes,alpha,data_copy,nframes,data_copy,nframes,0,Cov,nchans);
+        blas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasTrans,nchans,nchans,nframes,alpha,data,nframes,data,nframes,0,Cov,nchans);
         //Sphere = inverse(sqrtm(Cov))
         detail::inv_sqrtm<ScalarType>(nchans,Cov,Sphere);
         //out = 2*Sphere*data_copy;
-        blas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasNoTrans,nchans,nframes,nchans,2,Sphere,nchans,data_copy,nframes,0,out,nframes);
+        blas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasNoTrans,nchans,nframes,nchans,2,Sphere,nchans,data,nframes,0,out,nframes);
 
         delete[] Cov;
         delete[] Sphere;
