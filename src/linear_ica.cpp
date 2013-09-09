@@ -180,13 +180,16 @@ fmincl::optimization_options make_default_options(){
 
 
 template<class DataType, class OutType>
-void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimization_options const & options){
+void inplace_linear_ica(DataType const & dataMat, OutType & outMat, fmincl::optimization_options const & options){
     typedef typename DataType::Scalar ScalarType;
     typedef typename result_of::internal_matrix_type<ScalarType>::type MatrixType;
     typedef typename result_of::internal_vector_type<ScalarType>::type VectorType;
 
-    size_t NC = data.rows();
-    size_t NF = data.cols();
+    size_t NC = dataMat.rows();
+    size_t NF = dataMat.cols();
+    ScalarType const * data = dataMat.data();
+    ScalarType* out = outMat.data();
+
     std::size_t N = NC*NC + NC;
 
     ScalarType * data_copy = new ScalarType[NC*NF];
@@ -196,7 +199,7 @@ void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimizati
     ScalarType * X = new ScalarType[N]; std::memset(X,0,N*sizeof(ScalarType));
     ScalarType * white_data = new ScalarType[NC*NF];
 
-    std::memcpy(data_copy,data.data(),NC*NF*sizeof(ScalarType));
+    std::memcpy(data_copy,data,NC*NF*sizeof(ScalarType));
 
     //Optimization Vector
 
@@ -221,11 +224,11 @@ void inplace_linear_ica(DataType const & data, OutType & out, fmincl::optimizati
     std::memcpy(b, S+NC*NC, sizeof(ScalarType)*NC);
 
     //out = W*white_data;
-    blas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasNoTrans,NC,NF,NC,1,W,NC,white_data,NF,0,out.data(),NF);
+    blas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasNoTrans,NC,NF,NC,1,W,NC,white_data,NF,0,out,NF);
     for(std::size_t c = 0 ; c < NC ; ++c){
         ScalarType val = b[c];
         for(std::size_t f = 0 ; f < NF ; ++f){
-            out.data()[c*NF+f] += val;
+            out[c*NF+f] += val;
         }
     }
 
