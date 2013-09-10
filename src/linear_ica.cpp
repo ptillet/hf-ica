@@ -66,7 +66,7 @@ public:
         std::memcpy(b_, x+NC_*NC_, sizeof(ScalarType)*NC_);
 
         //z1 = W*data_;
-        blas_backend<ScalarType>::gemm(CblasColMajor,CblasNoTrans,CblasNoTrans,NF_,NC_,NC_,1,data_,NF_,W,NC_,0,z1,NF_);
+        blas_backend<ScalarType>::gemm(CblasNoTrans,CblasNoTrans,NF_,NC_,NC_,1,data_,NF_,W,NC_,0,z1,NF_);
 
         //z2 = z1 + b(:, ones(NF_,1));
         //kurt = (mean(z2.^2,2).^2) ./ mean(z2.^4,2) - 3
@@ -104,7 +104,7 @@ public:
 
         //LU Decomposition
         std::memcpy(WLU,W,sizeof(ScalarType)*NC_*NC_);
-        blas_backend<ScalarType>::getrf(LAPACK_COL_MAJOR,NC_,NC_,WLU,NC_,ipiv_);
+        blas_backend<ScalarType>::getrf(NC_,NC_,WLU,NC_,ipiv_);
 
         //det = prod(diag(WLU))
         ScalarType absdet = 1;
@@ -134,15 +134,15 @@ public:
             /*dweights = -(eye(N) - 1/n*phi*z1')*inv(W)'*/
 
             //WLU = inv(W)
-            blas_backend<ScalarType>::getri(LAPACK_COL_MAJOR,NC_,WLU,NC_,ipiv_);
+            blas_backend<ScalarType>::getri(NC_,WLU,NC_,ipiv_);
 
             //lhs = I(N,N) - 1/N*phi*z1')
-            blas_backend<ScalarType>::gemm(CblasColMajor,CblasTrans,CblasNoTrans,NC_,NC_,NF_ ,-1/(ScalarType)NF_,z1,NF_,phi,NF_,0,phi_z1t,NC_);
+            blas_backend<ScalarType>::gemm(CblasTrans,CblasNoTrans,NC_,NC_,NF_ ,-1/(ScalarType)NF_,z1,NF_,phi,NF_,0,phi_z1t,NC_);
             for(std::size_t i = 0 ; i < NC_; ++i)
                 phi_z1t[i*NC_+i] += 1;
 
             //dweights = -lhs*Winv'
-            blas_backend<ScalarType>::gemm(CblasColMajor, CblasTrans,CblasNoTrans,NC_,NC_,NC_,-1,WLU,NC_,phi_z1t,NC_,0,dweights,NC_);
+            blas_backend<ScalarType>::gemm( CblasTrans,CblasNoTrans,NC_,NC_,NC_,-1,WLU,NC_,phi_z1t,NC_,0,dweights,NC_);
 
             //Copy back
             std::memcpy(*grad, dweights,sizeof(ScalarType)*NC_*NC_);
@@ -208,8 +208,9 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
 
     ica_functor<ScalarType> fun(white_data,NC,NF);
 
-    //fmincl::utils::check_grad<fmincl::backend::OpenBlasTypes<ScalarType> >(fun,X,N);
-    fmincl::minimize<fmincl::backend::OpenBlasTypes<ScalarType> >(S,fun,X,N,options);
+    typedef typename fmincl_backend<ScalarType>::type FMinBackendType;
+    //fmincl::utils::check_grad<FMinBackendType>(fun,X,N);
+    fmincl::minimize<FMinBackendType>(S,fun,X,N,options);
 
 
     //Copies into datastructures
@@ -217,7 +218,7 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     std::memcpy(b, S+NC*NC, sizeof(ScalarType)*NC);
 
     //out = W*white_data;
-    blas_backend<ScalarType>::gemm(CblasColMajor,CblasNoTrans,CblasNoTrans,NF,NC,NC,1,white_data,NF,W,NC,0,out,NF);
+    blas_backend<ScalarType>::gemm(CblasNoTrans,CblasNoTrans,NF,NC,NC,1,white_data,NF,W,NC,0,out,NF);
     for(std::size_t c = 0 ; c < NC ; ++c){
         ScalarType val = b[c];
         for(std::size_t f = 0 ; f < NF ; ++f){
