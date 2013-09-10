@@ -25,17 +25,17 @@ namespace parica{
             ScalarType * UD = new ScalarType[C*C];
 
             //in = U
-            blas_backend<ScalarType>::syevd(LAPACK_ROW_MAJOR,'V','U',C,in,C,D);
+            blas_backend<ScalarType>::syevd(LAPACK_COL_MAJOR,'V','U',C,in,C,D);
 
             //UD = U*diag(D)
             for (std::size_t j=0; j<C; ++j) {
               ScalarType lambda = 1/std::sqrt(D[j]);
               for (std::size_t i=0; i<C; ++i)
-                  UD[i*C+j] = in[i*C+j]*lambda;
+                  UD[j*C+i] = in[j*C+i]*lambda;
             }
 
             //out = UD*U^T
-            blas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasTrans,C,C,C,1,UD,C,in,C,0,out,C);
+            blas_backend<ScalarType>::gemm(CblasColMajor,CblasNoTrans,CblasTrans,C,C,C,1,UD,C,in,C,0,out,C);
 
             delete[] D;
             delete[] UD;
@@ -72,13 +72,16 @@ namespace parica{
 
         //data_copy -= mean(data_copy,2);
         detail::normalize(data,nchans,nframes);
+
         //Cov = 1/(N-1)*data_copy*data_copy'
         ScalarType alpha = (ScalarType)(1)/(nframes-1);
-        blas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasTrans,nchans,nchans,nframes,alpha,data,nframes,data,nframes,0,Cov,nchans);
+        blas_backend<ScalarType>::gemm(CblasColMajor,CblasTrans,CblasNoTrans,nchans,nchans,nframes,alpha,data,nframes,data,nframes,0,Cov,nchans);
+
         //Sphere = inverse(sqrtm(Cov))
         detail::inv_sqrtm<ScalarType>(nchans,Cov,Sphere);
+
         //out = 2*Sphere*data_copy;
-        blas_backend<ScalarType>::gemm(CblasRowMajor,CblasNoTrans,CblasNoTrans,nchans,nframes,nchans,2,Sphere,nchans,data,nframes,0,out,nframes);
+        blas_backend<ScalarType>::gemm(CblasColMajor,CblasNoTrans,CblasTrans,nframes,nchans,nchans,2,data,nframes,Sphere,nchans,0,out,nframes);
 
         delete[] Cov;
         delete[] Sphere;

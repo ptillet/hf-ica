@@ -16,7 +16,6 @@
 #define BENCHMARK_COUNT 1
 
 typedef float ScalarType;
-typedef Eigen::Matrix<ScalarType, Eigen::Dynamic, Eigen::Dynamic,Eigen::RowMajor> MatType;
 static const unsigned int NC=4;
 static const unsigned int NF=1000000;
 static const unsigned int T=20;
@@ -39,7 +38,8 @@ int main(){
         for(std::size_t j = 0 ; j < NC ; ++j)
             mixing[i*NC+j] = static_cast<double>(rand())/RAND_MAX;
 
-    cblas_sgemm(CblasRowMajor,CblasNoTrans,CblasNoTrans,NC,NF,NC,1,mixing,NC,src,NF,0,mixed_src,NF);
+
+    cblas_sgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,NF,NC,NC,1,src,NF,mixing,NC,0,mixed_src,NF);
 
     fmincl::optimization_options options = parica::make_default_options();
     options.verbosity_level = 2;
