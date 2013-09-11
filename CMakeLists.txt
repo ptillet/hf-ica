@@ -21,7 +21,7 @@ find_library(OPENBLAS_LIB libopenblas.a)
 set(SRC_PATH "${PROJECT_SOURCE_DIR}/src")
 set(SRC ${SRC_PATH}/linear_ica.cpp)
 add_library(clica ${SRC})
-set_target_properties(clica PROPERTIES COMPILE_FLAGS "-fPIC")
+set_target_properties(clica PROPERTIES COMPILE_FLAGS "-DPARICA_WITH_CBLAS -fPIC")
 target_link_libraries(clica openblas.a gfortran)
 
 ##OpenMP

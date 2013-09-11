@@ -17,7 +17,7 @@
 
 typedef float ScalarType;
 static const unsigned int NC=4;
-static const unsigned int NF=1000000;
+static const unsigned int NF=100;
 static const unsigned int T=20;
 
 int main(){
@@ -49,4 +49,9 @@ int main(){
         parica::inplace_linear_ica(mixed_src,independent_components,NC,NF,options);
 
     std::cout << "Execution Time : " << t.get()/BENCHMARK_COUNT << "s" << std::endl;
+
+    delete[] src;
+    delete[] mixing;
+    delete[] mixed_src;
+    delete[] independent_components;
 }

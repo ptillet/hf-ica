@@ -1,7 +1,6 @@
 #ifndef PARICA_UTILS_HPP_
 #define PARICA_UTILS_HPP_
 
-#include "blas_backend.hpp"
 
 namespace parica{
 
@@ -27,16 +26,6 @@ namespace parica{
                 return 1;
             }
         };
-
-        template<class ScalarType>
-        static void inplace_inverse(lapack_int order, std::size_t N, ScalarType * A)
-        {
-            int *ipiv = new int[N+1];
-            int info;
-            info = blas_backend<ScalarType>::getrf(order,N,N,A,N,ipiv);
-            info = blas_backend<ScalarType>::getri(order,N,A,N,ipiv);
-            delete ipiv;
-        }
 
     }
 
