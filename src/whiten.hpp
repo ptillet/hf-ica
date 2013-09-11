@@ -25,8 +25,7 @@ namespace parica{
             ScalarType * UD = new ScalarType[C*C];
 
             //in = U
-            backend<ScalarType>::syevd('V','U',C,in,C,D);
-
+            backend<ScalarType>::syev('V','U',C,in,C,D);
             //UD = U*diag(D)
             for (std::size_t j=0; j<C; ++j) {
               ScalarType lambda = 1/std::sqrt(D[j]);

@@ -47,8 +47,8 @@ namespace parica{
         {   return LAPACKE_sgetri(LAPACK_COL_MAJOR,n,a,lda,ipiv);    }
         static void gemm(CBLAS_TRANSPOSE TransA, CBLAS_TRANSPOSE TransB, size_t M, size_t N, size_t K , ScalarType alpha, cst_ptr_type A, size_t lda, cst_ptr_type B, size_t ldb, ScalarType beta, ptr_type C, size_t ldc)
         {   return cblas_sgemm(CblasColMajor,TransA,TransB,M,N,K,alpha,A,lda,B,ldb,beta,C,ldc); }
-        static lapack_int syevd(char jobz, char uplo, lapack_int n,  ScalarType* a, lapack_int lda, ScalarType* w )
-        {   return LAPACKE_ssyevd(CblasColMajor,jobz,uplo,n,a,lda,w); }
+        static lapack_int syev(char jobz, char uplo, lapack_int n,  ScalarType* a, lapack_int lda, ScalarType* w )
+        {   return LAPACKE_ssyev(CblasColMajor,jobz,uplo,n,a,lda,w); }
     };
 
 
@@ -65,8 +65,8 @@ namespace parica{
         {    return LAPACKE_dgetri(LAPACK_COL_MAJOR,n,a,lda,ipiv);    }
         static void gemm(CBLAS_TRANSPOSE TransA, CBLAS_TRANSPOSE TransB, size_t M, size_t N, size_t K , ScalarType alpha, cst_ptr_type A, size_t lda, cst_ptr_type B, size_t ldb, ScalarType beta, ptr_type C, size_t ldc)
         {   return cblas_dgemm(CblasColMajor,TransA,TransB,M,N,K,alpha,A,lda,B,ldb,beta,C,ldc); }
-        static lapack_int syevd( char jobz, char uplo, lapack_int n, ScalarType* a, lapack_int lda, ScalarType* w )
-        {   return LAPACKE_dsyevd(LAPACK_COL_MAJOR,jobz,uplo,n,a,lda,w); }
+        static lapack_int syev( char jobz, char uplo, lapack_int n, ScalarType* a, lapack_int lda, ScalarType* w )
+        {   return LAPACKE_dsyev(LAPACK_COL_MAJOR,jobz,uplo,n,a,lda,w); }
     };
 
 #else
@@ -100,26 +100,25 @@ struct backend<float>{
     static void getri(size_t n, ptr_type A, size_t lda, size_t* ipiv)
     {
         size_t lwork = -1;
-        ScalarType* work = (ScalarType *) malloc(sizeof(ScalarType) * 1);
+        ScalarType* work = new ScalarType;
         sgetri_(&n, A, &n, ipiv, work, &lwork, &dummy_info);
         lwork = (size_t) work[0];
-        free(work);
-        work = (ScalarType *) malloc(sizeof(ScalarType) * lwork);
+        delete work;
+        work = new ScalarType[lwork];
         sgetri_(&n, A, &n, ipiv, work, &lwork, &dummy_info);
+        delete[] work;
     }
     static void gemm(char TransA, char TransB, size_t M, size_t N, size_t K , ScalarType alpha, cst_ptr_type A, size_t lda, cst_ptr_type B, size_t ldb, ScalarType beta, ptr_type C, size_t ldc)
     {   sgemm_(&TransA,&TransB,&M,&N,&K,&alpha,(ptr_type)A,&lda,(ptr_type)B,&ldb,&beta,C,&ldc); }
-    static void syevd(char jobz, char uplo, size_t n,  ScalarType* a, size_t lda, ScalarType* w )
+    static void syev(char jobz, char uplo, size_t n,  ScalarType* a, size_t lda, ScalarType* w )
     {
-        size_t lwork=-1,liwork=-1,iwkopt;
-        ScalarType wkopt;
-        ssyevd_(&jobz,&uplo, &n, a, &lda, w, &wkopt, &lwork, &iwkopt,&liwork, &dummy_info );
-        lwork = (size_t)wkopt;
-        ScalarType * work = new ScalarType[lwork];
-        liwork = iwkopt;
-        size_t* iwork = new size_t[liwork];
-        ssyevd_(&jobz,&uplo,&n,a,&lda,w,work,&lwork,iwork,&liwork,&dummy_info);
-        delete[] iwork;
+        size_t lwork = -1;
+        ScalarType* work = new ScalarType;
+        ssyev_(&jobz,&uplo, &n, a, &lda, w, work, &lwork, &dummy_info );
+        lwork = (size_t) work[0];
+        delete work;
+        work = new ScalarType[lwork];
+        ssyev_(&jobz,&uplo,&n,a,&lda,w,work,&lwork,&dummy_info);
         delete[] work;
     }
 };
@@ -146,17 +145,15 @@ struct backend<double>{
     }
     static void gemm(char TransA, char TransB, size_t M, size_t N, size_t K , ScalarType alpha, cst_ptr_type A, size_t lda, cst_ptr_type B, size_t ldb, ScalarType beta, ptr_type C, size_t ldc)
     {   dgemm_(&TransA,&TransB,&M,&N,&K,&alpha,(ptr_type)A,&lda,(ptr_type)B,&ldb,&beta,C,&ldc); }
-    static void syevd(char jobz, char uplo, size_t n,  ScalarType* a, size_t lda, ScalarType* w )
+    static void syev(char jobz, char uplo, size_t n,  ScalarType* a, size_t lda, ScalarType* w )
     {
-        size_t lwork=-1,liwork=-1,iwkopt;
-        ScalarType wkopt;
-        dsyevd_(&jobz,&uplo, &n, a, &lda, w, &wkopt, &lwork, &iwkopt,&liwork, &dummy_info );
-        lwork = (size_t)wkopt;
-        ScalarType * work = new ScalarType[lwork];
-        liwork = iwkopt;
-        size_t* iwork = new size_t[liwork];
-        dsyevd_(&jobz,&uplo,&n,a,&lda,w,work,&lwork,iwork,&liwork,&dummy_info);
-        delete[] iwork;
+        size_t lwork = -1;
+        ScalarType* work = new ScalarType;
+        dsyev_(&jobz,&uplo, &n, a, &lda, w, work, &lwork, &dummy_info );
+        lwork = (size_t) work[0];
+        delete work;
+        work = new ScalarType[lwork];
+        dsyev_(&jobz,&uplo,&n,a,&lda,w,work,&lwork,&dummy_info);
         delete[] work;
     }
 };

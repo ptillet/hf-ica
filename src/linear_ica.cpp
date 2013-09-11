@@ -206,7 +206,6 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     //Whiten Data
     whiten<ScalarType>(NC, NF, data_copy,white_data);
 
-
     ica_functor<ScalarType> fun(white_data,NC,NF);
 
     typedef typename fmincl_backend<ScalarType>::type FMinBackendType;
