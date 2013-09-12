@@ -1,14 +1,7 @@
 #ifndef PARICA_BACKEND_HPP_
 #define PARICA_BACKEND_HPP_
 
-#ifdef PARICA_WITH_CBLAS
-
-//Fix for C++11 with Lapacke...
-#include "lapacke.h"
-#include "cblas.h"
-#include "fmincl/backends/cblas.hpp"
-
-#else
+#ifdef PARICA_WITH_BLAS
 
 using std::ptrdiff_t;
 
@@ -16,63 +9,18 @@ using std::ptrdiff_t;
 #include "blas.h"
 #include "fmincl/backends/blas.hpp"
 
+#else
+
+#include "lapacke.h"
+#include "cblas.h"
+#include "fmincl/backends/cblas.hpp"
+
 #endif
 
 namespace parica{
 
 
-#ifdef PARICA_WITH_CBLAS
-
-    static const CBLAS_TRANSPOSE Trans = CblasTrans;
-    static const CBLAS_TRANSPOSE NoTrans = CblasNoTrans;
-
-    template<class ScalarType>
-    struct fmincl_backend{
-        typedef typename fmincl::backend::cblas_types<ScalarType> type;
-    };
-
-
-    template<class _ScalarType>
-    struct backend;
-
-    template<>
-    struct backend<float>{
-        typedef float ScalarType;
-        typedef ScalarType* ptr_type;
-        typedef ScalarType const * cst_ptr_type;
-        typedef int size_t;
-
-        static lapack_int getrf(size_t m, size_t n, ptr_type a, size_t lda, int* ipiv)
-        {   return LAPACKE_sgetrf(LAPACK_COL_MAJOR,m,n,a,lda,ipiv);    }
-        static lapack_int getri(size_t n, ptr_type a, size_t lda, int* ipiv)
-        {   return LAPACKE_sgetri(LAPACK_COL_MAJOR,n,a,lda,ipiv);    }
-        static void gemm(CBLAS_TRANSPOSE TransA, CBLAS_TRANSPOSE TransB, size_t M, size_t N, size_t K , ScalarType alpha, cst_ptr_type A, size_t lda, cst_ptr_type B, size_t ldb, ScalarType beta, ptr_type C, size_t ldc)
-        {   return cblas_sgemm(CblasColMajor,TransA,TransB,M,N,K,alpha,A,lda,B,ldb,beta,C,ldc); }
-        static lapack_int syev(char jobz, char uplo, lapack_int n,  ScalarType* a, lapack_int lda, ScalarType* w )
-        {   return LAPACKE_ssyev(CblasColMajor,jobz,uplo,n,a,lda,w); }
-    };
-
-
-    template<>
-    struct backend<double>{
-        typedef double ScalarType;
-        typedef ScalarType* ptr_type;
-        typedef ScalarType const * cst_ptr_type;
-        typedef int size_t;
-
-        static size_t getrf(size_t m, size_t n, ptr_type a, size_t lda, int* ipiv)
-        {    return LAPACKE_dgetrf(LAPACK_COL_MAJOR,m,n,a,lda,ipiv);    }
-        static size_t getri(size_t n, ptr_type a, size_t lda, int* ipiv)
-        {    return LAPACKE_dgetri(LAPACK_COL_MAJOR,n,a,lda,ipiv);    }
-        static void gemm(CBLAS_TRANSPOSE TransA, CBLAS_TRANSPOSE TransB, size_t M, size_t N, size_t K , ScalarType alpha, cst_ptr_type A, size_t lda, cst_ptr_type B, size_t ldb, ScalarType beta, ptr_type C, size_t ldc)
-        {   return cblas_dgemm(CblasColMajor,TransA,TransB,M,N,K,alpha,A,lda,B,ldb,beta,C,ldc); }
-        static lapack_int syev( char jobz, char uplo, lapack_int n, ScalarType* a, lapack_int lda, ScalarType* w )
-        {   return LAPACKE_dsyev(LAPACK_COL_MAJOR,jobz,uplo,n,a,lda,w); }
-    };
-
-#else
-
-using std::ptrdiff_t;
+#ifdef PARICA_WITH_BLAS
 
 static std::ptrdiff_t dummy_info;
 
@@ -158,6 +106,56 @@ struct backend<double>{
         delete[] work;
     }
 };
+
+
+#else
+static const CBLAS_TRANSPOSE Trans = CblasTrans;
+static const CBLAS_TRANSPOSE NoTrans = CblasNoTrans;
+
+template<class ScalarType>
+struct fmincl_backend{
+    typedef typename fmincl::backend::cblas_types<ScalarType> type;
+};
+
+
+template<class _ScalarType>
+struct backend;
+
+template<>
+struct backend<float>{
+    typedef float ScalarType;
+    typedef ScalarType* ptr_type;
+    typedef ScalarType const * cst_ptr_type;
+    typedef int size_t;
+
+    static lapack_int getrf(size_t m, size_t n, ptr_type a, size_t lda, int* ipiv)
+    {   return LAPACKE_sgetrf(LAPACK_COL_MAJOR,m,n,a,lda,ipiv);    }
+    static lapack_int getri(size_t n, ptr_type a, size_t lda, int* ipiv)
+    {   return LAPACKE_sgetri(LAPACK_COL_MAJOR,n,a,lda,ipiv);    }
+    static void gemm(CBLAS_TRANSPOSE TransA, CBLAS_TRANSPOSE TransB, size_t M, size_t N, size_t K , ScalarType alpha, cst_ptr_type A, size_t lda, cst_ptr_type B, size_t ldb, ScalarType beta, ptr_type C, size_t ldc)
+    {   return cblas_sgemm(CblasColMajor,TransA,TransB,M,N,K,alpha,A,lda,B,ldb,beta,C,ldc); }
+    static lapack_int syev(char jobz, char uplo, lapack_int n,  ScalarType* a, lapack_int lda, ScalarType* w )
+    {   return LAPACKE_ssyev(CblasColMajor,jobz,uplo,n,a,lda,w); }
+};
+
+
+template<>
+struct backend<double>{
+    typedef double ScalarType;
+    typedef ScalarType* ptr_type;
+    typedef ScalarType const * cst_ptr_type;
+    typedef int size_t;
+
+    static size_t getrf(size_t m, size_t n, ptr_type a, size_t lda, int* ipiv)
+    {    return LAPACKE_dgetrf(LAPACK_COL_MAJOR,m,n,a,lda,ipiv);    }
+    static size_t getri(size_t n, ptr_type a, size_t lda, int* ipiv)
+    {    return LAPACKE_dgetri(LAPACK_COL_MAJOR,n,a,lda,ipiv);    }
+    static void gemm(CBLAS_TRANSPOSE TransA, CBLAS_TRANSPOSE TransB, size_t M, size_t N, size_t K , ScalarType alpha, cst_ptr_type A, size_t lda, cst_ptr_type B, size_t ldb, ScalarType beta, ptr_type C, size_t ldc)
+    {   return cblas_dgemm(CblasColMajor,TransA,TransB,M,N,K,alpha,A,lda,B,ldb,beta,C,ldc); }
+    static lapack_int syev( char jobz, char uplo, lapack_int n, ScalarType* a, lapack_int lda, ScalarType* w )
+    {   return LAPACKE_dsyev(LAPACK_COL_MAJOR,jobz,uplo,n,a,lda,w); }
+};
+
 
 #endif
 

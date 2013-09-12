@@ -12,7 +12,6 @@
 
 #include "fmincl/minimize.hpp"
 
-#include "src/for_loop_unroller.hpp"
 #include "src/whiten.hpp"
 #include "src/utils.hpp"
 #include "src/backend.hpp"
@@ -20,13 +19,15 @@
 
 namespace parica{
 
-#define UNROLL_FACTOR 8
 
 template<class ScalarType>
 struct ica_functor{
 private:
+
     static const int alpha_sub = 4;
+    static const int alpha_gauss = 2;
     static const int alpha_super = 1;
+    static const int alpha_vsuper = 0.5;
 private:
     template <typename T>
     inline int sgn(T val) const {
@@ -75,29 +76,33 @@ public:
 
         //z1 = W*data_;
         backend<ScalarType>::gemm(NoTrans,NoTrans,NF_,NC_,NC_,1,data_,NF_,W,NC_,0,z1,NF_);
-        std::cout << "Step 1 : " << t.get() << std::endl;
         //z2 = z1 + b(:, ones(NF_,1));
         //kurt = (mean(z2.^2,2).^2) ./ mean(z2.^4,2) - 3
         //alpha = alpha_sub*(kurt<0) + alpha_super*(kurt>0)
+
+
         for(unsigned int c = 0 ; c < NC_ ; ++c){
             ScalarType m2 = 0, m4 = 0;
             ScalarType b = b_[c];
-            for(unsigned int f = 0; f < NF_ ; f+=UNROLL_FACTOR){
-                ScalarType X[UNROLL_FACTOR];
-#define MACRO(r,i) X[_I(i)] = z1[c*NF_+f+_I(i)] + b;
-                UNROLL_FOR_LOOP(0,UNROLL_FACTOR,MACRO);
-#undef MACRO
-#define MACRO(r,i) \
-                m2 += std::pow(X[_I(i)],2);\
-                m4 += std::pow(X[_I(i)],4);
-                UNROLL_FOR_LOOP(0,UNROLL_FACTOR,MACRO);
-#undef MACRO
+            for(unsigned int f = 0; f < NF_ ; f++){
+                ScalarType X = z1[c*NF_+f] + b;
+                m2 += std::pow(X,2);\
+                m4 += std::pow(X,4);
             }
             m2 = std::pow(1/(ScalarType)NF_*m2,2);
             m4 = 1/(ScalarType)NF_*m4;
             ScalarType kurt = m4/m2 - 3;
-            alpha[c] = alpha_sub*(kurt<0) + alpha_super*(kurt>=0);
+            std::cout << kurt << " " << std::flush;
+            ScalarType eps = 0.1;
+            if(std::fabs(kurt) < eps)
+                alpha[c]=alpha_gauss;
+            else if(kurt<=-eps)
+                alpha[c]=alpha_sub;
+            else if(kurt>=eps)
+                alpha[c]=alpha_super;
         }
+        std::cout << std::endl;
+
 
         //mata = alpha(:,ones(NF_,1));
         //logp = log(mata) - log(2) - gammaln(1./mata) - abs(z2).^mata;
@@ -105,21 +110,14 @@ public:
             ScalarType current = 0;
             ScalarType a = alpha[c];
             ScalarType b = b_[c];
-            for(unsigned int f = 0; f < NF_ ; f+=UNROLL_FACTOR){
-                ScalarType X[UNROLL_FACTOR];
-#define MACRO(r,i) X[_I(i)] = z1[c*NF_+f+_I(i)] + b;
-                UNROLL_FOR_LOOP(0,UNROLL_FACTOR,MACRO);
-#undef MACRO
-                if(a==alpha_sub){
-#define MACRO(r,i) current+=std::pow(std::fabs(X[_I(i)]),alpha_sub);
-                    UNROLL_FOR_LOOP(0,UNROLL_FACTOR,MACRO);
-#undef MACRO
-                }
-                else if(a==alpha_super){
-#define MACRO(r,i) current+=std::pow(std::fabs(X[_I(i)]),alpha_super);
-                    UNROLL_FOR_LOOP(0,UNROLL_FACTOR,MACRO);
-#undef MACRO
-                }
+            for(unsigned int f = 0; f < NF_ ; f++){
+                ScalarType X = z1[c*NF_+f] + b;
+                if(a==alpha_gauss)
+                    current+=std::pow(std::fabs(X),alpha_gauss);
+                else if(a==alpha_sub)
+                    current+=std::pow(std::fabs(X),alpha_sub);
+                else if(a==alpha_super)
+                    current+=std::pow(std::fabs(X),alpha_super);
             }
             means_logp[c] = -1/(ScalarType)NF_*current + std::log(a) - std::log(2) - lgamma(1/a);
         }
@@ -139,35 +137,30 @@ public:
         for(std::size_t i = 0; i < NC_ ; ++i)
             H+=means_logp[i];
 
+
         if(grad){
 
             //phi = mean(mata.*abs(z2).^(mata-1).*sign(z2),2);
             for(unsigned int c = 0 ; c < NC_ ; ++c){
                 ScalarType a = alpha[c];
                 ScalarType b = b_[c];
-                for(unsigned int f = 0 ; f < NF_ ; f+=UNROLL_FACTOR){
-                    ScalarType X[UNROLL_FACTOR];
-#define MACRO(r,i)  X[_I(i)] = z1[c*NF_+f+_I(i)] + b;
-                    UNROLL_FOR_LOOP(0,UNROLL_FACTOR,MACRO);
-#undef MACRO
-
-                    if(a==alpha_sub)
-                    {
-#define MACRO(r,i)     phi[c*NF_+f+_I(i)] = a*std::pow(std::fabs(X[_I(i)]),alpha_sub-1)*sgn(X[_I(i)]);
-                        UNROLL_FOR_LOOP(0,UNROLL_FACTOR,MACRO);
-#undef MACRO
-                    }
-                    if(a==alpha_super)
-                    {
-#define MACRO(r,i)     phi[c*NF_+f+_I(i)] = a*std::pow(std::fabs(X[_I(i)]),alpha_super-1)*sgn(X[_I(i)]);
-                       UNROLL_FOR_LOOP(0,UNROLL_FACTOR,MACRO);
-#undef MACRO
-                    }
+                for(unsigned int f = 0 ; f < NF_ ; f++){
+                    ScalarType X = z1[c*NF_+f] + b;
+                    ScalarType Xabs = std::fabs(X);
+                    if(a==alpha_gauss)
+                        phi[c*NF_+f] = a*std::pow(Xabs,alpha_gauss-1)*sgn(X);
+                    else if(a==alpha_sub)
+                        phi[c*NF_+f] = a*std::pow(Xabs,alpha_sub-1)*sgn(X);
+                    else if(a==alpha_super)
+                        phi[c*NF_+f] = a*std::pow(Xabs,alpha_super-1)*sgn(X);
                 }
             }
 
+
+
             //dbias = mean(phi,2)
             detail::mean(phi,NC_,NF_,dbias);
+
 
             /*dweights = -(eye(N) - 1/n*phi*z1')*inv(W)'*/
 
@@ -179,14 +172,17 @@ public:
             for(std::size_t i = 0 ; i < NC_; ++i)
                 phi_z1t[i*NC_+i] += 1;
 
+
+
             //dweights = -lhs*Winv'
             backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,NC_,-1,WLU,NC_,phi_z1t,NC_,0,dweights,NC_);
+
 
             //Copy back
             std::memcpy(*grad, dweights,sizeof(ScalarType)*NC_*NC_);
             std::memcpy(*grad+NC_*NC_, dbias, sizeof(ScalarType)*NC_);
 
-            std::cout << t.get() << std::endl;
+
         }
 
         return -H;
