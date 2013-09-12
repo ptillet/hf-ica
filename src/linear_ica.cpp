@@ -9,14 +9,18 @@
 
 #include "tests/benchmark-utils.hpp"
 
+
 #include "fmincl/minimize.hpp"
 
+#include "src/for_loop_unroller.hpp"
 #include "src/whiten.hpp"
 #include "src/utils.hpp"
 #include "src/backend.hpp"
 
 
 namespace parica{
+
+#define UNROLL_FACTOR 8
 
 template<class ScalarType>
 struct ica_functor{
@@ -59,7 +63,11 @@ public:
         delete[] means_logp;
     }
 
+
     ScalarType operator()(ScalarType const * x, ScalarType ** grad) const {
+
+        Timer t;
+        t.start();
 
         //Rerolls the variables into the appropriates datastructures
         std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
@@ -67,17 +75,23 @@ public:
 
         //z1 = W*data_;
         backend<ScalarType>::gemm(NoTrans,NoTrans,NF_,NC_,NC_,1,data_,NF_,W,NC_,0,z1,NF_);
-
+        std::cout << "Step 1 : " << t.get() << std::endl;
         //z2 = z1 + b(:, ones(NF_,1));
         //kurt = (mean(z2.^2,2).^2) ./ mean(z2.^4,2) - 3
         //alpha = alpha_sub*(kurt<0) + alpha_super*(kurt>0)
         for(unsigned int c = 0 ; c < NC_ ; ++c){
             ScalarType m2 = 0, m4 = 0;
             ScalarType b = b_[c];
-            for(unsigned int f = 0; f < NF_ ; f++){
-                ScalarType val = z1[c*NF_+f] + b;
-                m2 += std::pow(val,2);
-                m4 += std::pow(val,4);
+            for(unsigned int f = 0; f < NF_ ; f+=UNROLL_FACTOR){
+                ScalarType X[UNROLL_FACTOR];
+#define MACRO(r,i) X[_I(i)] = z1[c*NF_+f+_I(i)] + b;
+                UNROLL_FOR_LOOP(0,UNROLL_FACTOR,MACRO);
+#undef MACRO
+#define MACRO(r,i) \
+                m2 += std::pow(X[_I(i)],2);\
+                m4 += std::pow(X[_I(i)],4);
+                UNROLL_FOR_LOOP(0,UNROLL_FACTOR,MACRO);
+#undef MACRO
             }
             m2 = std::pow(1/(ScalarType)NF_*m2,2);
             m4 = 1/(ScalarType)NF_*m4;
@@ -85,17 +99,27 @@ public:
             alpha[c] = alpha_sub*(kurt<0) + alpha_super*(kurt>=0);
         }
 
-
         //mata = alpha(:,ones(NF_,1));
         //logp = log(mata) - log(2) - gammaln(1./mata) - abs(z2).^mata;
         for(unsigned int c = 0 ; c < NC_ ; ++c){
             ScalarType current = 0;
             ScalarType a = alpha[c];
             ScalarType b = b_[c];
-            for(unsigned int f = 0; f < NF_ ; f++){
-                ScalarType val = z1[c*NF_+f] + b;
-                ScalarType fabs_val = std::fabs(val);
-                current += (a==alpha_sub)?detail::compile_time_pow<alpha_sub>()(fabs_val):detail::compile_time_pow<alpha_super>()(fabs_val);
+            for(unsigned int f = 0; f < NF_ ; f+=UNROLL_FACTOR){
+                ScalarType X[UNROLL_FACTOR];
+#define MACRO(r,i) X[_I(i)] = z1[c*NF_+f+_I(i)] + b;
+                UNROLL_FOR_LOOP(0,UNROLL_FACTOR,MACRO);
+#undef MACRO
+                if(a==alpha_sub){
+#define MACRO(r,i) current+=std::pow(std::fabs(X[_I(i)]),alpha_sub);
+                    UNROLL_FOR_LOOP(0,UNROLL_FACTOR,MACRO);
+#undef MACRO
+                }
+                else if(a==alpha_super){
+#define MACRO(r,i) current+=std::pow(std::fabs(X[_I(i)]),alpha_super);
+                    UNROLL_FOR_LOOP(0,UNROLL_FACTOR,MACRO);
+#undef MACRO
+                }
             }
             means_logp[c] = -1/(ScalarType)NF_*current + std::log(a) - std::log(2) - lgamma(1/a);
         }
@@ -121,10 +145,24 @@ public:
             for(unsigned int c = 0 ; c < NC_ ; ++c){
                 ScalarType a = alpha[c];
                 ScalarType b = b_[c];
-                for(unsigned int f = 0 ; f < NF_ ; ++f){
-                    ScalarType val = z1[c*NF_+f] + b;
-                    ScalarType fabs_val_pow = (a==alpha_sub)?detail::compile_time_pow<alpha_sub-1>()(std::fabs(val)):detail::compile_time_pow<alpha_super-1>()(std::fabs(val));
-                    phi[c*NF_+f] = a*fabs_val_pow*sgn(val);
+                for(unsigned int f = 0 ; f < NF_ ; f+=UNROLL_FACTOR){
+                    ScalarType X[UNROLL_FACTOR];
+#define MACRO(r,i)  X[_I(i)] = z1[c*NF_+f+_I(i)] + b;
+                    UNROLL_FOR_LOOP(0,UNROLL_FACTOR,MACRO);
+#undef MACRO
+
+                    if(a==alpha_sub)
+                    {
+#define MACRO(r,i)     phi[c*NF_+f+_I(i)] = a*std::pow(std::fabs(X[_I(i)]),alpha_sub-1)*sgn(X[_I(i)]);
+                        UNROLL_FOR_LOOP(0,UNROLL_FACTOR,MACRO);
+#undef MACRO
+                    }
+                    if(a==alpha_super)
+                    {
+#define MACRO(r,i)     phi[c*NF_+f+_I(i)] = a*std::pow(std::fabs(X[_I(i)]),alpha_super-1)*sgn(X[_I(i)]);
+                       UNROLL_FOR_LOOP(0,UNROLL_FACTOR,MACRO);
+#undef MACRO
+                    }
                 }
             }
 
@@ -147,6 +185,8 @@ public:
             //Copy back
             std::memcpy(*grad, dweights,sizeof(ScalarType)*NC_*NC_);
             std::memcpy(*grad+NC_*NC_, dbias, sizeof(ScalarType)*NC_);
+
+            std::cout << t.get() << std::endl;
         }
 
         return -H;

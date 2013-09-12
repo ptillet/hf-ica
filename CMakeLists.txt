@@ -16,22 +16,28 @@ add_subdirectory(tests)
 #QT Creator Hackery
 file( GLOB_RECURSE QtCreatorCompatibility_SRC
     *.hpp *.h *.cl)
-add_custom_target( QtCreatorCompatibility SOURCES ${QtCreatorCompatibility_SRC} )
-find_library(OPENBLAS_LIB libopenblas.a)
-set(SRC_PATH "${PROJECT_SOURCE_DIR}/src")
-set(SRC ${SRC_PATH}/linear_ica.cpp)
-add_library(clica ${SRC})
-set_target_properties(clica PROPERTIES COMPILE_FLAGS "-DPARICA_WITH_CBLAS -fPIC")
-target_link_libraries(clica openblas.a gfortran)
+
+
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -funroll-loops")
+set(CMAKE_BUILD_TYPE release)
 
 ##OpenMP
 find_package(OpenMP)
 if (OPENMP_FOUND)
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${OpenMP_C_FLAGS}")
+    set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${OpenMP_CXX_FLAGS}")
 endif()
+
+add_custom_target( QtCreatorCompatibility SOURCES ${QtCreatorCompatibility_SRC} )
+find_library(OPENBLAS_LIB libopenblas)
+set(SRC_PATH "${PROJECT_SOURCE_DIR}/src")
+set(SRC ${SRC_PATH}/linear_ica.cpp)
+add_library(clica ${SRC})
+set_target_properties(clica PROPERTIES COMPILE_FLAGS "-DPARICA_WITH_CBLAS -fPIC")
+target_link_libraries(clica openblas)
+
+
 
 add_subdirectory(examples)
 add_subdirectory(matlab)
 
-set(CMAKE_BUILD_TYPE release)

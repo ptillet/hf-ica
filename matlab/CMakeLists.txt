@@ -29,7 +29,7 @@ endif(DEBUG)
 
 #Append OpenMP
 if(OPENMP_FOUND)
-    set(OPENMP_MEX_FLAGS "CFLAGS=\"\$CFLAGS -fopenmp\" LDFLAGS=\"\$LDFLAGS -fopenmp\"")
+    set(OPENMP_MEX_FLAGS "CFLAGS=\"\$CFLAGS ${CMAKE_CXX_FLAGS_RELEASE} \" LDFLAGS=\"\$LDFLAGS ${CMAKE_CXX_FLAGS_RELEASE}\"")
 else()
     set(OPENMP_MEX_FLAGS "")
 endif(OPENMP_FOUND)
@@ -45,7 +45,7 @@ set(CMAKE_SHARED_MODULE_PREFIX "")
 # Set custom commands for mex compilation, because the flags are (in general)
 # odd and different.
 set(CMAKE_CXX_COMPILE_OBJECT "<CMAKE_CXX_COMPILER> -outdir <OBJECT_DIR> <FLAGS> -c <SOURCE>")
-set(CMAKE_CXX_CREATE_SHARED_MODULE "<CMAKE_CXX_COMPILER> -cxx <LINK_FLAGS> -output <TARGET> <OBJECTS> <LINK_LIBRARIES> -largeArrayDims -lmwlapack -lmwblas ${CMAKE_CXX_FLAGS} ${OPENMP_MEX_FLAGS}")
+set(CMAKE_CXX_CREATE_SHARED_MODULE "<CMAKE_CXX_COMPILER> -cxx <LINK_FLAGS> -output <TARGET> <OBJECTS> <LINK_LIBRARIES> -largeArrayDims -lmwlapack -lmwblas ${OPENMP_MEX_FLAGS}")
 set(CMAKE_CXX_CREATE_SHARED_LIBRARY "${CMAKE_CXX_CREATE_SHARED_MODULE}")
 
 # mex is weird because it doesn't respect the -o option, but in general it

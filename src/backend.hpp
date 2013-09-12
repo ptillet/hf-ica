@@ -3,6 +3,7 @@
 
 #ifdef PARICA_WITH_CBLAS
 
+//Fix for C++11 with Lapacke...
 #include "lapacke.h"
 #include "cblas.h"
 #include "fmincl/backends/cblas.hpp"
