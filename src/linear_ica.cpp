@@ -80,19 +80,18 @@ public:
         //kurt = (mean(z2.^2,2).^2) ./ mean(z2.^4,2) - 3
         //alpha = alpha_sub*(kurt<0) + alpha_super*(kurt>0)
 
-
         for(unsigned int c = 0 ; c < NC_ ; ++c){
             ScalarType m2 = 0, m4 = 0;
             ScalarType b = b_[c];
+
             for(unsigned int f = 0; f < NF_ ; f++){
                 ScalarType X = z1[c*NF_+f] + b;
-                m2 += std::pow(X,2);\
+                m2 += std::pow(X,2);
                 m4 += std::pow(X,4);
             }
             m2 = std::pow(1/(ScalarType)NF_*m2,2);
             m4 = 1/(ScalarType)NF_*m4;
             ScalarType kurt = m4/m2 - 3;
-            std::cout << kurt << " " << std::flush;
             ScalarType eps = 0.1;
             if(std::fabs(kurt) < eps)
                 alpha[c]=alpha_gauss;
@@ -101,8 +100,6 @@ public:
             else if(kurt>=eps)
                 alpha[c]=alpha_super;
         }
-        std::cout << std::endl;
-
 
         //mata = alpha(:,ones(NF_,1));
         //logp = log(mata) - log(2) - gammaln(1./mata) - abs(z2).^mata;
@@ -157,9 +154,8 @@ public:
             }
 
 
-
             //dbias = mean(phi,2)
-            detail::mean(phi,NC_,NF_,dbias);
+            detail::compute_mean(phi,NC_,NF_,dbias);
 
 
             /*dweights = -(eye(N) - 1/n*phi*z1')*inv(W)'*/
@@ -210,7 +206,7 @@ private:
 
 fmincl::optimization_options make_default_options(){
     fmincl::optimization_options options;
-    options.direction = new fmincl::quasi_newton_tag();
+    options.direction = new fmincl::quasi_newton();
     options.max_iter = 100;
     options.verbosity_level = 0;
     return options;
@@ -228,7 +224,6 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     ScalarType * X = new ScalarType[N];
     std::memset(X,0,N*sizeof(ScalarType));
     ScalarType * white_data = new ScalarType[NC*NF];
-
     std::memcpy(data_copy,data,NC*NF*sizeof(ScalarType));
 
     //Optimization Vector

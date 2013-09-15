@@ -136,6 +136,8 @@ struct backend<float>{
     {   return cblas_sgemm(CblasColMajor,TransA,TransB,M,N,K,alpha,A,lda,B,ldb,beta,C,ldc); }
     static lapack_int syev(char jobz, char uplo, lapack_int n,  ScalarType* a, lapack_int lda, ScalarType* w )
     {   return LAPACKE_ssyev(CblasColMajor,jobz,uplo,n,a,lda,w); }
+    static void axpy(std::size_t N, ScalarType alpha, cst_ptr_type x, ptr_type y)
+    { cblas_saxpy(N,alpha,x,1,y,1); }
 };
 
 
@@ -154,6 +156,8 @@ struct backend<double>{
     {   return cblas_dgemm(CblasColMajor,TransA,TransB,M,N,K,alpha,A,lda,B,ldb,beta,C,ldc); }
     static lapack_int syev( char jobz, char uplo, lapack_int n, ScalarType* a, lapack_int lda, ScalarType* w )
     {   return LAPACKE_dsyev(LAPACK_COL_MAJOR,jobz,uplo,n,a,lda,w); }
+    static void axpy(std::size_t N, ScalarType alpha, cst_ptr_type x, ptr_type y)
+    { cblas_daxpy(N,alpha,x,1,y,1); }
 };
 
 
