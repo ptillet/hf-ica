@@ -17,7 +17,7 @@
 
 typedef float ScalarType;
 static const unsigned int NC=4;
-static const unsigned int NF=10000;
+static const unsigned int NF=800000;
 static const unsigned int T=20;
 
 int main(){

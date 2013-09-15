@@ -22,6 +22,7 @@ set(CMAKE_BUILD_TYPE "")
   set(CMAKE_CXX_FLAGS "")
   set(CMAKE_C_FLAGS "")
 
+set(OPENMP_MEX_FLAGS "CFLAGS=\"\$CFLAGS ${CMAKE_CXX_FLAGS_RELEASE} \" LDFLAGS=\"\$LDFLAGS ${CMAKE_CXX_FLAGS_RELEASE}\"")
 
 
 # Don't give -fPIC; mex will do that for us.

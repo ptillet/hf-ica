@@ -41,7 +41,7 @@ void fill_options(mxArray* options_mx, parica_options_type & options){
 
         //Quasi-Newton
         if(are_string_equal(direction_name,"qn")){
-            fmincl::quasi_newton_tag * direction = new fmincl::quasi_newton_tag();
+            fmincl::quasi_newton * direction = new fmincl::quasi_newton();
 
             //Quasi-Newton Update overriden
             if(mxArray * qn_update = mxGetField(options_mx,0,"qnUpdate")){
@@ -49,7 +49,7 @@ void fill_options(mxArray* options_mx, parica_options_type & options){
 
                 //"LBFGS"
                 if(are_string_equal(qn_update_name,"lbfgs")){
-                    fmincl::lbfgs_tag * lbfgs = new fmincl::lbfgs_tag();
+                    fmincl::lbfgs * lbfgs = new fmincl::lbfgs();
                     //Set LBFGS memory
                     if(mxArray * lbfgs_memory = mxGetField(options_mx,0,"lbfgsMemory")){
                         lbfgs->m = mxGetScalar(lbfgs_memory);
@@ -59,7 +59,7 @@ void fill_options(mxArray* options_mx, parica_options_type & options){
 
                 //"BFGS"
                 else if(are_string_equal(qn_update_name,"bfgs")){
-                    fmincl::qn_update_tag * bfgs = new fmincl::bfgs_tag();
+                    fmincl::qn_update * bfgs = new fmincl::bfgs();
                     direction->update = bfgs;
                 }
 
@@ -73,14 +73,14 @@ void fill_options(mxArray* options_mx, parica_options_type & options){
 
         //Conjugate Gradients
         else if(are_string_equal(direction_name,"cg")){
-            fmincl::cg_tag * direction = new fmincl::cg_tag();
+            fmincl::conjugate_gradient * direction = new fmincl::conjugate_gradient();
 
             //CG Update overriden
             if(mxArray * cg_update = mxGetField(options_mx,0,"cgUpdate")){
                 char * cg_update_name = mxArrayToString(cg_update);
 
                 if(are_string_equal(cg_update_name,"PolakRibiere"))
-                    direction->update = new fmincl::polak_ribiere_tag();
+                    direction->update = new fmincl::polak_ribiere();
 
                 else
                     mexErrMsgIdAndTxt( "parica:invalidCgUpdate",
@@ -92,7 +92,7 @@ void fill_options(mxArray* options_mx, parica_options_type & options){
                 char * cg_restart_name = mxArrayToString(cg_restart);
 
                 if(are_string_equal(cg_restart_name,"noRestart"))
-                    direction->restart = new fmincl::no_restart_tag();
+                    direction->restart = new fmincl::no_restart();
 
                 else
                     mexErrMsgIdAndTxt( "parica:invalidCgRestart",
