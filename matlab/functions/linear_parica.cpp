@@ -86,19 +86,6 @@ void fill_options(mxArray* options_mx, parica_options_type & options){
                     mexErrMsgIdAndTxt( "parica:invalidCgUpdate",
                                        "Please specify a valid cgUpdate. Supported for now : \n \"PolakRibiere\" ");
             }
-
-            //CG Restart overriden
-            if(mxArray * cg_restart = mxGetField(options_mx,0,"cgRestart")){
-                char * cg_restart_name = mxArrayToString(cg_restart);
-
-                if(are_string_equal(cg_restart_name,"noRestart"))
-                    direction->restart = new fmincl::no_restart();
-
-                else
-                    mexErrMsgIdAndTxt( "parica:invalidCgRestart",
-                                       "Please specify a valid cgRestart. Supported for now : \n \"noRestart\" ");
-            }
-
             optimization.direction = direction;
         }
     }

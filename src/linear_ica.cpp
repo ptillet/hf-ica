@@ -92,7 +92,7 @@ public:
             m2 = std::pow(1/(ScalarType)NF_*m2,2);
             m4 = 1/(ScalarType)NF_*m4;
             ScalarType kurt = m4/m2 - 3;
-            ScalarType eps = 0.1;
+            ScalarType eps = 0.05;
             if(std::fabs(kurt) < eps)
                 alpha[c]=alpha_gauss;
             else if(kurt<=-eps)
@@ -100,7 +100,6 @@ public:
             else if(kurt>=eps)
                 alpha[c]=alpha_super;
         }
-
         //mata = alpha(:,ones(NF_,1));
         //logp = log(mata) - log(2) - gammaln(1./mata) - abs(z2).^mata;
         for(unsigned int c = 0 ; c < NC_ ; ++c){
@@ -207,8 +206,9 @@ private:
 fmincl::optimization_options make_default_options(){
     fmincl::optimization_options options;
     options.direction = new fmincl::quasi_newton();
-    options.max_iter = 100;
+    options.max_iter = 200;
     options.verbosity_level = 0;
+    options.stopping_criterion = new fmincl::value_treshold(1e-4);
     return options;
 }
 
