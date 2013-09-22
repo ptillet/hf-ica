@@ -12,6 +12,14 @@ namespace parica{
                 return x;
             return x/multiple * multiple;
         }
+
+        template<class ScalarType>
+        std::size_t shuffle(ScalarType* data, std::size_t NC, std::size_t NF){
+            for(std::size_t c = 0 ; c < NC ; ++c){
+                for(std::size_t f = 0 ; f < NF ; ++f){
+                }
+            }
+        }
     }
 
 }

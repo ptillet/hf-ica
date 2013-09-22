@@ -27,14 +27,13 @@ private:
     static const int alpha_sub = 4;
     static const int alpha_gauss = 2;
     static const int alpha_super = 1;
-    static const int alpha_vsuper = 0.5;
 private:
     template <typename T>
     inline int sgn(T val) const {
         return (val>0)?1:-1;
     }
 public:
-    ica_functor(ScalarType const * data, std::size_t NC, std::size_t NF) : data_(data), NC_(NC), NF_(NF){
+    ica_functor(ScalarType const * data, std::size_t MiniBatch_NF, std::size_t NC, std::size_t NF) : data_(data), MiniBatch_NF_(MiniBatch_NF), NC_(NC), NF_(NF){
         ipiv_ =  new typename backend<ScalarType>::size_t[NC_+1];
 
         z1 = new ScalarType[NC_*NF_];
@@ -92,7 +91,7 @@ public:
             m2 = std::pow(1/(ScalarType)NF_*m2,2);
             m4 = 1/(ScalarType)NF_*m4;
             ScalarType kurt = m4/m2 - 3;
-            ScalarType eps = 0.05;
+            ScalarType eps = 0;
             if(std::fabs(kurt) < eps)
                 alpha[c]=alpha_gauss;
             else if(kurt<=-eps)
@@ -100,6 +99,7 @@ public:
             else if(kurt>=eps)
                 alpha[c]=alpha_super;
         }
+
         //mata = alpha(:,ones(NF_,1));
         //logp = log(mata) - log(2) - gammaln(1./mata) - abs(z2).^mata;
         for(unsigned int c = 0 ; c < NC_ ; ++c){
@@ -117,7 +117,6 @@ public:
             }
             means_logp[c] = -1/(ScalarType)NF_*current + std::log(a) - std::log(2) - lgamma(1/a);
         }
-
         //H = log(abs(det(w))) + sum(means_logp);
 
         //LU Decomposition
@@ -187,6 +186,7 @@ private:
     ScalarType const * data_;
     std::size_t NC_;
     std::size_t NF_;
+    std::size_t MiniBatch_NF_;
 
     typename backend<ScalarType>::size_t *ipiv_;
 
@@ -205,26 +205,25 @@ private:
 
 fmincl::optimization_options make_default_options(){
     fmincl::optimization_options options;
-    options.direction = new fmincl::quasi_newton();
+    options.direction = new fmincl::steepest_descent();
     options.max_iter = 200;
     options.verbosity_level = 0;
-    options.stopping_criterion = new fmincl::value_treshold(1e-4);
+    options.stopping_criterion = new fmincl::gradient_treshold(1e-6);
     return options;
 }
 
 
 template<class ScalarType>
 void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t NC, std::size_t NF, fmincl::optimization_options const & options){
+
     std::size_t N = NC*NC + NC;
 
-    ScalarType * data_copy = new ScalarType[NC*NF];
     ScalarType * W = new ScalarType[NC*NC];
     ScalarType * b = new ScalarType[NC];
     ScalarType * S = new ScalarType[N];
     ScalarType * X = new ScalarType[N];
     std::memset(X,0,N*sizeof(ScalarType));
     ScalarType * white_data = new ScalarType[NC*NF];
-    std::memcpy(data_copy,data,NC*NF*sizeof(ScalarType));
 
     //Optimization Vector
 
@@ -235,10 +234,9 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
         X[i*(NC+1)] = 1;
 
     //Whiten Data
-    whiten<ScalarType>(NC, NF, data_copy,white_data);
+    whiten<ScalarType>(NC, NF, data,white_data);
 
-    ica_functor<ScalarType> fun(white_data,NC,NF);
-
+    ica_functor<ScalarType> fun(white_data,NF,NC,NF);
     typedef typename fmincl_backend<ScalarType>::type FMinBackendType;
     //fmincl::utils::check_grad<FMinBackendType>(fun,X,N);
     fmincl::minimize<FMinBackendType>(S,fun,X,N,options);
@@ -257,7 +255,6 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
         }
     }
 
-    delete[] data_copy;
     delete[] W;
     delete[] b;
     delete[] S;
