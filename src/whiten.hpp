@@ -55,15 +55,13 @@ namespace parica{
 
 
     template<class ScalarType>
-    void whiten(std::size_t NC, std::size_t NF, ScalarType const * constdata, ScalarType * out){
+    void whiten(std::size_t NC, std::size_t NF, ScalarType const * constdata, ScalarType * Sphere){
         ScalarType * Cov = new ScalarType[NC*NC];
-        ScalarType * Sphere = new ScalarType[NC*NC];
         ScalarType * means = new ScalarType[NC];
 
         //We remove constness here to normalize the data (and add the mean back afterwards)
         ScalarType * data = const_cast<ScalarType *>(constdata);
         detail::compute_mean(data,NC,NF,means);
-
 
         //Substract mean
         for(std::size_t c = 0 ; c < NC ;++c)
@@ -83,12 +81,8 @@ namespace parica{
         detail::inv_sqrtm<ScalarType>(NC,Cov,Sphere);
 
 
-        //out = 2*Sphere*data_copy;
-        backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,2,data,NF,Sphere,NC,0,out,NF);
-
         delete[] means;
         delete[] Cov;
-        delete[] Sphere;
     }
 
 }

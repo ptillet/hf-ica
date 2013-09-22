@@ -36,8 +36,8 @@ public:
     ica_functor(ScalarType const * data, std::size_t MiniBatch_NF, std::size_t NC, std::size_t NF) : data_(data), MiniBatch_NF_(MiniBatch_NF), NC_(NC), NF_(NF){
         ipiv_ =  new typename backend<ScalarType>::size_t[NC_+1];
 
-        z1 = new ScalarType[NC_*NF_];
-        phi = new ScalarType[NC_*NF_];
+        z1 = new ScalarType[NC_*MiniBatch_NF_];
+        phi = new ScalarType[NC_*MiniBatch_NF_];
         phi_z1t = new ScalarType[NC_*NC_];
         dweights = new ScalarType[NC_*NC_];
         dbias = new ScalarType[NC_];
@@ -74,8 +74,8 @@ public:
         std::memcpy(b_, x+NC_*NC_, sizeof(ScalarType)*NC_);
 
         //z1 = W*data_;
-        backend<ScalarType>::gemm(NoTrans,NoTrans,NF_,NC_,NC_,1,data_,NF_,W,NC_,0,z1,NF_);
-        //z2 = z1 + b(:, ones(NF_,1));
+        backend<ScalarType>::gemm(NoTrans,NoTrans,MiniBatch_NF_,NC_,NC_,1,data_,NF_,W,NC_,0,z1,MiniBatch_NF_);
+        //z2 = z1 + b(:, ones(MiniBatch_NF_,1));
         //kurt = (mean(z2.^2,2).^2) ./ mean(z2.^4,2) - 3
         //alpha = alpha_sub*(kurt<0) + alpha_super*(kurt>0)
 
@@ -83,13 +83,13 @@ public:
             ScalarType m2 = 0, m4 = 0;
             ScalarType b = b_[c];
 
-            for(unsigned int f = 0; f < NF_ ; f++){
-                ScalarType X = z1[c*NF_+f] + b;
+            for(unsigned int f = 0; f < MiniBatch_NF_ ; f++){
+                ScalarType X = z1[c*MiniBatch_NF_+f] + b;
                 m2 += std::pow(X,2);
                 m4 += std::pow(X,4);
             }
-            m2 = std::pow(1/(ScalarType)NF_*m2,2);
-            m4 = 1/(ScalarType)NF_*m4;
+            m2 = std::pow(1/(ScalarType)MiniBatch_NF_*m2,2);
+            m4 = 1/(ScalarType)MiniBatch_NF_*m4;
             ScalarType kurt = m4/m2 - 3;
             ScalarType eps = 0;
             if(std::fabs(kurt) < eps)
@@ -100,14 +100,14 @@ public:
                 alpha[c]=alpha_super;
         }
 
-        //mata = alpha(:,ones(NF_,1));
+        //mata = alpha(:,ones(MiniBatch_NF_,1));
         //logp = log(mata) - log(2) - gammaln(1./mata) - abs(z2).^mata;
         for(unsigned int c = 0 ; c < NC_ ; ++c){
             ScalarType current = 0;
             ScalarType a = alpha[c];
             ScalarType b = b_[c];
-            for(unsigned int f = 0; f < NF_ ; f++){
-                ScalarType X = z1[c*NF_+f] + b;
+            for(unsigned int f = 0; f < MiniBatch_NF_ ; f++){
+                ScalarType X = z1[c*MiniBatch_NF_+f] + b;
                 if(a==alpha_gauss)
                     current+=std::pow(std::fabs(X),alpha_gauss);
                 else if(a==alpha_sub)
@@ -115,7 +115,7 @@ public:
                 else if(a==alpha_super)
                     current+=std::pow(std::fabs(X),alpha_super);
             }
-            means_logp[c] = -1/(ScalarType)NF_*current + std::log(a) - std::log(2) - lgamma(1/a);
+            means_logp[c] = -1/(ScalarType)MiniBatch_NF_*current + std::log(a) - std::log(2) - lgamma(1/a);
         }
         //H = log(abs(det(w))) + sum(means_logp);
 
@@ -139,21 +139,21 @@ public:
             for(unsigned int c = 0 ; c < NC_ ; ++c){
                 ScalarType a = alpha[c];
                 ScalarType b = b_[c];
-                for(unsigned int f = 0 ; f < NF_ ; f++){
-                    ScalarType X = z1[c*NF_+f] + b;
+                for(unsigned int f = 0 ; f < MiniBatch_NF_ ; f++){
+                    ScalarType X = z1[c*MiniBatch_NF_+f] + b;
                     ScalarType Xabs = std::fabs(X);
                     if(a==alpha_gauss)
-                        phi[c*NF_+f] = a*std::pow(Xabs,alpha_gauss-1)*sgn(X);
+                        phi[c*MiniBatch_NF_+f] = a*std::pow(Xabs,alpha_gauss-1)*sgn(X);
                     else if(a==alpha_sub)
-                        phi[c*NF_+f] = a*std::pow(Xabs,alpha_sub-1)*sgn(X);
+                        phi[c*MiniBatch_NF_+f] = a*std::pow(Xabs,alpha_sub-1)*sgn(X);
                     else if(a==alpha_super)
-                        phi[c*NF_+f] = a*std::pow(Xabs,alpha_super-1)*sgn(X);
+                        phi[c*MiniBatch_NF_+f] = a*std::pow(Xabs,alpha_super-1)*sgn(X);
                 }
             }
 
 
             //dbias = mean(phi,2)
-            detail::compute_mean(phi,NC_,NF_,dbias);
+            detail::compute_mean(phi,NC_,MiniBatch_NF_,dbias);
 
 
             /*dweights = -(eye(N) - 1/n*phi*z1')*inv(W)'*/
@@ -162,7 +162,7 @@ public:
             backend<ScalarType>::getri(NC_,WLU,NC_,ipiv_);
 
             //lhs = I(N,N) - 1/N*phi*z1')
-            backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,NF_ ,-1/(ScalarType)NF_,z1,NF_,phi,NF_,0,phi_z1t,NC_);
+            backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,MiniBatch_NF_ ,-1/(ScalarType)MiniBatch_NF_,z1,MiniBatch_NF_,phi,MiniBatch_NF_,0,phi_z1t,NC_);
             for(std::size_t i = 0 ; i < NC_; ++i)
                 phi_z1t[i*NC_+i] += 1;
 
@@ -205,7 +205,7 @@ private:
 
 fmincl::optimization_options make_default_options(){
     fmincl::optimization_options options;
-    options.direction = new fmincl::steepest_descent();
+    options.direction = new fmincl::quasi_newton();
     options.max_iter = 200;
     options.verbosity_level = 0;
     options.stopping_criterion = new fmincl::gradient_treshold(1e-6);
@@ -218,6 +218,7 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
 
     std::size_t N = NC*NC + NC;
 
+    ScalarType * Sphere = new ScalarType[NC*NC];
     ScalarType * W = new ScalarType[NC*NC];
     ScalarType * b = new ScalarType[NC];
     ScalarType * S = new ScalarType[N];
@@ -234,20 +235,26 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
         X[i*(NC+1)] = 1;
 
     //Whiten Data
-    whiten<ScalarType>(NC, NF, data,white_data);
+    whiten<ScalarType>(NC, NF, data,Sphere);
+    //white_data = randperm(2*Sphere*data)
+    backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,2,data,NF,Sphere,NC,0,white_data,NF);
+    detail::shuffle(white_data,NC,NF);
+    ica_functor<ScalarType> fun(white_data,1000,NC,NF);
 
-    ica_functor<ScalarType> fun(white_data,NF,NC,NF);
     typedef typename fmincl_backend<ScalarType>::type FMinBackendType;
     //fmincl::utils::check_grad<FMinBackendType>(fun,X,N);
     fmincl::minimize<FMinBackendType>(S,fun,X,N,options);
 
+    //out = 2*Sphere*data_copy;
 
     //Copies into datastructures
     std::memcpy(W, S,sizeof(ScalarType)*NC*NC);
     std::memcpy(b, S+NC*NC, sizeof(ScalarType)*NC);
 
-    //out = W*white_data;
+    //out = W*Sphere*data;
+    backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,2,data,NF,Sphere,NC,0,white_data,NF);
     backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,1,white_data,NF,W,NC,0,out,NF);
+
     for(std::size_t c = 0 ; c < NC ; ++c){
         ScalarType val = b[c];
         for(std::size_t f = 0 ; f < NF ; ++f){
