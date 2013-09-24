@@ -9,7 +9,7 @@
 
 #include "tests/benchmark-utils.hpp"
 
-
+#include "fmincl/check_grad.hpp"
 #include "fmincl/minimize.hpp"
 
 #include "src/whiten.hpp"
@@ -33,13 +33,13 @@ private:
         return (val>0)?1:-1;
     }
 public:
-    ica_functor(ScalarType const * data, std::size_t MiniBatch_NF, std::size_t NC, std::size_t NF, std::size_t KurtNF) : data_(data), BNF_(std::min(MiniBatch_NF,NF_)), NC_(NC), NF_(NF), Kurt_NF_(std::min(KurtNF,NF_)){
+    ica_functor(ScalarType const * data, std::size_t MiniBatch_NF, std::size_t NC, std::size_t NF, std::size_t KurtNF) : data_(data), BNF_(std::min(MiniBatch_NF,NF_)), NC_(NC), NF_(NF){
         ipiv_ =  new typename backend<ScalarType>::size_t[NC_+1];
 
         z1 = new ScalarType[NC_*BNF_];
+
         phi = new ScalarType[NC_*BNF_];
 
-        kurt_z1_ = new ScalarType[NC_*Kurt_NF_];
 
         phi_z1t = new ScalarType[NC_*NC_];
         dweights = new ScalarType[NC_*NC_];
@@ -47,7 +47,7 @@ public:
         W = new ScalarType[NC_*NC_];
         WLU = new ScalarType[NC_*NC_];
         b_ = new ScalarType[NC_];
-        alpha = new ScalarType[NC_];
+        kurt = new ScalarType[NC_];
         means_logp = new ScalarType[NC_];
     }
 
@@ -62,7 +62,7 @@ public:
         delete[] W;
         delete[] WLU;
         delete[] b_;
-        delete[] alpha;
+        delete[] kurt;
         delete[] means_logp;
     }
 
@@ -80,13 +80,10 @@ public:
 
 
         std::size_t BNF = std::min(BNF_,NF_-k_*BNF_);
-        //std::cout << k_ << " " << BNF << std::endl;
-
-
-        bool update_kurtosis = true;
 
         //z1 = W*data_;
         backend<ScalarType>::gemm(NoTrans,NoTrans,BNF,NC_,NC_,1,data_+k_*BNF_,NF_,W,NC_,0,z1,BNF);
+
         for(unsigned int c = 0 ; c < NC_ ; ++c){
             ScalarType m2 = 0, m4 = 0;
             ScalarType b = b_[c];
@@ -99,38 +96,30 @@ public:
 
             m2 = std::pow(1/(ScalarType)BNF*m2,2);
             m4 = 1/(ScalarType)BNF*m4;
-            ScalarType kurt = m4/m2 - 3;
-            ScalarType eps = 0;
-            if(std::fabs(kurt) < eps)
-                alpha[c]=alpha_gauss;
-            else if(kurt<=-eps)
-                alpha[c]=alpha_sub;
-            else if(kurt>=eps)
-                alpha[c]=alpha_super;
+            ScalarType k = m4/m2 - 3;
+            kurt[c] = k+0.02;
+
         }
 
-        //z2 = z1 + b(:, ones(MiniBatch_NF_,1));
-        //kurt = (mean(z2.^2,2).^2) ./ mean(z2.^4,2) - 3
-        //alpha = alpha_sub*(kurt<0) + alpha_super*(kurt>0)
+        //y = tanh(z1 + b(:, ones(MiniBatch_NF_,1)));
 
-
-
-        //mata = alpha(:,ones(MiniBatch_NF_,1));
-        //logp = log(mata) - log(2) - gammaln(1./mata) - abs(z2).^mata;
         for(unsigned int c = 0 ; c < NC_ ; ++c){
             ScalarType current = 0;
-            ScalarType a = alpha[c];
+            ScalarType k = kurt[c];
             ScalarType b = b_[c];
             for(unsigned int f = 0; f < BNF ; f++){
-                ScalarType X = z1[c*BNF_+f] + b;
-                if(a==alpha_gauss)
-                    current+=std::pow(std::fabs(X),alpha_gauss);
-                else if(a==alpha_sub)
-                    current+=std::pow(std::fabs(X),alpha_sub);
-                else if(a==alpha_super)
-                    current+=std::pow(std::fabs(X),alpha_super);
+                ScalarType z2 = z1[c*BNF_+f] + b;
+                ScalarType y = std::tanh(z2);
+                ScalarType logp = 0;
+                if(k<0){
+                    logp = std::log(0.5) + std::log(std::exp(-0.5*std::pow(z2-1,2)) + std::exp(-0.5*std::pow(z2+1,2)));
+                }
+                else{
+                    logp = std::log(1 - y*y) - 0.5*z2*z2;
+                }
+                current+=logp;
             }
-            means_logp[c] = -1/(ScalarType)BNF*current + std::log(a) - std::log(2) - lgamma(1/a);
+            means_logp[c] = 1/(ScalarType)BNF*current;
         }
 
         //H = log(abs(det(w))) + sum(means_logp);
@@ -152,17 +141,15 @@ public:
         if(grad){
             //phi = mean(mata.*abs(z2).^(mata-1).*sign(z2),2);
             for(unsigned int c = 0 ; c < NC_ ; ++c){
-                ScalarType a = alpha[c];
+                ScalarType k = kurt[c];
                 ScalarType b = b_[c];
                 for(unsigned int f = 0 ; f < BNF ; f++){
-                    ScalarType X = z1[c*BNF_+f] + b;
-                    ScalarType Xabs = std::fabs(X);
-                    if(a==alpha_gauss)
-                        phi[c*BNF+f] = a*std::pow(Xabs,alpha_gauss-1)*sgn(X);
-                    else if(a==alpha_sub)
-                        phi[c*BNF+f] = a*std::pow(Xabs,alpha_sub-1)*sgn(X);
-                    else if(a==alpha_super)
-                        phi[c*BNF+f] = a*std::pow(Xabs,alpha_super-1)*sgn(X);
+                    ScalarType z2 = z1[c*BNF_+f] + b;
+                    ScalarType y = std::tanh(z2);
+                    if(k<0)
+                        phi[c*BNF+f] = (z2 - y);
+                    else
+                        phi[c*BNF+f] = (z2 + 2*y);
                 }
             }
 
@@ -182,6 +169,7 @@ public:
             std::memcpy(*grad, dweights,sizeof(ScalarType)*NC_*NC_);
             std::memcpy(*grad+NC_*NC_, dbias, sizeof(ScalarType)*NC_);
         }
+
     }
 
 private:
@@ -194,10 +182,6 @@ private:
 
     typename backend<ScalarType>::size_t *ipiv_;
 
-    //Kurtosis
-    std::size_t Kurt_NF_;
-    ScalarType* kurt_z1_;
-
     //MiniBatch
     ScalarType* z1;
     ScalarType* phi;
@@ -209,7 +193,7 @@ private:
     ScalarType* W;
     ScalarType* WLU;
     ScalarType* b_;
-    ScalarType* alpha;
+    ScalarType* kurt;
     ScalarType* means_logp;
 
 };
@@ -219,8 +203,8 @@ fmincl::optimization_options make_default_options(){
     fmincl::optimization_options options;
     options.direction = new fmincl::quasi_newton();
     options.max_iter = 200;
-    options.verbosity_level = 0;
-    options.line_search = new fmincl::strong_wolfe_powell(3);
+    options.verbosity_level = 2;
+    options.line_search = new fmincl::strong_wolfe_powell(40);
     options.stopping_criterion = new fmincl::gradient_treshold(1e-6);
     return options;
 }
@@ -253,7 +237,7 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,2,data,NF,Sphere,NC,0,white_data,NF);
     detail::shuffle(white_data,NC,NF);
 
-    std::size_t minibatch_size = 10000;
+    std::size_t minibatch_size = 190000;
     std::size_t num_minibatch = NF%minibatch_size==0?NF/minibatch_size:NF/minibatch_size+1;
     fmincl::minibatch_options minibatch_options(num_minibatch,5);
     ica_functor<ScalarType> objective(white_data,minibatch_size,NC,NF,NF);
@@ -272,9 +256,11 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
 //        }
 //    }
 
-    //fmincl::utils::check_grad<FMinBackendType>(fun,X,N);
-    fmincl::minimize_minibatch<typename fmincl_backend<ScalarType>::type>(X,objective,X,N,options,minibatch_options);
-    //fmincl::minimize<Backend>(X,objective,X,N,optimization_options);
+    objective.new_minibatch_callback(0);
+    typedef typename fmincl_backend<ScalarType>::type BackendType;
+    //std::cout << fmincl::check_grad<BackendType>(objective,X,N,1e-5) << std::endl;
+    //fmincl::minimize_minibatch<typename fmincl_backend<ScalarType>::type>(X,objective,X,N,options,minibatch_options);
+    fmincl::minimize<BackendType>(X,objective,X,N,options);
 
 
     //Copies into datastructures

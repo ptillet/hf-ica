@@ -15,9 +15,9 @@
 
 #define BENCHMARK_COUNT 1
 
-typedef float ScalarType;
+typedef double ScalarType;
 static const unsigned int NC=4;
-static const unsigned int NF=800000;
+static const unsigned int NF=1000;
 static const unsigned int T=20;
 
 int main(){
@@ -39,10 +39,10 @@ int main(){
             mixing[i*NC+j] = static_cast<double>(rand())/RAND_MAX;
 
 
-    cblas_sgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,NF,NC,NC,1,src,NF,mixing,NC,0,mixed_src,NF);
+    cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,NF,NC,NC,1,src,NF,mixing,NC,0,mixed_src,NF);
 
     fmincl::optimization_options options = parica::make_default_options();
-    options.verbosity_level = 0;
+    options.verbosity_level = 2;
     Timer t;
     t.start();
     for(unsigned int i = 0 ; i < BENCHMARK_COUNT ; ++i)
