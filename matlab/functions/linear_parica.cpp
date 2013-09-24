@@ -88,6 +88,11 @@ void fill_options(mxArray* options_mx, parica_options_type & options){
             }
             optimization.direction = direction;
         }
+
+        //Steepest Descent
+        else if(are_string_equal(direction_name,"sd")){
+            optimization.direction = new fmincl::steepest_descent();
+        }
     }
 }
 

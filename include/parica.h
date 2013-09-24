@@ -10,7 +10,7 @@
  * License : MIT X11 - See the LICENSE file in the root folder
  * ===========================*/
 
-#include "fmincl/optimization_otions.hpp"
+#include "fmincl/optimization_options.hpp"
 
 namespace parica{
 
