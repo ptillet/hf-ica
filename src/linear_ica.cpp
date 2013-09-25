@@ -17,6 +17,9 @@
 #include "src/backend.hpp"
 
 
+#include "fastapprox-0/fasthyperbolic.h"
+#include "fastapprox-0/fastlog.h"
+
 namespace parica{
 
 
@@ -32,6 +35,13 @@ private:
     inline int sgn(T val) const {
         return (val>0)?1:-1;
     }
+
+    static inline ScalarType fast_tanh(ScalarType x){
+        ScalarType a = (((x*x+378)*x*x+17325)*x*x+135135)*x;
+        ScalarType b = ((28*x*x+3150)*x*x+62370)*x*x+135135;
+        return a/b;
+    }
+
 public:
     ica_functor(ScalarType const * data, std::size_t MiniBatch_NF, std::size_t NC, std::size_t NF, std::size_t KurtNF) : data_(data), BNF_(std::min(MiniBatch_NF,NF_)), NC_(NC), NF_(NF){
         ipiv_ =  new typename backend<ScalarType>::size_t[NC_+1];
@@ -109,13 +119,13 @@ public:
             ScalarType b = b_[c];
             for(unsigned int f = 0; f < BNF ; f++){
                 ScalarType z2 = z1[c*BNF_+f] + b;
-                ScalarType y = std::tanh(z2);
+                ScalarType y = fasttanh(z2);
                 ScalarType logp = 0;
                 if(k<0){
-                    logp = std::log(0.5) + std::log(std::exp(-0.5*std::pow(z2-1,2)) + std::exp(-0.5*std::pow(z2+1,2)));
+                    logp = std::log(0.5) + std::log((std::exp(-0.5*std::pow(z2-1,2)) + std::exp(-0.5*std::pow(z2+1,2))));
                 }
                 else{
-                    logp = std::log(1 - y*y) - 0.5*z2*z2;
+                    logp = fastlog(1 - y*y) - 0.5*z2*z2;
                 }
                 current+=logp;
             }
@@ -145,13 +155,11 @@ public:
                 ScalarType b = b_[c];
                 for(unsigned int f = 0 ; f < BNF ; f++){
                     ScalarType z2 = z1[c*BNF_+f] + b;
-                    ScalarType y = std::tanh(z2);
-                    if(k<0)
-                        phi[c*BNF+f] = (z2 - y);
-                    else
-                        phi[c*BNF+f] = (z2 + 2*y);
+                    ScalarType y = fastertanh(z2);
+                    phi[c*BNF+f] =(k<0)?(z2 - y):(z2 + 2*y);
                 }
             }
+
 
             //dbias = mean(phi,2)
             detail::compute_mean(phi,NC_,BNF_,dbias);
@@ -235,6 +243,7 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
 
     //white_data = randperm(2*Sphere*data)
     backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,2,data,NF,Sphere,NC,0,white_data,NF);
+
     detail::shuffle(white_data,NC,NF);
 
     std::size_t minibatch_size = 190000;
