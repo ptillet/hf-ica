@@ -41,16 +41,14 @@ private:
     inline void fill_y() const;
     inline void compute_means_logp() const;
 
+
 public:
-    ica_functor(ScalarType const * data, std::size_t NF, std::size_t NC, std::size_t BNF) : data_(data), NC_(NC), NF_(NF), BNF_(BNF){
+    ica_functor(ScalarType const * data, std::size_t NF, std::size_t NC) : data_(data), NC_(NC), NF_((NF%4==0)?NF:(NF/4)*NF){
         ipiv_ =  new typename backend<ScalarType>::size_t[NC_+1];
+        z1 = new ScalarType[NC_*NF_];
+        y_ = new ScalarType[NC_*NF_];
 
-        subdata = new ScalarType[NC_*BNF_];
-
-        z1 = new ScalarType[NC_*BNF_];
-        y_ = new float[NC_*BNF_];
-
-        phi = new ScalarType[NC_*BNF_];
+        phi = new ScalarType[NC_*NF_];
 
 
         phi_z1t = new ScalarType[NC_*NC_];
@@ -78,10 +76,6 @@ public:
         delete[] means_logp;
     }
 
-    void new_minibatch_callback(std::size_t i) const{
-        k_ = i;
-    }
-
     void operator()(ScalarType const * x, ScalarType* value, ScalarType ** grad) const {
         Timer t;
         t.start();
@@ -91,21 +85,21 @@ public:
         std::memcpy(b_, x+NC_*NC_, sizeof(ScalarType)*NC_);
 
 
-        std::size_t TBNF = std::min(BNF_, NF_ - k_*BNF_);
-
         //z1 = W*data_;
-        backend<ScalarType>::gemm(NoTrans,NoTrans,TBNF,NC_,NC_,1,data_+k_*BNF_,NF_,W,NC_,0,z1,BNF_);
+        backend<ScalarType>::gemm(NoTrans,NoTrans,NF_,NC_,NC_,1,data_,NF_,W,NC_,0,z1,NF_);
 
         for(unsigned int c = 0 ; c < NC_ ; ++c){
             ScalarType m2 = 0, m4 = 0;
             ScalarType b = b_[c];
-            for(unsigned int f = 0; f < TBNF ; f++){
-                ScalarType X = z1[c*BNF_+f] + b;
+
+            for(unsigned int f = 0; f < NF_ ; f++){
+                ScalarType X = z1[c*NF_+f] + b;
                 m2 += std::pow(X,2);
                 m4 += std::pow(X,4);
             }
-            m2 = std::pow(1/(ScalarType)TBNF*m2,2);
-            m4 = 1/(ScalarType)TBNF*m4;
+
+            m2 = std::pow(1/(ScalarType)NF_*m2,2);
+            m4 = 1/(ScalarType)NF_*m4;
             ScalarType k = m4/m2 - 3;
             kurt[c] = k+0.02;
         }
@@ -135,28 +129,22 @@ public:
             for(unsigned int c = 0 ; c < NC_ ; ++c){
                 ScalarType k = kurt[c];
                 ScalarType b = b_[c];
-                for(unsigned int f = 0 ; f < TBNF ; f++){
-                    ScalarType z2 = z1[c*BNF_+f] + b;
-                    ScalarType y = y_[c*BNF_+f];
-                    phi[c*BNF_+f] =(k<0)?(z2 - y):(z2 + 2*y);
+                for(unsigned int f = 0 ; f < NF_ ; f++){
+                    ScalarType z2 = z1[c*NF_+f] + b;
+                    ScalarType y = y_[c*NF_+f];
+                    phi[c*NF_+f] =(k<0)?(z2 - y):(z2 + 2*y);
                 }
             }
 
 
             //dbias = mean(phi,2)
-            for(std::size_t c = 0 ; c < NC_ ;++c){
-                ScalarType sum = 0;
-                for(std::size_t f = 0 ; f < TBNF ; ++f)
-                    sum += phi[c*BNF_+f];
-                dbias[c] = sum/(ScalarType)TBNF;
-            }
-
+            compute_mean(phi,NC_,NF_,dbias);
 
             /*dweights = -(eye(N) - 1/n*phi*z1')*inv(W)'*/
             //WLU = inv(W)
             backend<ScalarType>::getri(NC_,WLU,NC_,ipiv_);
             //lhs = I(N,N) - 1/N*phi*z1')
-            backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,TBNF ,-1/(ScalarType)BNF_,z1,BNF_,phi,BNF_,0,phi_z1t,NC_);
+            backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,NF_ ,-1/(ScalarType)NF_,z1,NF_,phi,NF_,0,phi_z1t,NC_);
             for(std::size_t i = 0 ; i < NC_; ++i)
                 phi_z1t[i*NC_+i] += 1;
             //dweights = -lhs*Winv'
@@ -173,18 +161,14 @@ private:
     std::size_t NC_;
     std::size_t NF_;
 
-    mutable std::size_t k_;
-    std::size_t BNF_;
-
 
     typename backend<ScalarType>::size_t *ipiv_;
 
-    ScalarType* subdata;
-
+    //MiniBatch
     ScalarType* z1;
     ScalarType* phi;
 
-    float* y_;
+    ScalarType* y_;
 
     //Mixing
     ScalarType* phi_z1t;
@@ -200,44 +184,36 @@ private:
 
 template<>
 void ica_functor<float>::fill_y() const{
-    std::size_t TBNF = std::min(BNF_, NF_ - k_*BNF_);
+
     for(unsigned int c = 0 ; c < NC_ ; ++c){
         const __m128 bias = _mm_set1_ps(b_[c]);
-        for(unsigned int f = 0; f < TBNF ; f+=4){
-            __m128 z2 = _mm_load_ps(&z1[c*BNF_+f]);
+        for(unsigned int f = 0; f < NF_ ; f+=4){
+            __m128 z2 = _mm_load_ps(&z1[c*NF_+f]);
             z2 = _mm_add_ps(z2,bias);
             __m128 y = vfasttanh(z2);
-            _mm_store_ps(&y_[c*BNF_+f],y);
+            _mm_store_ps(&y_[c*NF_+f],y);
         }
     }
 }
 
 template<>
 void ica_functor<double>::fill_y() const{
-    std::size_t TBNF = std::min(BNF_, NF_ - k_*BNF_);
     for(unsigned int c = 0 ; c < NC_ ; ++c){
-        float fbias = b_[c];
-        const __m128 bias = _mm_set1_ps(fbias);
-        for(unsigned int f = 0; f < TBNF ; f+=4){
-            __m128d z2lo = _mm_load_pd(&z1[c*BNF_+f]);
-            __m128d z2hi = _mm_load_pd(&z1[c*BNF_+f+2]);
-            __m128 z2 = _mm_movelh_ps(_mm_cvtpd_ps(z2lo), _mm_cvtpd_ps(z2hi));
-            z2 = _mm_add_ps(z2,bias);
-            __m128 y = vfasttanh(z2);
-            _mm_store_ps(&y_[c*BNF_+f],y);
+        double bias = b_[c];
+        for(unsigned int f = 0; f < NF_ ; f++){
+            y_[c*NF_+f] = std::tanh(z1[c*NF_+f]+bias);
         }
     }
 }
 
 template<>
 void ica_functor<float>::compute_means_logp() const{
-    std::size_t TBNF = std::min(BNF_, NF_ - k_*BNF_);
     for(unsigned int c = 0 ; c < NC_ ; ++c){
         __m128d vsum = _mm_set1_pd(0.0d);
         float k = kurt[c];
         const __m128 bias = _mm_set1_ps(b_[c]);
-        for(unsigned int f = 0; f < TBNF ; f+=4){
-            __m128 z2 = _mm_load_ps(&z1[c*BNF_+f]);
+        for(unsigned int f = 0; f < NF_ ; f+=4){
+            __m128 z2 = _mm_load_ps(&z1[c*NF_+f]);
             z2 = _mm_add_ps(z2,bias);
             const __m128 _1 = _mm_set1_ps(1);
             const __m128 m0_5 = _mm_set1_ps(-0.5);
@@ -266,7 +242,7 @@ void ica_functor<float>::compute_means_logp() const{
                 __m128 z22 = _mm_mul_ps(z2,z2);
                 z22 = _mm_mul_ps(_mm_set1_ps(0.5),z22);
 
-                __m128 y = _mm_load_ps(&y_[c*BNF_+f]);
+                __m128 y = _mm_load_ps(&y_[c*NF_+f]);
                 y = _mm_mul_ps(y,y);
                 y = _mm_sub_ps(_1,y);
                 y = vfastlog(y);
@@ -279,20 +255,41 @@ void ica_functor<float>::compute_means_logp() const{
         double sum;
         vsum = _mm_hadd_pd(vsum, vsum);
         _mm_store_sd(&sum, vsum);
-        means_logp[c] = 1/(double)TBNF*sum;
+        means_logp[c] = 1/(double)NF_*sum;
     }
 }
 
+//template<>
+//void ica_functor<double>::compute_means_logp() const{
+//    for(unsigned int c = 0 ; c < NC_ ; ++c){
+//        double current = 0;
+//        double k = kurt[c];
+//        double b = b_[c];
+//        for(unsigned int f = 0; f < NF_ ; f++){
+//            double z2 = z1[c*NF_+f] + b;
+//            double y = y_[c*NF_+f];
+//            float logp = 0;
+//            if(k<0){
+//                logp = std::log(0.5) + std::log((std::exp(-0.5*std::pow(z2-1,2)) + std::exp(-0.5*std::pow(z2+1,2))));
+//            }
+//            else{
+//                logp = std::log(1 - y*y) - 0.5*z2*z2;
+//            }
+//            current+=logp/(double)NF_;
+//        }
+//        means_logp[c] = current;
+//    }
+//}
+
 template<>
 void ica_functor<double>::compute_means_logp() const{
-    std::size_t TBNF = std::min(BNF_, NF_ - k_*BNF_);
     for(unsigned int c = 0 ; c < NC_ ; ++c){
         __m128d vsum = _mm_set1_pd(0.0d);
         float k = kurt[c];
         const __m128 bias = _mm_set1_ps(b_[c]);
-        for(unsigned int f = 0; f < TBNF ; f+=4){
-            __m128d z2lo = _mm_load_pd(&z1[c*BNF_+f]);
-            __m128d z2hi = _mm_load_pd(&z1[c*BNF_+f+2]);
+        for(unsigned int f = 0; f < NF_ ; f+=4){
+            __m128d z2lo = _mm_load_pd(&z1[c*NF_+f]);
+            __m128d z2hi = _mm_load_pd(&z1[c*NF_+f+2]);
             __m128 z2 = _mm_movelh_ps(_mm_cvtpd_ps(z2lo), _mm_cvtpd_ps(z2hi));
             z2 = _mm_add_ps(z2,bias);
             const __m128 _1 = _mm_set1_ps(1);
@@ -322,9 +319,14 @@ void ica_functor<double>::compute_means_logp() const{
                 __m128 z22 = _mm_mul_ps(z2,z2);
                 z22 = _mm_mul_ps(_mm_set1_ps(0.5),z22);
 
-                __m128 y = _mm_load_ps(&y_[c*BNF_+f]);
-                y = _mm_mul_ps(y,y);
-                y = _mm_sub_ps(_1,y);
+                __m128d ylo = _mm_load_pd(&y_[c*NF_+f]);
+                ylo = _mm_mul_pd(ylo,ylo);
+                ylo = _mm_sub_pd(_mm_set1_pd(1),ylo);
+                __m128d yhi = _mm_load_pd(&y_[c*NF_+f+2]);
+                yhi = _mm_mul_pd(yhi,yhi);
+                yhi = _mm_sub_pd(_mm_set1_pd(1),yhi);
+                __m128 y = _mm_movelh_ps(_mm_cvtpd_ps(ylo), _mm_cvtpd_ps(yhi));
+
                 y = vfastlog(y);
                 y = _mm_sub_ps(y,z22);
 
@@ -335,10 +337,9 @@ void ica_functor<double>::compute_means_logp() const{
         double sum;
         vsum = _mm_hadd_pd(vsum, vsum);
         _mm_store_sd(&sum, vsum);
-        means_logp[c] = 1/(double)TBNF*sum;
+        means_logp[c] = 1/(float)NF_*sum;
     }
 }
-
 
 
 fmincl::optimization_options make_default_options(){
@@ -353,10 +354,12 @@ fmincl::optimization_options make_default_options(){
 
 
 template<class ScalarType>
-void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t NC, std::size_t NF, fmincl::optimization_options const & options){
+void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t NC, std::size_t DataNF, fmincl::optimization_options const & options){
     typedef typename fmincl_backend<ScalarType>::type BackendType;
 
     std::size_t N = NC*NC + NC;
+    std::size_t padsize = 4;
+    std::size_t NF=(DataNF%padsize==0)?DataNF:(DataNF/padsize)*padsize;
 
     ScalarType * Sphere = new ScalarType[NC*NC];
     ScalarType * W = new ScalarType[NC*NC];
@@ -374,37 +377,19 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
         X[i*(NC+1)] = 1;
 
     //Whiten Data
-    whiten<ScalarType>(NC, NF, data,Sphere);
-
-    //white_data = randperm(2*Sphere*data)
-    backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,2,data,NF,Sphere,NC,0,white_data,NF);
-
+    whiten<ScalarType>(NC, DataNF, NF, data,Sphere,white_data);
     detail::shuffle(white_data,NC,NF);
 
+    ica_functor<ScalarType> objective(white_data,NF,NC);
+    fmincl::minimize<BackendType>(X,objective,X,N,options);
 
-    std::size_t BNF = 40000;
-    std::size_t num_batches = (NF%BNF==0)?NF/BNF:NF/BNF+1;
-    ica_functor<ScalarType> objective(white_data,NF,NC,BNF);
-    fmincl::optimization_options optimization_options;
-    optimization_options.direction = options.direction;
-    optimization_options.max_iter = 3;
-    optimization_options.verbosity_level = 0;
-    ScalarType * tmp = new ScalarType[N];
-    for(std::size_t epoch = 0 ; epoch < options.max_iter ; ++ epoch){
-        for(std::size_t batch = 0 ; batch < num_batches; ++batch){
-            objective.new_minibatch_callback(batch);
-            fmincl::optimization_result res = fmincl::minimize<BackendType>(X,objective,X,N,optimization_options);
-            if(batch==0)
-                std::cout << epoch << " : " << res.f << std::endl;
-        }
-    }
 
     //Copies into datastructures
     std::memcpy(W, X,sizeof(ScalarType)*NC*NC);
     std::memcpy(b, X+NC*NC, sizeof(ScalarType)*NC);
 
     //out = W*Sphere*data;
-    backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,2,data,NF,Sphere,NC,0,white_data,NF);
+    backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,2,data,DataNF,Sphere,NC,0,white_data,NF);
     backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,1,white_data,NF,W,NC,0,out,NF);
 
     for(std::size_t c = 0 ; c < NC ; ++c){
@@ -413,8 +398,6 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
             out[c*NF+f] += val;
         }
     }
-
-
 
     delete[] W;
     delete[] b;
