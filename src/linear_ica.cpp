@@ -38,18 +38,15 @@ private:
         return (val>0)?1:-1;
     }
 
-    inline void fill_y() const;
-    inline void compute_means_logp() const;
+    inline void compute_phi_and_means_logp() const;
 
 
 public:
     ica_functor(ScalarType const * data, std::size_t NF, std::size_t NC) : data_(data), NC_(NC), NF_((NF%4==0)?NF:(NF/4)*NF){
         ipiv_ =  new typename backend<ScalarType>::size_t[NC_+1];
         z1 = new ScalarType[NC_*NF_];
-        y_ = new ScalarType[NC_*NF_];
 
         phi = new ScalarType[NC_*NF_];
-
 
         phi_z1t = new ScalarType[NC_*NC_];
         dweights = new ScalarType[NC_*NC_];
@@ -88,6 +85,7 @@ public:
         //z1 = W*data_;
         backend<ScalarType>::gemm(NoTrans,NoTrans,NF_,NC_,NC_,1,data_,NF_,W,NC_,0,z1,NF_);
 
+        std::cout << "1 - " << t.get() << std::endl;
         for(unsigned int c = 0 ; c < NC_ ; ++c){
             ScalarType m2 = 0, m4 = 0;
             ScalarType b = b_[c];
@@ -103,10 +101,12 @@ public:
             ScalarType k = m4/m2 - 3;
             kurt[c] = k+0.02;
         }
+        std::cout << "2 - " << t.get() << std::endl;
 
-        fill_y();
+        //phi = mean(mata.*abs(z2).^(mata-1).*sign(z2),2);
+        compute_phi_and_means_logp();
 
-        compute_means_logp();
+        std::cout << "3 - " << t.get() << std::endl;
 
         //H = log(abs(det(w))) + sum(means_logp);
         //LU Decomposition
@@ -123,22 +123,13 @@ public:
         if(value){
             *value = -H;
         }
+        std::cout << "4 - " << t.get() << std::endl;
 
         if(grad){
-            //phi = mean(mata.*abs(z2).^(mata-1).*sign(z2),2);
-            for(unsigned int c = 0 ; c < NC_ ; ++c){
-                ScalarType k = kurt[c];
-                ScalarType b = b_[c];
-                for(unsigned int f = 0 ; f < NF_ ; f++){
-                    ScalarType z2 = z1[c*NF_+f] + b;
-                    ScalarType y = y_[c*NF_+f];
-                    phi[c*NF_+f] =(k<0)?(z2 - y):(z2 + 2*y);
-                }
-            }
-
 
             //dbias = mean(phi,2)
             compute_mean(phi,NC_,NF_,dbias);
+            std::cout << "6 - " << t.get() << std::endl;
 
             /*dweights = -(eye(N) - 1/n*phi*z1')*inv(W)'*/
             //WLU = inv(W)
@@ -153,6 +144,8 @@ public:
             std::memcpy(*grad, dweights,sizeof(ScalarType)*NC_*NC_);
             std::memcpy(*grad+NC_*NC_, dbias, sizeof(ScalarType)*NC_);
         }
+        std::cout << "7 - " << t.get() << std::endl;
+
 
     }
 
@@ -168,8 +161,6 @@ private:
     ScalarType* z1;
     ScalarType* phi;
 
-    ScalarType* y_;
-
     //Mixing
     ScalarType* phi_z1t;
     ScalarType* dweights;
@@ -182,157 +173,55 @@ private:
 
 };
 
-template<>
-void ica_functor<float>::fill_y() const{
 
+template<>
+void ica_functor<float>::compute_phi_and_means_logp() const{
     for(unsigned int c = 0 ; c < NC_ ; ++c){
+        __m128d vsum = _mm_set1_pd(0.0d);
+        float k = kurt[c];
         const __m128 bias = _mm_set1_ps(b_[c]);
+        __m128 phi_signs = (k<0)?_mm_set1_ps(-1):_mm_set1_ps(1);
         for(unsigned int f = 0; f < NF_ ; f+=4){
             __m128 z2 = _mm_load_ps(&z1[c*NF_+f]);
             z2 = _mm_add_ps(z2,bias);
+
+            //Computes mean_logp
+            const __m128 _1 = _mm_set1_ps(1);
+            const __m128 m0_5 = _mm_set1_ps(-0.5);
+            if(k<0){
+                __m128 a = _mm_sub_ps(z2,_1);
+                a = _mm_mul_ps(a,a);
+                a = _mm_mul_ps(m0_5,a);
+                a = vfastexp(a);
+
+                __m128 b = _mm_add_ps(z2,_1);
+                b = _mm_mul_ps(b,b);
+                b = _mm_mul_ps(m0_5,b);
+                b = vfastexp(b);
+
+                a = _mm_add_ps(a,b);
+                a = vfastlog(a);
+
+                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(a));
+                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(a,a)));
+            }
+            else{
+                __m128 y = vfastcosh(z2);
+                y = vfastlog(y);
+                __m128 z2sq = _mm_mul_ps(z2,z2);
+                y = _mm_mul_ps(_mm_set1_ps(-1),y);
+                z2sq = _mm_mul_ps(_mm_set1_ps(0.5),z2sq);
+                y = _mm_sub_ps(y,z2sq);
+
+                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(y));
+                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(y,y)));
+            }
+
+            //compute phi
             __m128 y = vfasttanh(z2);
-            _mm_store_ps(&y_[c*NF_+f],y);
-        }
-    }
-}
-
-template<>
-void ica_functor<double>::fill_y() const{
-    for(unsigned int c = 0 ; c < NC_ ; ++c){
-        double bias = b_[c];
-        for(unsigned int f = 0; f < NF_ ; f++){
-            y_[c*NF_+f] = std::tanh(z1[c*NF_+f]+bias);
-        }
-    }
-}
-
-template<>
-void ica_functor<float>::compute_means_logp() const{
-    for(unsigned int c = 0 ; c < NC_ ; ++c){
-        __m128d vsum = _mm_set1_pd(0.0d);
-        float k = kurt[c];
-        const __m128 bias = _mm_set1_ps(b_[c]);
-        for(unsigned int f = 0; f < NF_ ; f+=4){
-            __m128 z2 = _mm_load_ps(&z1[c*NF_+f]);
-            z2 = _mm_add_ps(z2,bias);
-            const __m128 _1 = _mm_set1_ps(1);
-            const __m128 m0_5 = _mm_set1_ps(-0.5);
-            if(k<0){
-                const __m128 vln0_5 = _mm_set1_ps(-0.693147);
-
-                __m128 a = _mm_sub_ps(z2,_1);
-                a = _mm_mul_ps(a,a);
-                a = _mm_mul_ps(m0_5,a);
-                a = vfastexp(a);
-
-                __m128 b = _mm_add_ps(z2,_1);
-                b = _mm_mul_ps(b,b);
-                b = _mm_mul_ps(m0_5,b);
-                b = vfastexp(b);
-
-                a = _mm_add_ps(a,b);
-                a = vfastlog(a);
-
-                a = _mm_add_ps(vln0_5,a);
-
-                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(a));
-                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(a,a)));
-            }
-            else{
-                __m128 z22 = _mm_mul_ps(z2,z2);
-                z22 = _mm_mul_ps(_mm_set1_ps(0.5),z22);
-
-                __m128 y = _mm_load_ps(&y_[c*NF_+f]);
-                y = _mm_mul_ps(y,y);
-                y = _mm_sub_ps(_1,y);
-                y = vfastlog(y);
-                y = _mm_sub_ps(y,z22);
-
-                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(y));
-                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(y,y)));
-            }
-        }
-        double sum;
-        vsum = _mm_hadd_pd(vsum, vsum);
-        _mm_store_sd(&sum, vsum);
-        means_logp[c] = 1/(double)NF_*sum;
-    }
-}
-
-//template<>
-//void ica_functor<double>::compute_means_logp() const{
-//    for(unsigned int c = 0 ; c < NC_ ; ++c){
-//        double current = 0;
-//        double k = kurt[c];
-//        double b = b_[c];
-//        for(unsigned int f = 0; f < NF_ ; f++){
-//            double z2 = z1[c*NF_+f] + b;
-//            double y = y_[c*NF_+f];
-//            float logp = 0;
-//            if(k<0){
-//                logp = std::log(0.5) + std::log((std::exp(-0.5*std::pow(z2-1,2)) + std::exp(-0.5*std::pow(z2+1,2))));
-//            }
-//            else{
-//                logp = std::log(1 - y*y) - 0.5*z2*z2;
-//            }
-//            current+=logp/(double)NF_;
-//        }
-//        means_logp[c] = current;
-//    }
-//}
-
-template<>
-void ica_functor<double>::compute_means_logp() const{
-    for(unsigned int c = 0 ; c < NC_ ; ++c){
-        __m128d vsum = _mm_set1_pd(0.0d);
-        float k = kurt[c];
-        const __m128 bias = _mm_set1_ps(b_[c]);
-        for(unsigned int f = 0; f < NF_ ; f+=4){
-            __m128d z2lo = _mm_load_pd(&z1[c*NF_+f]);
-            __m128d z2hi = _mm_load_pd(&z1[c*NF_+f+2]);
-            __m128 z2 = _mm_movelh_ps(_mm_cvtpd_ps(z2lo), _mm_cvtpd_ps(z2hi));
-            z2 = _mm_add_ps(z2,bias);
-            const __m128 _1 = _mm_set1_ps(1);
-            const __m128 m0_5 = _mm_set1_ps(-0.5);
-            if(k<0){
-                const __m128 vln0_5 = _mm_set1_ps(-0.693147);
-
-                __m128 a = _mm_sub_ps(z2,_1);
-                a = _mm_mul_ps(a,a);
-                a = _mm_mul_ps(m0_5,a);
-                a = vfastexp(a);
-
-                __m128 b = _mm_add_ps(z2,_1);
-                b = _mm_mul_ps(b,b);
-                b = _mm_mul_ps(m0_5,b);
-                b = vfastexp(b);
-
-                a = _mm_add_ps(a,b);
-                a = vfastlog(a);
-
-                a = _mm_add_ps(vln0_5,a);
-
-                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(a));
-                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(a,a)));
-            }
-            else{
-                __m128 z22 = _mm_mul_ps(z2,z2);
-                z22 = _mm_mul_ps(_mm_set1_ps(0.5),z22);
-
-                __m128d ylo = _mm_load_pd(&y_[c*NF_+f]);
-                ylo = _mm_mul_pd(ylo,ylo);
-                ylo = _mm_sub_pd(_mm_set1_pd(1),ylo);
-                __m128d yhi = _mm_load_pd(&y_[c*NF_+f+2]);
-                yhi = _mm_mul_pd(yhi,yhi);
-                yhi = _mm_sub_pd(_mm_set1_pd(1),yhi);
-                __m128 y = _mm_movelh_ps(_mm_cvtpd_ps(ylo), _mm_cvtpd_ps(yhi));
-
-                y = vfastlog(y);
-                y = _mm_sub_ps(y,z22);
-
-                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(y));
-                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(y,y)));
-            }
+            y = _mm_mul_ps(phi_signs,y);
+            __m128 v = _mm_add_ps(z2,y);
+            _mm_store_ps(&phi[c*NF_+f],v);
         }
         double sum;
         vsum = _mm_hadd_pd(vsum, vsum);
@@ -340,6 +229,88 @@ void ica_functor<double>::compute_means_logp() const{
         means_logp[c] = 1/(float)NF_*sum;
     }
 }
+
+template<>
+void ica_functor<double>::compute_phi_and_means_logp() const{
+    for(unsigned int c = 0 ; c < NC_ ; ++c){
+        double current = 0;
+        double k = kurt[c];
+        double b = b_[c];
+        for(unsigned int f = 0; f < NF_ ; f++){
+            double z2 = z1[c*NF_+f] + b;
+            double y = std::tanh(z2);
+            if(k<0){
+                current+= std::log((std::exp(-0.5*std::pow(z2-1,2)) + std::exp(-0.5*std::pow(z2+1,2))));
+                phi[c*NF_+f] = z2 - y;
+            }
+            else{
+                current+= -std::log(std::cosh(z2)) - 0.5*z2*z2;
+                phi[c*NF_+f] = z2 + y;
+            }
+        }
+        means_logp[c] = current/(double)NF_;
+    }
+}
+
+//template<>
+//void ica_functor<double>::compute_means_logp() const{
+//    for(unsigned int c = 0 ; c < NC_ ; ++c){
+//        __m128d vsum = _mm_set1_pd(0.0d);
+//        float k = kurt[c];
+//        const __m128 bias = _mm_set1_ps(b_[c]);
+//        for(unsigned int f = 0; f < NF_ ; f+=4){
+//            __m128d z2lo = _mm_load_pd(&z1[c*NF_+f]);
+//            __m128d z2hi = _mm_load_pd(&z1[c*NF_+f+2]);
+//            __m128 z2 = _mm_movelh_ps(_mm_cvtpd_ps(z2lo), _mm_cvtpd_ps(z2hi));
+//            z2 = _mm_add_ps(z2,bias);
+//            const __m128 _1 = _mm_set1_ps(1);
+//            const __m128 m0_5 = _mm_set1_ps(-0.5);
+//            if(k<0){
+//                const __m128 vln0_5 = _mm_set1_ps(-0.693147);
+
+//                __m128 a = _mm_sub_ps(z2,_1);
+//                a = _mm_mul_ps(a,a);
+//                a = _mm_mul_ps(m0_5,a);
+//                a = vfastexp(a);
+
+//                __m128 b = _mm_add_ps(z2,_1);
+//                b = _mm_mul_ps(b,b);
+//                b = _mm_mul_ps(m0_5,b);
+//                b = vfastexp(b);
+
+//                a = _mm_add_ps(a,b);
+//                a = vfastlog(a);
+
+//                a = _mm_add_ps(vln0_5,a);
+
+//                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(a));
+//                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(a,a)));
+//            }
+//            else{
+//                __m128 z22 = _mm_mul_ps(z2,z2);
+//                z22 = _mm_mul_ps(_mm_set1_ps(0.5),z22);
+
+//                __m128d ylo = _mm_load_pd(&y_[c*NF_+f]);
+//                ylo = _mm_mul_pd(ylo,ylo);
+//                ylo = _mm_sub_pd(_mm_set1_pd(1),ylo);
+//                __m128d yhi = _mm_load_pd(&y_[c*NF_+f+2]);
+//                yhi = _mm_mul_pd(yhi,yhi);
+//                yhi = _mm_sub_pd(_mm_set1_pd(1),yhi);
+//                __m128 y = _mm_movelh_ps(_mm_cvtpd_ps(ylo), _mm_cvtpd_ps(yhi));
+
+//                y = vfastlog(y);
+//                y = _mm_sub_ps(y,z22);
+
+//                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(y));
+//                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(y,y)));
+//            }
+//        }
+//        double sum;
+//        vsum = _mm_hadd_pd(vsum, vsum);
+//        _mm_store_sd(&sum, vsum);
+//        means_logp[c] = 1/(float)NF_*sum;
+//    }
+//}
 
 
 fmincl::optimization_options make_default_options(){
