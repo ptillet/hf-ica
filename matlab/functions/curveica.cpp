@@ -4,7 +4,6 @@
 
 #include <cstring>
 #include "curveica.h"
-#include <Eigen/Dense>
 
 typedef double ScalarType;
 
