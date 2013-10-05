@@ -71,20 +71,30 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     ScalarType * result = mxGetPr(result_tmp);
 
 
-    Eigen::Map<Eigen::MatrixXd> map_data(data,NC,NF);
-    Eigen::Map<Eigen::MatrixXd> map_result(result,NC,NF);
     if(options.use_float){
-        typedef Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic,Eigen::RowMajor> MatrixType;
-        MatrixType data_eigen = map_data.cast<float>();
-        MatrixType result_eigen(NC,NF);
-        curveica::inplace_linear_ica(data_eigen.data(), result_eigen.data(),NC,NF,options.opts);
-        map_result = result_eigen.cast<double>();
+        float* data_float = new float[NC*NF];
+        float* result_float = new float[NC*NF];
+        for(std::size_t c = 0 ; c < NC; ++c)
+            for(std::size_t f = 0 ; f < NF ; ++f)
+                data_float[c*NF+f] = data[f*NC+c];
+
+        curveica::inplace_linear_ica(data_float, result_float,NC,NF,options.opts);
+
+        for(std::size_t c = 0 ; c < NC; ++c)
+            for(std::size_t f = 0 ; f < NF ; ++f)
+                result[f*NC+c] = result_float[c*NF+f];
     }
     else{
-        typedef Eigen::Matrix<double,Eigen::Dynamic,Eigen::Dynamic,Eigen::RowMajor> MatrixType;
-        MatrixType data_eigen = map_data;
-        MatrixType result_eigen(NC,NF);
-        curveica::inplace_linear_ica(data_eigen.data(), result_eigen.data(),NC,NF,options.opts);
-        map_result = result_eigen;
+        double* data_double = new double[NC*NF];
+        double* result_double = new double[NC*NF];
+        for(std::size_t c = 0 ; c < NC; ++c)
+            for(std::size_t f = 0 ; f < NF ; ++f)
+                data_double[c*NF+f] = data[f*NC+c];
+
+        curveica::inplace_linear_ica(data_double, result_double,NC,NF,options.opts);
+
+        for(std::size_t c = 0 ; c < NC; ++c)
+            for(std::size_t f = 0 ; f < NF ; ++f)
+                result[f*NC+c] = result_double[c*NF+f];
     }
 }
