@@ -35,7 +35,7 @@ set(SRC ${SRC_PATH}/linear_ica.cpp
         ${SRC_PATH}/nonlinearities/extended_infomax.cpp)
 add_library(curveica ${SRC})
 set_target_properties(curveica PROPERTIES COMPILE_FLAGS "-msse3 -fPIC")
-target_link_libraries(curveica openblas.a gfortran)
+target_link_libraries(curveica openblas)
 
 
 
