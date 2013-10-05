@@ -1,11 +1,11 @@
-#ifndef PARICA_TESTS_READMATRIX_HPP_
-#define PARICA_TESTS_READMATRIX_HPP_
+#ifndef curveica_TESTS_READMATRIX_HPP_
+#define curveica_TESTS_READMATRIX_HPP_
 
 /* ===========================
  *
  * Copyright (c) 2013 Philippe Tillet - National Chiao Tung University
  *
- * CLICA - Hybrid ICA using ViennaCL + Eigen
+ * curveica - Hybrid ICA using ViennaCL + Eigen
  *
  * License : MIT X11 - See the LICENSE file in the root folder
  * ===========================*/

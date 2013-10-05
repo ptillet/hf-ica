@@ -1,26 +1,26 @@
-#ifndef PARICA_BACKEND_HPP_
-#define PARICA_BACKEND_HPP_
+#ifndef curveica_BACKEND_HPP_
+#define curveica_BACKEND_HPP_
 
-#ifdef PARICA_WITH_BLAS
+#ifdef curveica_WITH_BLAS
 
 using std::ptrdiff_t;
 
 #include "lapack.h"
 #include "blas.h"
-#include "fmincl/backends/blas.hpp"
+#include "umintl/backends/blas.hpp"
 
 #else
 
 #include "lapacke.h"
 #include "cblas.h"
-#include "fmincl/backends/cblas.hpp"
+#include "umintl/backends/cblas.hpp"
 
 #endif
 
-namespace parica{
+namespace curveica{
 
 
-#ifdef PARICA_WITH_BLAS
+#ifdef curveica_WITH_BLAS
 
 static std::ptrdiff_t dummy_info;
 
@@ -28,8 +28,8 @@ static const char Trans = 'T';
 static const char NoTrans = 'N';
 
 template<class ScalarType>
-struct fmincl_backend{
-    typedef typename fmincl::backend::blas_types<ScalarType> type;
+struct umintl_backend{
+    typedef typename umintl::backend::blas_types<ScalarType> type;
 };
 
 
@@ -113,8 +113,8 @@ static const CBLAS_TRANSPOSE Trans = CblasTrans;
 static const CBLAS_TRANSPOSE NoTrans = CblasNoTrans;
 
 template<class ScalarType>
-struct fmincl_backend{
-    typedef typename fmincl::backend::cblas_types<ScalarType> type;
+struct umintl_backend{
+    typedef typename umintl::backend::cblas_types<ScalarType> type;
 };
 
 

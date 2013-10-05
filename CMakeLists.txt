@@ -1,9 +1,9 @@
-project(ParICA)
+project(CurveICA)
 
 cmake_minimum_required(VERSION 2.8)
 
-set (PARICA_VERSION_MAJOR 0)
-set (PARICA_VERSION_MINOR 0)
+set (CurveICA_VERSION_MAJOR 0)
+set (CurveICA_VERSION_MINOR 0)
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 include_directories(${PROJECT_SOURCE_DIR}/include)
@@ -31,10 +31,11 @@ endif()
 add_custom_target( QtCreatorCompatibility SOURCES ${QtCreatorCompatibility_SRC} )
 find_library(OPENBLAS_LIB libopenblas)
 set(SRC_PATH "${PROJECT_SOURCE_DIR}/src")
-set(SRC ${SRC_PATH}/linear_ica.cpp)
-add_library(clica ${SRC})
-set_target_properties(clica PROPERTIES COMPILE_FLAGS "-fPIC")
-target_link_libraries(clica openblas.a gfortran)
+set(SRC ${SRC_PATH}/linear_ica.cpp
+        ${SRC_PATH}/nonlinearities/extended_infomax.cpp)
+add_library(curveica ${SRC})
+set_target_properties(curveica PROPERTIES COMPILE_FLAGS "-fPIC")
+target_link_libraries(curveica openblas.a gfortran)
 
 
 

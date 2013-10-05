@@ -2,14 +2,14 @@
  *
  * Copyright (c) 2013 Philippe Tillet - National Chiao Tung University
  *
- * CLICA - Hybrid ICA using ViennaCL + Eigen
+ * curveica - Hybrid ICA using ViennaCL + Eigen
  *
  * License : MIT X11 - See the LICENSE file in the root folder
  * ===========================*/
 
 #include <cmath>
 #include "tests/benchmark-utils.hpp"
-#include "parica.h"
+#include "curveica.h"
 #include "cblas.h"
 #include <cstdlib>
 
@@ -41,12 +41,12 @@ int main(){
 
     cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,NF,NC,NC,1,src,NF,mixing,NC,0,mixed_src,NF);
 
-    fmincl::optimization_options options = parica::make_default_options();
+    curveica::options options = curveica::make_default_options();
     options.verbosity_level = 2;
     Timer t;
     t.start();
     for(unsigned int i = 0 ; i < BENCHMARK_COUNT ; ++i)
-        parica::inplace_linear_ica(mixed_src,independent_components,NC,NF,options);
+        curveica::inplace_linear_ica(mixed_src,independent_components,NC,NF,options);
 
     std::cout << "Execution Time : " << t.get()/BENCHMARK_COUNT << "s" << std::endl;
 
