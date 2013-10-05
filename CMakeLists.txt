@@ -18,7 +18,7 @@ file( GLOB_RECURSE QtCreatorCompatibility_SRC
     *.hpp *.h *.cl)
 
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_CXX_FLAGS_RELEASE "-funroll-loops -O3")
 set(CMAKE_BUILD_TYPE release)
 
 ##OpenMP

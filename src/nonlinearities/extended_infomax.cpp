@@ -18,9 +18,9 @@ void extended_infomax_ica<float>::operator()(float * z1, float * b, int const * 
 #pragma omp parallel for
     for(unsigned int c = 0 ; c < NC_ ; ++c){
         __m128d vsum = _mm_set1_pd(0.0d);
-        float k = signs[c];
         const __m128 bias = _mm_set1_ps(b[c]);
-        __m128 phi_signs = (k<0)?_mm_set1_ps(-1):_mm_set1_ps(1);
+        int s = signs[c];
+        __m128 phi_signs = _mm_set1_ps(s);
         for(unsigned int f = 0; f < NF_ ; f+=4){
             __m128 z2 = _mm_load_ps(&z1[c*NF_+f]);
             z2 = _mm_add_ps(z2,bias);
@@ -28,7 +28,7 @@ void extended_infomax_ica<float>::operator()(float * z1, float * b, int const * 
             //Computes mean_logp
             const __m128 _1 = _mm_set1_ps(1);
             const __m128 m0_5 = _mm_set1_ps(-0.5);
-            if(k<0){
+            if(s<0){
                 __m128 a = _mm_sub_ps(z2,_1);
                 a = _mm_mul_ps(a,a);
                 a = _mm_mul_ps(m0_5,a);

@@ -44,6 +44,7 @@ namespace curveica{
 
     template<class ScalarType>
     void compute_mean(ScalarType* A, std::size_t NC, std::size_t NF, ScalarType* x){
+#pragma omp parallel for
         for(std::size_t c = 0 ; c < NC ;++c){
             ScalarType sum = 0;
             for(std::size_t f = 0 ; f < NF ; ++f)
