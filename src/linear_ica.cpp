@@ -22,8 +22,6 @@
 
 #include "src/fastapprox.h"
 
-#include <pmmintrin.h>
-
 namespace curveica{
 
 
@@ -102,22 +100,19 @@ public:
 
     void operator()(ScalarType const * x, ScalarType* value, ScalarType ** grad) const {
         Timer t;
-        t.start();
 
         //Rerolls the variables into the appropriates datastructures
         std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
         std::memcpy(b_, x+NC_*NC_, sizeof(ScalarType)*NC_);
 
+        t.start();
 
         //z1 = W*data_;
         backend<ScalarType>::gemm(NoTrans,NoTrans,NF_,NC_,NC_,1,data_,NF_,W,NC_,0,z1,NF_);
 
-        //std::cout << "2 - " << t.get() << std::endl;
         //phi = mean(mata.*abs(z2).^(mata-1).*sign(z2),2);
         nonlinearity_(z1,b_,first_signs,phi,means_logp);
 
-
-        //std::cout << "3 - " << t.get() << std::endl;
         //H = log(abs(det(w))) + sum(means_logp);
         //LU Decomposition
         std::memcpy(WLU,W,sizeof(ScalarType)*NC_*NC_);
@@ -133,13 +128,11 @@ public:
         if(value){
             *value = -H;
         }
-        //std::cout << "4 - " << t.get() << std::endl;
 
         if(grad){
 
             //dbias = mean(phi,2)
             compute_mean(phi,NC_,NF_,dbias);
-           // std::cout << "6 - " << t.get() << std::endl;
 
             /*dweights = -(eye(N) - 1/n*phi*z1')*inv(W)'*/
             //WLU = inv(W)
@@ -154,8 +147,6 @@ public:
             std::memcpy(*grad, dweights,sizeof(ScalarType)*NC_*NC_);
             std::memcpy(*grad+NC_*NC_, dbias, sizeof(ScalarType)*NC_);
         }
-        //std::cout << "7 - " << t.get() << std::endl;
-
 
     }
 

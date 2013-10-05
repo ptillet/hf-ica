@@ -18,7 +18,7 @@ file( GLOB_RECURSE QtCreatorCompatibility_SRC
     *.hpp *.h *.cl)
 
 
-set(CMAKE_CXX_FLAGS_RELEASE "-msse3 -O3 -funroll-loops")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CMAKE_BUILD_TYPE release)
 
 ##OpenMP
@@ -34,7 +34,7 @@ set(SRC_PATH "${PROJECT_SOURCE_DIR}/src")
 set(SRC ${SRC_PATH}/linear_ica.cpp
         ${SRC_PATH}/nonlinearities/extended_infomax.cpp)
 add_library(curveica ${SRC})
-set_target_properties(curveica PROPERTIES COMPILE_FLAGS "-fPIC")
+set_target_properties(curveica PROPERTIES COMPILE_FLAGS "-msse3 -fPIC")
 target_link_libraries(curveica openblas.a gfortran)
 
 

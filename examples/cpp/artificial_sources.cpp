@@ -17,7 +17,7 @@
 
 typedef double ScalarType;
 static const unsigned int NC=4;
-static const unsigned int NF=1000;
+static const unsigned int NF=100000;
 static const unsigned int T=20;
 
 int main(){

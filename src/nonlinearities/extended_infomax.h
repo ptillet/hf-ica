@@ -3,8 +3,6 @@
 
 #include <cstddef>
 
-#include "src/fastapprox.h"
-
 namespace curveica{
 
 template<class ScalarType>

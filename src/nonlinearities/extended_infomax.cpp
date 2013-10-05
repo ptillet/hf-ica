@@ -1,6 +1,10 @@
 #include "extended_infomax.h"
 
+#include "tests/benchmark-utils.hpp"
+
 #include <cmath>
+
+#include "omp.h"
 
 #include "src/fastapprox.h"
 #include <pmmintrin.h>
@@ -10,6 +14,8 @@ namespace curveica{
 
 template<>
 void extended_infomax_ica<float>::operator()(float * z1, float * b, int const * signs, float* phi, float* means_logp) const {
+
+#pragma omp parallel for
     for(unsigned int c = 0 ; c < NC_ ; ++c){
         __m128d vsum = _mm_set1_pd(0.0d);
         float k = signs[c];
@@ -62,6 +68,8 @@ void extended_infomax_ica<float>::operator()(float * z1, float * b, int const * 
         _mm_store_sd(&sum, vsum);
         means_logp[c] = 1/(float)NF_*sum;
     }
+
+
 }
 
 //template<>
@@ -88,6 +96,7 @@ void extended_infomax_ica<float>::operator()(float * z1, float * b, int const * 
 
 template<>
 void extended_infomax_ica<double>::operator()(double * z1, double * b, int const * signs, double* phi, double* means_logp) const {
+#pragma omp parallel for
     for(unsigned int c = 0 ; c < NC_ ; ++c){
         __m128d vsum = _mm_set1_pd(0.0d);
         float k = signs[c];

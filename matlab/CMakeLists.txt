@@ -35,7 +35,7 @@ set(CMAKE_SHARED_MODULE_PREFIX "")
 
 # Set custom commands for mex compilation, because the flags are (in general)
 # odd and different.
-set(CMAKE_CXX_COMPILE_OBJECT "<CMAKE_CXX_COMPILER> -outdir <OBJECT_DIR> <FLAGS> -O -c <SOURCE>")
+set(CMAKE_CXX_COMPILE_OBJECT "<CMAKE_CXX_COMPILER> -outdir <OBJECT_DIR> <FLAGS> -O -c <SOURCE> ${OPENMP_MEX_FLAGS}")
 set(CMAKE_CXX_CREATE_SHARED_MODULE "<CMAKE_CXX_COMPILER> -cxx <LINK_FLAGS> -output <TARGET> <OBJECTS> <LINK_LIBRARIES> -largeArrayDims -lmwlapack -lmwblas ${OPENMP_MEX_FLAGS}")
 set(CMAKE_CXX_CREATE_SHARED_LIBRARY "${CMAKE_CXX_CREATE_SHARED_MODULE}")
 
