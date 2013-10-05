@@ -20,8 +20,7 @@
 
 #include "src/nonlinearities/extended_infomax.h"
 
-#include "fastapprox-0/fasthyperbolic.h"
-#include "fastapprox-0/fastlog.h"
+#include "src/fastapprox.h"
 
 #include <pmmintrin.h>
 
