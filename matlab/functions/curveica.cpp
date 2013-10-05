@@ -82,6 +82,9 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         for(std::size_t c = 0 ; c < NC; ++c)
             for(std::size_t f = 0 ; f < NF ; ++f)
                 result[f*NC+c] = result_float[c*NF+f];
+
+        delete[] data_float;
+        delete[] result_float;
     }
     else{
         double* data_double = new double[NC*NF];
@@ -95,5 +98,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         for(std::size_t c = 0 ; c < NC; ++c)
             for(std::size_t f = 0 ; f < NF ; ++f)
                 result[f*NC+c] = result_double[c*NF+f];
+
+        delete[] data_double;
+        delete[] result_double;
     }
 }
