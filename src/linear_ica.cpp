@@ -196,11 +196,11 @@ options make_default_options(){
 
 
 template<class ScalarType>
-void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t NC, std::size_t DataNF, options const & opt){
+void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t NC, std::size_t DataNF, options const & opt, double* W, double* S){
     typedef typename umintl_backend<ScalarType>::type BackendType;
     umintl::minimizer<BackendType> minimizer;
-    minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::lbfgs<BackendType>());
-    //minimizer.direction = new umintl::conjugate_gradient<BackendType>(new umintl::polak_ribiere<BackendType>());
+    //minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::lbfgs<BackendType>());
+    minimizer.direction = new umintl::conjugate_gradient<BackendType>(new umintl::polak_ribiere<BackendType>());
     //minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::bfgs<BackendType>());
     minimizer.verbosity_level = opt.verbosity_level;
     minimizer.max_iter = opt.max_iter;
@@ -210,7 +210,7 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     std::size_t NF=(DataNF%padsize==0)?DataNF:(DataNF/padsize)*padsize;
 
     ScalarType * Sphere = new ScalarType[NC*NC];
-    ScalarType * W = new ScalarType[NC*NC];
+    ScalarType * Weights = new ScalarType[NC*NC];
     ScalarType * b = new ScalarType[NC];
     ScalarType * X = new ScalarType[N];
     std::memset(X,0,N*sizeof(ScalarType));
@@ -236,13 +236,19 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     }while(objective.recompute_signs());
 
     //Copies into datastructures
-    std::memcpy(W, X,sizeof(ScalarType)*NC*NC);
+    std::memcpy(Weights, X,sizeof(ScalarType)*NC*NC);
     std::memcpy(b, X+NC*NC, sizeof(ScalarType)*NC);
 
     //out = W*Sphere*data;
     backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,2,data,DataNF,Sphere,NC,0,white_data,NF);
-    backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,1,white_data,NF,W,NC,0,out,NF);
+    backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,1,white_data,NF,Weights,NC,0,out,NF);
 
+    for(std::size_t i = 0 ; i < NC*NC ; ++i){
+        if(W)
+            W[i] = Weights[i];
+        if(S)
+            S[i] = Sphere[i];
+    }
 
     for(std::size_t c = 0 ; c < NC ; ++c){
         ScalarType val = b[c];
@@ -251,15 +257,15 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
         }
     }
 
-    delete[] W;
+    delete[] Weights;
     delete[] b;
     delete[] X;
     delete[] white_data;
 
 }
 
-template void inplace_linear_ica<float>(float const * data, float * out, std::size_t NC, std::size_t NF, curveica::options const & opt);
-template void inplace_linear_ica<double>(double const * data, double * out, std::size_t NC, std::size_t NF, curveica::options const & opt);
+template void inplace_linear_ica<float>(float const * data, float * out, std::size_t NC, std::size_t NF, curveica::options const & opt, double* Weights, double* Sphere);
+template void inplace_linear_ica<double>(double const * data, double * out, std::size_t NC, std::size_t NF, curveica::options const & opt, double * Weights, double * Sphere);
 
 }
 

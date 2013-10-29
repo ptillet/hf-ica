@@ -22,7 +22,7 @@ struct options{
 options make_default_options();
 
 template<class ScalarType>
-void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t NC, std::size_t NF, options const & opt);
+void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t NC, std::size_t NF, options const & opt, double* W = NULL, double* S = NULL);
 
 }
 

@@ -54,9 +54,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgIdAndTxt("curveica:invalidOptionsType",
                               "Invalid input arguments : The options must be a valid struct");
     }
-    if(nlhs>1)
-        mexErrMsgIdAndTxt( "curveica:TooManyOutputArguments",
-                           "Too many output arguments : independent_components = linear_curveica(data [, options])");
+
     //Get data
     mxArray * data_tmp = mxDuplicateArray(prhs[0]);
     ScalarType * data = mxGetPr(data_tmp);
@@ -69,6 +67,24 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     mxArray* result_tmp = plhs[0] = mxCreateDoubleMatrix(NC,NF,mxREAL);
     ScalarType * result = mxGetPr(result_tmp);
 
+    mxArray* weights_tmp = NULL;
+    ScalarType * weights = NULL;
+    if(nlhs>=2){
+        weights_tmp = plhs[1] = mxCreateDoubleMatrix(NC,NF,mxREAL);
+        weights = mxGetPr(weights_tmp);
+    }
+
+    mxArray* sphere_tmp = NULL;
+    ScalarType * sphere = NULL;
+    if(nlhs>=3){
+        sphere_tmp = plhs[2] = mxCreateDoubleMatrix(NC,NF,mxREAL);
+        sphere = mxGetPr(sphere_tmp);
+    }
+    if(nlhs>=4)
+        mexErrMsgIdAndTxt( "curveica:TooManyOutputArguments",
+                           "Too many output arguments : independent_components = linear_curveica(data [, options])");
+
+
 
     if(options.use_float){
         float* data_float = new float[NC*NF];
@@ -77,7 +93,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             for(std::size_t f = 0 ; f < NF ; ++f)
                 data_float[c*NF+f] = data[f*NC+c];
 
-        curveica::inplace_linear_ica(data_float, result_float,NC,NF,options.opts);
+        curveica::inplace_linear_ica(data_float, result_float,NC,NF,options.opts,weights,sphere);
 
         for(std::size_t c = 0 ; c < NC; ++c)
             for(std::size_t f = 0 ; f < NF ; ++f)
@@ -93,7 +109,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             for(std::size_t f = 0 ; f < NF ; ++f)
                 data_double[c*NF+f] = data[f*NC+c];
 
-        curveica::inplace_linear_ica(data_double, result_double,NC,NF,options.opts);
+        curveica::inplace_linear_ica(data_double, result_double,NC,NF,options.opts,weights,sphere);
 
         for(std::size_t c = 0 ; c < NC; ++c)
             for(std::size_t f = 0 ; f < NF ; ++f)
