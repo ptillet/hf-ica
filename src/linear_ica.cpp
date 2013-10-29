@@ -243,17 +243,19 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,2,data,DataNF,Sphere,NC,0,white_data,NF);
     backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,1,white_data,NF,Weights,NC,0,out,NF);
 
-    for(std::size_t i = 0 ; i < NC*NC ; ++i){
-        if(W)
-            W[i] = Weights[i];
-        if(S)
-            S[i] = Sphere[i];
-    }
-
     for(std::size_t c = 0 ; c < NC ; ++c){
         ScalarType val = b[c];
         for(std::size_t f = 0 ; f < NF ; ++f){
             out[c*NF+f] += val;
+        }
+    }
+
+    for(std::size_t i = 0 ; i < NC ; ++i){
+        for(std::size_t j = 0 ; j < NC ; ++j){
+            if(W)
+                W[i*NC+j] = Weights[j*NC+i];
+            if(S)
+                S[i*NC+j] = Sphere[j*NC+i];
         }
     }
 
