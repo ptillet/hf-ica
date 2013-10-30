@@ -12,6 +12,7 @@
 
 namespace curveica{
 
+
 template<>
 void extended_infomax_ica<float>::operator()(float * z1, float * b, int const * signs, float* phi, float* means_logp) const {
 
@@ -58,6 +59,8 @@ void extended_infomax_ica<float>::operator()(float * z1, float * b, int const * 
             }
 
             //compute phi
+            z2 = _mm_max_ps(z2,_mm_set1_ps(-10));
+            z2 = _mm_min_ps(z2,_mm_set1_ps(10));
             __m128 y = vfasttanh(z2);
             y = _mm_mul_ps(phi_signs,y);
             __m128 v = _mm_add_ps(z2,y);
@@ -68,7 +71,6 @@ void extended_infomax_ica<float>::operator()(float * z1, float * b, int const * 
         _mm_store_sd(&sum, vsum);
         means_logp[c] = 1/(float)NF_*sum;
     }
-
 
 }
 
@@ -143,6 +145,8 @@ void extended_infomax_ica<double>::operator()(double * z1, double * b, int const
             }
 
             //compute phi
+            z2 = _mm_max_ps(z2,_mm_set1_ps(-10));
+            z2 = _mm_min_ps(z2,_mm_set1_ps(10));
             __m128 y = vfasttanh(z2);
             y = _mm_mul_ps(phi_signs,y);
             __m128 v = _mm_add_ps(z2,y);

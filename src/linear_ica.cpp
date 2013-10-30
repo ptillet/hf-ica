@@ -114,19 +114,25 @@ public:
         nonlinearity_(z1,b_,first_signs,phi,means_logp);
         //std::cout << "2 - " << t.get() << std::endl;
 
+        for(std::size_t i = 0 ; i < NC_ ; ++i){
+            for(std::size_t j = 0 ; j < NC_ ; ++j){
+            }
+        }
         //H = log(abs(det(w))) + sum(means_logp);
         //LU Decomposition
         std::memcpy(WLU,W,sizeof(ScalarType)*NC_*NC_);
         backend<ScalarType>::getrf(NC_,NC_,WLU,NC_,ipiv_);
-        //std::cout << "3 - " << t.get() << std::endl;
 
         //det = prod(diag(WLU))
         ScalarType absdet = 1;
-        for(std::size_t i = 0 ; i < NC_ ; ++i)
+        for(std::size_t i = 0 ; i < NC_ ; ++i){
             absdet*=std::abs(WLU[i*NC_+i]);
+        }
+
         ScalarType H = std::log(absdet);
-        for(std::size_t i = 0; i < NC_ ; ++i)
+        for(std::size_t i = 0; i < NC_ ; ++i){
             H+=means_logp[i];
+        }
 
         if(value){
             *value = -H;
@@ -148,7 +154,6 @@ public:
                 phi_z1t[i*NC_+i] += 1;
             //dweights = -lhs*Winv'
             backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,NC_,-1,WLU,NC_,phi_z1t,NC_,0,dweights,NC_);
-            //Copy back
             std::memcpy(*grad, dweights,sizeof(ScalarType)*NC_*NC_);
             std::memcpy(*grad+NC_*NC_, dbias, sizeof(ScalarType)*NC_);
             //std::cout << " - " << t.get() << std::endl;
