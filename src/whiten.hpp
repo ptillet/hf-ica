@@ -74,11 +74,13 @@ namespace curveica{
         backend<ScalarType>::gemm(Trans,NoTrans,NC,NC,DataNF,alpha,data,DataNF,data,DataNF,0,Cov,NC);
 
 
-        //Sphere = inverse(sqrtm(Cov))
+        //Sphere = 2*inverse(sqrtm(Cov))
         detail::inv_sqrtm<ScalarType>(NC,Cov,Sphere);
+        for(std::size_t i = 0 ; i < NC*NC ;++i)
+            Sphere[i]*=2;
 
-        //white_data = 2*sphere*data
-        backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,2,data,DataNF,Sphere,NC,0,white_data,NF);
+        //white_data = sphere*data
+        backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,1,data,DataNF,Sphere,NC,0,white_data,NF);
 
         //Readd mean
         for(std::size_t c = 0 ; c < NC ;++c)

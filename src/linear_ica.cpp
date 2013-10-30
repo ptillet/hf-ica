@@ -199,8 +199,8 @@ template<class ScalarType>
 void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t NC, std::size_t DataNF, options const & opt, double* W, double* S){
     typedef typename umintl_backend<ScalarType>::type BackendType;
     umintl::minimizer<BackendType> minimizer;
-    //minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::lbfgs<BackendType>());
-    minimizer.direction = new umintl::conjugate_gradient<BackendType>(new umintl::polak_ribiere<BackendType>());
+    minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::lbfgs<BackendType>());
+    //minimizer.direction = new umintl::conjugate_gradient<BackendType>(new umintl::polak_ribiere<BackendType>());
     //minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::bfgs<BackendType>());
     minimizer.verbosity_level = opt.verbosity_level;
     minimizer.max_iter = opt.max_iter;
@@ -228,7 +228,6 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     //Whiten Data
     whiten<ScalarType>(NC, DataNF, NF, data,Sphere,white_data);
     detail::shuffle(white_data,NC,NF);
-
     ica_functor<ScalarType, extended_infomax_ica<ScalarType> > objective(white_data,NF,NC);
 
     do{
@@ -240,15 +239,15 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     std::memcpy(b, X+NC*NC, sizeof(ScalarType)*NC);
 
     //out = W*Sphere*data;
-    backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,2,data,DataNF,Sphere,NC,0,white_data,NF);
+    backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,1,data,DataNF,Sphere,NC,0,white_data,NF);
     backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,1,white_data,NF,Weights,NC,0,out,NF);
 
-    for(std::size_t c = 0 ; c < NC ; ++c){
-        ScalarType val = b[c];
-        for(std::size_t f = 0 ; f < NF ; ++f){
-            out[c*NF+f] += val;
-        }
-    }
+//    for(std::size_t c = 0 ; c < NC ; ++c){
+//        ScalarType val = b[c];
+//        for(std::size_t f = 0 ; f < NF ; ++f){
+//            out[c*NF+f] += val;
+//        }
+//    }
 
     for(std::size_t i = 0 ; i < NC ; ++i){
         for(std::size_t j = 0 ; j < NC ; ++j){
