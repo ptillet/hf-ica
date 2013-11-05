@@ -30,6 +30,21 @@ void fill_options(mxArray* options_mx, curveica_options_type & options){
     if(mxArray * verbosity_level = mxGetField(options_mx,0, "verbosityLevel")){
         options.opts.verbosity_level = mxGetScalar(verbosity_level);
     }
+
+    /*-Direction-*/
+   if(mxArray * direction = mxGetField(options_mx,0,"optimizationMethod")){
+       char* direction_name = mxArrayToString(direction);
+       if(are_string_equal(direction_name,"HESSIAN_FREE"))
+           options.opts.optimization_method = curveica::HESSIAN_FREE;
+       if(are_string_equal(direction_name,"SD"))
+           options.opts.optimization_method = curveica::SD;
+       if(are_string_equal(direction_name,"NCG"))
+           options.opts.optimization_method = curveica::NCG;
+       if(are_string_equal(direction_name,"LBFGS"))
+           options.opts.optimization_method = curveica::LBFGS;
+       if(are_string_equal(direction_name,"BFGS"))
+           options.opts.optimization_method = curveica::BFGS;
+   }
 }
 
 

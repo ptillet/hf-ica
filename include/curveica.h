@@ -14,9 +14,18 @@
 
 namespace curveica{
 
+enum optimization_method_type{
+    HESSIAN_FREE,
+    SD,
+    NCG,
+    LBFGS,
+    BFGS
+};
+
 struct options{
     std::size_t max_iter;
     unsigned int verbosity_level;
+    optimization_method_type optimization_method;
 };
 
 options make_default_options();

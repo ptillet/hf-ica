@@ -20,7 +20,6 @@
 
 #include "src/nonlinearities/extended_infomax.h"
 
-#include "src/fastapprox.h"
 
 namespace curveica{
 
@@ -196,6 +195,7 @@ options make_default_options(){
     options opt;
     opt.max_iter = 200;
     opt.verbosity_level = 2;
+    opt.optimization_method = LBFGS;
     return opt;
 }
 
@@ -204,9 +204,16 @@ template<class ScalarType>
 void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t NC, std::size_t DataNF, options const & opt, double* W, double* S){
     typedef typename umintl_backend<ScalarType>::type BackendType;
     umintl::minimizer<BackendType> minimizer;
-    minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::lbfgs<BackendType>());
-    //minimizer.direction = new umintl::conjugate_gradient<BackendType>(new umintl::polak_ribiere<BackendType>());
-    //minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::bfgs<BackendType>());
+    if(opt.optimization_method==SD)
+        minimizer.direction = new umintl::steepest_descent<BackendType>();
+    else if(opt.optimization_method==LBFGS)
+        minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::lbfgs<BackendType>(16));
+    else if(opt.optimization_method==NCG)
+        minimizer.direction = new umintl::conjugate_gradient<BackendType>(new umintl::polak_ribiere<BackendType>());
+    else if(opt.optimization_method==BFGS)
+        minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::bfgs<BackendType>());
+    else if(opt.optimization_method==HESSIAN_FREE)
+        minimizer.direction = new umintl::truncated_newton<BackendType>();
     minimizer.verbosity_level = opt.verbosity_level;
     minimizer.max_iter = opt.max_iter;
     minimizer.stopping_criterion = new umintl::gradient_treshold<BackendType>(1e-6);

@@ -6,12 +6,33 @@
 
 #include "omp.h"
 
-#include "src/fastapprox.h"
+#include "src/math/math.h"
 #include <pmmintrin.h>
 #include <cstddef>
 
 namespace curveica{
 
+//template<>
+//void extended_infomax_ica<float>::operator()(float * z1, float * b, int const * signs, float* phi, float* means_logp) const {
+//    for(unsigned int c = 0 ; c < NC_ ; ++c){
+//        float current = 0;
+//        float k = signs[c];
+//        float bias = b[c];
+//        for(unsigned int f = 0; f < NF_ ; f++){
+//            float z2 = z1[c*NF_+f] + bias;
+//            float y = std::tanh(z2);
+//            if(k<0){
+//                current+= std::log((std::exp(-0.5*std::pow(z2-1,2)) + std::exp(-0.5*std::pow(z2+1,2))));
+//                phi[c*NF_+f] = z2 - y;
+//            }
+//            else{
+//                current+= -std::log(std::cosh(z2)) - 0.5*z2*z2;
+//                phi[c*NF_+f] = z2 + y;
+//            }
+//        }
+//        means_logp[c] = current/(float)NF_;
+//    }
+//}
 
 template<>
 void extended_infomax_ica<float>::operator()(float * z1, float * b, int const * signs, float* phi, float* means_logp) const {
@@ -33,22 +54,22 @@ void extended_infomax_ica<float>::operator()(float * z1, float * b, int const * 
                 __m128 a = _mm_sub_ps(z2,_1);
                 a = _mm_mul_ps(a,a);
                 a = _mm_mul_ps(m0_5,a);
-                a = vfastexp(a);
+                a = curveica::math::vexp(a);
 
                 __m128 b = _mm_add_ps(z2,_1);
                 b = _mm_mul_ps(b,b);
                 b = _mm_mul_ps(m0_5,b);
-                b = vfastexp(b);
+                b = curveica::math::vexp(b);
 
                 a = _mm_add_ps(a,b);
-                a = vfastlog(a);
+                a = curveica::math::vlog(a);
 
                 vsum=_mm_add_pd(vsum,_mm_cvtps_pd(a));
                 vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(a,a)));
             }
             else{
-                __m128 y = vfastcosh(z2);
-                y = vfastlog(y);
+                __m128 y = curveica::math::vcosh(z2);
+                y = curveica::math::vlog(y);
                 __m128 z2sq = _mm_mul_ps(z2,z2);
                 y = _mm_mul_ps(_mm_set1_ps(-1),y);
                 z2sq = _mm_mul_ps(_mm_set1_ps(0.5),z2sq);
@@ -59,9 +80,7 @@ void extended_infomax_ica<float>::operator()(float * z1, float * b, int const * 
             }
 
             //compute phi
-            z2 = _mm_max_ps(z2,_mm_set1_ps(-10));
-            z2 = _mm_min_ps(z2,_mm_set1_ps(10));
-            __m128 y = vfasttanh(z2);
+            __m128 y = curveica::math::vtanh(z2);
             y = _mm_mul_ps(phi_signs,y);
             __m128 v = _mm_add_ps(z2,y);
             _mm_store_ps(&phi[c*NF_+f],v);
@@ -69,13 +88,13 @@ void extended_infomax_ica<float>::operator()(float * z1, float * b, int const * 
         double sum;
         vsum = _mm_hadd_pd(vsum, vsum);
         _mm_store_sd(&sum, vsum);
-        means_logp[c] = 1/(float)NF_*sum;
+        means_logp[c] = 1/(double)NF_*sum;
     }
 
 }
 
 //template<>
-//void extended_infomax_ica<double>::operator()(double * z1, double * b, double * signs, double* phi, double* means_logp) const {
+//void extended_infomax_ica<double>::operator()(double * z1, double * b, int const * signs, double* phi, double* means_logp) const {
 //    for(unsigned int c = 0 ; c < NC_ ; ++c){
 //        double current = 0;
 //        double k = signs[c];
@@ -117,15 +136,15 @@ void extended_infomax_ica<double>::operator()(double * z1, double * b, int const
                 __m128 a = _mm_sub_ps(z2,_1);
                 a = _mm_mul_ps(a,a);
                 a = _mm_mul_ps(m0_5,a);
-                a = vfastexp(a);
+                a = math::vexp(a);
 
                 __m128 b = _mm_add_ps(z2,_1);
                 b = _mm_mul_ps(b,b);
                 b = _mm_mul_ps(m0_5,b);
-                b = vfastexp(b);
+                b = math::vexp(b);
 
                 a = _mm_add_ps(a,b);
-                a = vfastlog(a);
+                a = math::vlog(a);
 
                 a = _mm_add_ps(vln0_5,a);
 
@@ -133,8 +152,8 @@ void extended_infomax_ica<double>::operator()(double * z1, double * b, int const
                 vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(a,a)));
             }
             else{
-                __m128 y = vfastcosh(z2);
-                y = vfastlog(y);
+                __m128 y = math::vcosh(z2);
+                y = math::vlog(y);
                 __m128 z2sq = _mm_mul_ps(z2,z2);
                 y = _mm_mul_ps(_mm_set1_ps(-1),y);
                 z2sq = _mm_mul_ps(_mm_set1_ps(0.5),z2sq);
@@ -145,9 +164,7 @@ void extended_infomax_ica<double>::operator()(double * z1, double * b, int const
             }
 
             //compute phi
-            z2 = _mm_max_ps(z2,_mm_set1_ps(-10));
-            z2 = _mm_min_ps(z2,_mm_set1_ps(10));
-            __m128 y = vfasttanh(z2);
+            __m128 y = math::vtanh(z2);
             y = _mm_mul_ps(phi_signs,y);
             __m128 v = _mm_add_ps(z2,y);
             _mm_store_pd(&phi[c*NF_+f],_mm_cvtps_pd(v));
