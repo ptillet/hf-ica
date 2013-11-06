@@ -35,8 +35,8 @@ public:
         RZ = new ScalarType[NC_*NF_];
 
         phi = new ScalarType[NC_*NF_];
+        psi = new ScalarType[NC_*NF_];
 
-        psi = new ScalarType[NC_*NC_];
         dweights = new ScalarType[NC_*NC_];
 
         W = new ScalarType[NC_*NC_];
@@ -110,6 +110,7 @@ public:
         backend<ScalarType>::gemm(NoTrans,NoTrans,NF_,NC_,NC_,1,data_,NF_,W,NC_,0,Z,NF_);
         backend<ScalarType>::gemm(NoTrans,NoTrans,NF_,NC_,NC_,1,data_,NF_,V,NC_,0,RZ,NF_);
 
+
         //Psi = dphi(Z).*RZ
         nonlinearity_.compute_dphi(Z,first_signs,psi);
         for(unsigned int c = 0 ; c < NC_ ; ++c)
@@ -119,11 +120,9 @@ public:
         //HV = (inv(W)*V*inv(w))' + 1/n*Psi*X'
         backend<ScalarType>::getrf(NC_,NC_,WLU,NC_,ipiv_);
         backend<ScalarType>::getri(NC_,WLU,NC_,ipiv_);
-        backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,NF_ ,1,WLU,NC_,V,NC_,0,WinvV,NC_);
-        backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,NF_ ,1,WinvV,NC_,WLU,NC_,0,HV,NC_);
-        for(std::size_t i = 0 ; i < NC_; ++i)
-            for(std::size_t j = 0 ; j <= i; ++j)
-                std::swap(HV[i*NC_+j],HV[i*NC_+j]);
+        backend<ScalarType>::gemm(Trans,Trans,NC_,NC_,NC_ ,1,WLU,NC_,V,NC_,0,WinvV,NC_);
+        backend<ScalarType>::gemm(NoTrans,Trans,NC_,NC_,NC_ ,1,WinvV,NC_,WLU,NC_,0,HV,NC_);
+
         backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,NF_ ,1/(ScalarType)NF_,data_,NF_,psi,NF_,1,HV,NC_);
 
         //Copy back
@@ -261,6 +260,7 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
         minimizer.direction = new umintl::truncated_newton<BackendType>(
                                            umintl::hessian_free::options<BackendType>(30
                                                                              , new umintl::hessian_free::hessian_vector_product_custom<BackendType,IcaFunctorType>(objective)));
+        //minimizer.direction = new umintl::truncated_newton<BackendType>();
     }
     minimizer.verbosity_level = opt.verbosity_level;
     minimizer.max_iter = opt.max_iter;
