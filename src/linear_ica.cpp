@@ -37,10 +37,10 @@ public:
 
         phi_z1t = new ScalarType[NC_*NC_];
         dweights = new ScalarType[NC_*NC_];
-        dbias = new ScalarType[NC_];
+        //dbias = new ScalarType[NC_];
         W = new ScalarType[NC_*NC_];
         WLU = new ScalarType[NC_*NC_];
-        b_ = new ScalarType[NC_];
+        //b_ = new ScalarType[NC_];
 
         means_logp = new ScalarType[NC_];
 
@@ -66,7 +66,7 @@ public:
 
         for(unsigned int c = 0 ; c < NC_ ; ++c){
             ScalarType m2 = 0, m4 = 0;
-            ScalarType b = b_[c];
+            //ScalarType b = b_[c];
             for(unsigned int f = 0; f < NF_ ; f++){
                 ScalarType X = z1[c*NF_+f];
                 m2 += std::pow(X,2);
@@ -90,10 +90,10 @@ public:
         delete[] phi;
         delete[] phi_z1t;
         delete[] dweights;
-        delete[] dbias;
+        //delete[] dbias;
         delete[] W;
         delete[] WLU;
-        delete[] b_;
+        //delete[] b_;
         delete[] means_logp;
     }
 
@@ -102,21 +102,16 @@ public:
 
         //Rerolls the variables into the appropriates datastructures
         std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
-        std::memcpy(b_, x+NC_*NC_, sizeof(ScalarType)*NC_);
+        //std::memcpy(b_, x+NC_*NC_, sizeof(ScalarType)*NC_);
 
         t.start();
+
         //z1 = W*data_;
         backend<ScalarType>::gemm(NoTrans,NoTrans,NF_,NC_,NC_,1,data_,NF_,W,NC_,0,z1,NF_);
 
-        //std::cout << "1 - " << t.get() << std::endl;
         //phi = mean(mata.*abs(z2).^(mata-1).*sign(z2),2);
-        nonlinearity_(z1,b_,first_signs,phi,means_logp);
-        //std::cout << "2 - " << t.get() << std::endl;
+        nonlinearity_(z1,first_signs,phi,means_logp);
 
-        for(std::size_t i = 0 ; i < NC_ ; ++i){
-            for(std::size_t j = 0 ; j < NC_ ; ++j){
-            }
-        }
         //H = log(abs(det(w))) + sum(means_logp);
         //LU Decomposition
         std::memcpy(WLU,W,sizeof(ScalarType)*NC_*NC_);
@@ -136,13 +131,11 @@ public:
         if(value){
             *value = -H;
         }
-        //std::cout << "4 - " << t.get() << std::endl;
 
         if(grad){
 
             //dbias = mean(phi,2)
-            compute_mean(phi,NC_,NF_,dbias);
-            //std::cout << "5 - " << t.get() << std::endl;
+            //compute_mean(phi,NC_,NF_,dbias);
 
             /*dweights = -(eye(N) - 1/n*phi*z1')*inv(W)'*/
             //WLU = inv(W)
@@ -154,9 +147,7 @@ public:
             //dweights = -lhs*Winv'
             backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,NC_,-1,WLU,NC_,phi_z1t,NC_,0,dweights,NC_);
             std::memcpy(*grad, dweights,sizeof(ScalarType)*NC_*NC_);
-            std::memcpy(*grad+NC_*NC_, dbias, sizeof(ScalarType)*NC_);
-            //std::cout << " - " << t.get() << std::endl;
-
+            //std::memcpy(*grad+NC_*NC_, dbias, sizeof(ScalarType)*NC_);
         }
 
     }
@@ -178,10 +169,10 @@ private:
     //Mixing
     ScalarType* phi_z1t;
     ScalarType* dweights;
-    ScalarType* dbias;
+    //ScalarType* dbias;
     ScalarType* W;
     ScalarType* WLU;
-    ScalarType* b_;
+    //ScalarType* b_;
     ScalarType* means_logp;
 
     NonlinearityType nonlinearity_;
@@ -217,13 +208,13 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     minimizer.verbosity_level = opt.verbosity_level;
     minimizer.max_iter = opt.max_iter;
     minimizer.stopping_criterion = new umintl::gradient_treshold<BackendType>(1e-6);
-    std::size_t N = NC*NC + NC;
+    std::size_t N = NC*NC;
     std::size_t padsize = 4;
     std::size_t NF=(DataNF%padsize==0)?DataNF:(DataNF/padsize)*padsize;
 
     ScalarType * Sphere = new ScalarType[NC*NC];
     ScalarType * Weights = new ScalarType[NC*NC];
-    ScalarType * b = new ScalarType[NC];
+    //ScalarType * b = new ScalarType[NC];
     ScalarType * X = new ScalarType[N];
     std::memset(X,0,N*sizeof(ScalarType));
     ScalarType * white_data = new ScalarType[NC*NF];
@@ -248,18 +239,11 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
 
     //Copies into datastructures
     std::memcpy(Weights, X,sizeof(ScalarType)*NC*NC);
-    std::memcpy(b, X+NC*NC, sizeof(ScalarType)*NC);
+    //std::memcpy(b, X+NC*NC, sizeof(ScalarType)*NC);
 
     //out = W*Sphere*data;
     backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,1,data,DataNF,Sphere,NC,0,white_data,NF);
     backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,1,white_data,NF,Weights,NC,0,out,NF);
-
-//    for(std::size_t c = 0 ; c < NC ; ++c){
-//        ScalarType val = b[c];
-//        for(std::size_t f = 0 ; f < NF ; ++f){
-//            out[c*NF+f] += val;
-//        }
-//    }
 
     for(std::size_t i = 0 ; i < NC ; ++i){
         for(std::size_t j = 0 ; j < NC ; ++j){
@@ -271,7 +255,7 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     }
 
     delete[] Weights;
-    delete[] b;
+    //delete[] b;
     delete[] X;
     delete[] white_data;
 

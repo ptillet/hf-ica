@@ -35,49 +35,29 @@ namespace curveica{
 //}
 
 template<>
-void extended_infomax_ica<float>::operator()(float * z1, float * b, int const * signs, float* phi, float* means_logp) const {
+void extended_infomax_ica<float>::operator()(float * z1, int const * signs, float* phi, float* means_logp) const {
 
 #pragma omp parallel for
     for(unsigned int c = 0 ; c < NC_ ; ++c){
         __m128d vsum = _mm_set1_pd(0.0d);
-        const __m128 bias = _mm_set1_ps(b[c]);
+        //const __m128 bias = _mm_set1_ps(b[c]);
         int s = signs[c];
         __m128 phi_signs = _mm_set1_ps(s);
         for(unsigned int f = 0; f < NF_ ; f+=4){
             __m128 z2 = _mm_load_ps(&z1[c*NF_+f]);
-            z2 = _mm_add_ps(z2,bias);
+            //z2 = _mm_add_ps(z2,bias);
 
             //Computes mean_logp
             const __m128 _1 = _mm_set1_ps(1);
-            const __m128 m0_5 = _mm_set1_ps(-0.5);
-            if(s<0){
-                __m128 a = _mm_sub_ps(z2,_1);
-                a = _mm_mul_ps(a,a);
-                a = _mm_mul_ps(m0_5,a);
-                a = curveica::math::vexp(a);
-
-                __m128 b = _mm_add_ps(z2,_1);
-                b = _mm_mul_ps(b,b);
-                b = _mm_mul_ps(m0_5,b);
-                b = curveica::math::vexp(b);
-
-                a = _mm_add_ps(a,b);
-                a = curveica::math::vlog(a);
-
-                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(a));
-                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(a,a)));
-            }
-            else{
-                __m128 y = curveica::math::vcosh(z2);
-                y = curveica::math::vlog(y);
-                __m128 z2sq = _mm_mul_ps(z2,z2);
-                y = _mm_mul_ps(_mm_set1_ps(-1),y);
-                z2sq = _mm_mul_ps(_mm_set1_ps(0.5),z2sq);
-                y = _mm_sub_ps(y,z2sq);
-
-                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(y));
-                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(y,y)));
-            }
+            const __m128 _0_5 = _mm_set1_ps(0.5);
+            const __m128 _2 = _mm_set1_ps(2);
+            __m128 val;
+            if(s<0)
+                val = _mm_set1_ps(-0.693147) - _0_5*(z2 - _1)*(z2 - _1) + curveica::math::vlog(_1 + math::vexp(-_2*z2));
+            else
+                val = - math::vlog(math::vcosh(z2)) - _0_5*z2*z2;
+            vsum=_mm_add_pd(vsum,_mm_cvtps_pd(val));
+            vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(val,val)));
 
             //compute phi
             __m128 y = curveica::math::vtanh(z2);
@@ -116,52 +96,27 @@ void extended_infomax_ica<float>::operator()(float * z1, float * b, int const * 
 //}
 
 template<>
-void extended_infomax_ica<double>::operator()(double * z1, double * b, int const * signs, double* phi, double* means_logp) const {
+void extended_infomax_ica<double>::operator()(double * z1, int const * signs, double* phi, double* means_logp) const {
 #pragma omp parallel for
     for(unsigned int c = 0 ; c < NC_ ; ++c){
         __m128d vsum = _mm_set1_pd(0.0d);
         float k = signs[c];
-        const __m128 bias = _mm_set1_ps(b[c]);
+        //const __m128 bias = _mm_set1_ps(b[c]);
         __m128 phi_signs = (k<0)?_mm_set1_ps(-1):_mm_set1_ps(1);
         for(unsigned int f = 0; f < NF_ ; f+=4){
             __m128d z2lo = _mm_load_pd(&z1[c*NF_+f]);
             __m128d z2hi = _mm_load_pd(&z1[c*NF_+f+2]);
             __m128 z2 = _mm_movelh_ps(_mm_cvtpd_ps(z2lo), _mm_cvtpd_ps(z2hi));
-            z2 = _mm_add_ps(z2,bias);
             const __m128 _1 = _mm_set1_ps(1);
-            const __m128 m0_5 = _mm_set1_ps(-0.5);
-            if(k<0){
-                const __m128 vln0_5 = _mm_set1_ps(-0.693147);
-
-                __m128 a = _mm_sub_ps(z2,_1);
-                a = _mm_mul_ps(a,a);
-                a = _mm_mul_ps(m0_5,a);
-                a = math::vexp(a);
-
-                __m128 b = _mm_add_ps(z2,_1);
-                b = _mm_mul_ps(b,b);
-                b = _mm_mul_ps(m0_5,b);
-                b = math::vexp(b);
-
-                a = _mm_add_ps(a,b);
-                a = math::vlog(a);
-
-                a = _mm_add_ps(vln0_5,a);
-
-                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(a));
-                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(a,a)));
-            }
-            else{
-                __m128 y = math::vcosh(z2);
-                y = math::vlog(y);
-                __m128 z2sq = _mm_mul_ps(z2,z2);
-                y = _mm_mul_ps(_mm_set1_ps(-1),y);
-                z2sq = _mm_mul_ps(_mm_set1_ps(0.5),z2sq);
-                y = _mm_sub_ps(y,z2sq);
-
-                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(y));
-                vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(y,y)));
-            }
+            const __m128 _0_5 = _mm_set1_ps(0.5);
+            const __m128 _2 = _mm_set1_ps(2);
+            __m128 val;
+            if(k<0)
+                val = _mm_set1_ps(-0.693147) - _0_5*(z2 - _1)*(z2 - _1) + curveica::math::vlog(_1 + math::vexp(-_2*z2));
+            else
+                val = - math::vlog(math::vcosh(z2)) - _0_5*z2*z2;
+            vsum=_mm_add_pd(vsum,_mm_cvtps_pd(val));
+            vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(val,val)));
 
             //compute phi
             __m128 y = math::vtanh(z2);
