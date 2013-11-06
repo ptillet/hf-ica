@@ -35,17 +35,50 @@ namespace curveica{
 //}
 
 template<>
-void extended_infomax_ica<float>::operator()(float * z1, int const * signs, float* phi, float* means_logp) const {
-
+void extended_infomax_ica<float>::compute_phi(float * z1, int const * signs, float* phi) const {
 #pragma omp parallel for
     for(unsigned int c = 0 ; c < NC_ ; ++c){
-        __m128d vsum = _mm_set1_pd(0.0d);
-        //const __m128 bias = _mm_set1_ps(b[c]);
         int s = signs[c];
         __m128 phi_signs = _mm_set1_ps(s);
         for(unsigned int f = 0; f < NF_ ; f+=4){
             __m128 z2 = _mm_load_ps(&z1[c*NF_+f]);
-            //z2 = _mm_add_ps(z2,bias);
+            //compute phi
+            __m128 y = curveica::math::vtanh(z2);
+            y = _mm_mul_ps(phi_signs,y);
+            __m128 v = _mm_add_ps(z2,y);
+            _mm_store_ps(&phi[c*NF_+f],v);
+        }
+    }
+
+}
+
+template<>
+void extended_infomax_ica<float>::compute_dphi(float * z1, int const * signs, float* dphi) const {
+#pragma omp parallel for
+    for(unsigned int c = 0 ; c < NC_ ; ++c){
+        int s = signs[c];
+        for(unsigned int f = 0; f < NF_ ; f+=4){
+            __m128 z2 = _mm_load_ps(&z1[c*NF_+f]);
+            __m128 y = curveica::math::vtanh(z2);
+            __m128 val;
+            if(s>0)
+                val =  _mm_set1_ps(2) - y*y;
+            else
+                val = y*y;
+            _mm_store_ps(&dphi[c*NF_+f],val);
+        }
+    }
+}
+
+template<>
+void extended_infomax_ica<float>::compute_means_logp(float * z1, int const * signs, float* means_logp) const {
+
+#pragma omp parallel for
+    for(unsigned int c = 0 ; c < NC_ ; ++c){
+        __m128d vsum = _mm_set1_pd(0.0d);
+        int s = signs[c];
+        for(unsigned int f = 0; f < NF_ ; f+=4){
+            __m128 z2 = _mm_load_ps(&z1[c*NF_+f]);
 
             //Computes mean_logp
             const __m128 _1 = _mm_set1_ps(1);
@@ -58,12 +91,6 @@ void extended_infomax_ica<float>::operator()(float * z1, int const * signs, floa
                 val = - math::vlog(math::vcosh(z2)) - _0_5*z2*z2;
             vsum=_mm_add_pd(vsum,_mm_cvtps_pd(val));
             vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(val,val)));
-
-            //compute phi
-            __m128 y = curveica::math::vtanh(z2);
-            y = _mm_mul_ps(phi_signs,y);
-            __m128 v = _mm_add_ps(z2,y);
-            _mm_store_ps(&phi[c*NF_+f],v);
         }
         double sum;
         vsum = _mm_hadd_pd(vsum, vsum);
@@ -96,13 +123,52 @@ void extended_infomax_ica<float>::operator()(float * z1, int const * signs, floa
 //}
 
 template<>
-void extended_infomax_ica<double>::operator()(double * z1, int const * signs, double* phi, double* means_logp) const {
+void extended_infomax_ica<double>::compute_phi(double * z1, int const * signs, double* phi) const {
+#pragma omp parallel for
+    for(unsigned int c = 0 ; c < NC_ ; ++c){
+        float k = signs[c];
+        __m128 phi_signs = (k<0)?_mm_set1_ps(-1):_mm_set1_ps(1);
+        for(unsigned int f = 0; f < NF_ ; f+=4){
+            __m128d z2lo = _mm_load_pd(&z1[c*NF_+f]);
+            __m128d z2hi = _mm_load_pd(&z1[c*NF_+f+2]);
+            __m128 z2 = _mm_movelh_ps(_mm_cvtpd_ps(z2lo), _mm_cvtpd_ps(z2hi));
+
+            __m128 y = math::vtanh(z2);
+            y = _mm_mul_ps(phi_signs,y);
+            __m128 v = _mm_add_ps(z2,y);
+            _mm_store_pd(&phi[c*NF_+f],_mm_cvtps_pd(v));
+            _mm_store_pd(&phi[c*NF_+f+2],_mm_cvtps_pd(_mm_movehl_ps(v,v)));
+        }
+    }
+}
+
+template<>
+void extended_infomax_ica<double>::compute_dphi(double * z1, int const * signs, double* dphi) const {
+#pragma omp parallel for
+    for(unsigned int c = 0 ; c < NC_ ; ++c){
+        int s = signs[c];
+        for(unsigned int f = 0; f < NF_ ; f+=4){
+            __m128d z2lo = _mm_load_pd(&z1[c*NF_+f]);
+            __m128d z2hi = _mm_load_pd(&z1[c*NF_+f+2]);
+            __m128 z2 = _mm_movelh_ps(_mm_cvtpd_ps(z2lo), _mm_cvtpd_ps(z2hi));
+            __m128 y = curveica::math::vtanh(z2);
+            __m128 val;
+            if(s>0)
+                val =  _mm_set1_ps(2) - y*y;
+            else
+                val = y*y;
+            _mm_store_pd(&dphi[c*NF_+f],_mm_cvtps_pd(val));
+            _mm_store_pd(&dphi[c*NF_+f+2],_mm_cvtps_pd(_mm_movehl_ps(val,val)));
+        }
+    }
+}
+
+template<>
+void extended_infomax_ica<double>::compute_means_logp(double * z1, int const * signs, double* means_logp) const {
 #pragma omp parallel for
     for(unsigned int c = 0 ; c < NC_ ; ++c){
         __m128d vsum = _mm_set1_pd(0.0d);
         float k = signs[c];
-        //const __m128 bias = _mm_set1_ps(b[c]);
-        __m128 phi_signs = (k<0)?_mm_set1_ps(-1):_mm_set1_ps(1);
         for(unsigned int f = 0; f < NF_ ; f+=4){
             __m128d z2lo = _mm_load_pd(&z1[c*NF_+f]);
             __m128d z2hi = _mm_load_pd(&z1[c*NF_+f+2]);
@@ -117,13 +183,6 @@ void extended_infomax_ica<double>::operator()(double * z1, int const * signs, do
                 val = - math::vlog(math::vcosh(z2)) - _0_5*z2*z2;
             vsum=_mm_add_pd(vsum,_mm_cvtps_pd(val));
             vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(val,val)));
-
-            //compute phi
-            __m128 y = math::vtanh(z2);
-            y = _mm_mul_ps(phi_signs,y);
-            __m128 v = _mm_add_ps(z2,y);
-            _mm_store_pd(&phi[c*NF_+f],_mm_cvtps_pd(v));
-            _mm_store_pd(&phi[c*NF_+f+2],_mm_cvtps_pd(_mm_movehl_ps(v,v)));
         }
         double sum;
         vsum = _mm_hadd_pd(vsum, vsum);

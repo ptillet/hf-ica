@@ -31,19 +31,21 @@ public:
         is_first_ = true;
 
         ipiv_ =  new typename backend<ScalarType>::size_t[NC_+1];
-        z1 = new ScalarType[NC_*NF_];
+        Z = new ScalarType[NC_*NF_];
+        RZ = new ScalarType[NC_*NF_];
 
         phi = new ScalarType[NC_*NF_];
 
-        phi_z1t = new ScalarType[NC_*NC_];
+        psi = new ScalarType[NC_*NC_];
         dweights = new ScalarType[NC_*NC_];
-        //dbias = new ScalarType[NC_];
+
         W = new ScalarType[NC_*NC_];
         WLU = new ScalarType[NC_*NC_];
-        //b_ = new ScalarType[NC_];
+        V = new ScalarType[NC_*NC_];
+        HV = new ScalarType[NC_*NC_];
+        WinvV = new ScalarType[NC_*NC_];
 
         means_logp = new ScalarType[NC_];
-
         first_signs = new int[NC_];
 
         for(unsigned int c = 0 ; c < NC_ ; ++c){
@@ -53,7 +55,6 @@ public:
                 m2 += std::pow(X,2);
                 m4 += std::pow(X,4);
             }
-
             m2 = std::pow(1/(ScalarType)NF_*m2,2);
             m4 = 1/(ScalarType)NF_*m4;
             ScalarType k = m4/m2 - 3;
@@ -68,7 +69,7 @@ public:
             ScalarType m2 = 0, m4 = 0;
             //ScalarType b = b_[c];
             for(unsigned int f = 0; f < NF_ ; f++){
-                ScalarType X = z1[c*NF_+f];
+                ScalarType X = Z[c*NF_+f];
                 m2 += std::pow(X,2);
                 m4 += std::pow(X,4);
             }
@@ -86,35 +87,62 @@ public:
     ~ica_functor(){
         delete[] ipiv_;
 
-        delete[] z1;
+        delete[] Z;
+        delete[] RZ;
+
         delete[] phi;
-        delete[] phi_z1t;
+        delete[] psi;
         delete[] dweights;
-        //delete[] dbias;
         delete[] W;
         delete[] WLU;
-        //delete[] b_;
+        delete[] V;
+        delete[] HV;
+        delete[] WinvV;
+
         delete[] means_logp;
     }
 
-    void operator()(ScalarType const * x, ScalarType* value, ScalarType ** grad) const {
-        Timer t;
+    void compute_Hv(ScalarType const * x, ScalarType const * v, ScalarType * Hv) const{
+        std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
+        std::memcpy(WLU,x,sizeof(ScalarType)*NC_*NC_);
+        std::memcpy(V, v,sizeof(ScalarType)*NC_*NC_);
 
+        backend<ScalarType>::gemm(NoTrans,NoTrans,NF_,NC_,NC_,1,data_,NF_,W,NC_,0,Z,NF_);
+        backend<ScalarType>::gemm(NoTrans,NoTrans,NF_,NC_,NC_,1,data_,NF_,V,NC_,0,RZ,NF_);
+
+        //Psi = dphi(Z).*RZ
+        nonlinearity_.compute_dphi(Z,first_signs,psi);
+        for(unsigned int c = 0 ; c < NC_ ; ++c)
+            for(unsigned int f = 0; f < NF_ ; ++f)
+                psi[c*NF_+f] *= RZ[c*NF_+f];
+
+        //HV = (inv(W)*V*inv(w))' + 1/n*Psi*X'
+        backend<ScalarType>::getrf(NC_,NC_,WLU,NC_,ipiv_);
+        backend<ScalarType>::getri(NC_,WLU,NC_,ipiv_);
+        backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,NF_ ,1,WLU,NC_,V,NC_,0,WinvV,NC_);
+        backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,NF_ ,1,WinvV,NC_,WLU,NC_,0,HV,NC_);
+        for(std::size_t i = 0 ; i < NC_; ++i)
+            for(std::size_t j = 0 ; j <= i; ++j)
+                std::swap(HV[i*NC_+j],HV[i*NC_+j]);
+        backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,NF_ ,1/(ScalarType)NF_,data_,NF_,psi,NF_,1,HV,NC_);
+
+        //Copy back
+        for(std::size_t i = 0 ; i < NC_*NC_; ++i)
+            Hv[i] = HV[i];
+    }
+
+    void operator()(ScalarType const * x, ScalarType* value, ScalarType ** grad) const {
         //Rerolls the variables into the appropriates datastructures
         std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
-        //std::memcpy(b_, x+NC_*NC_, sizeof(ScalarType)*NC_);
-
-        t.start();
+        std::memcpy(WLU,W,sizeof(ScalarType)*NC_*NC_);
 
         //z1 = W*data_;
-        backend<ScalarType>::gemm(NoTrans,NoTrans,NF_,NC_,NC_,1,data_,NF_,W,NC_,0,z1,NF_);
+        backend<ScalarType>::gemm(NoTrans,NoTrans,NF_,NC_,NC_,1,data_,NF_,W,NC_,0,Z,NF_);
 
         //phi = mean(mata.*abs(z2).^(mata-1).*sign(z2),2);
-        nonlinearity_(z1,first_signs,phi,means_logp);
+        nonlinearity_.compute_means_logp(Z,first_signs,means_logp);
 
-        //H = log(abs(det(w))) + sum(means_logp);
         //LU Decomposition
-        std::memcpy(WLU,W,sizeof(ScalarType)*NC_*NC_);
         backend<ScalarType>::getrf(NC_,NC_,WLU,NC_,ipiv_);
 
         //det = prod(diag(WLU))
@@ -123,31 +151,28 @@ public:
             absdet*=std::abs(WLU[i*NC_+i]);
         }
 
+        //H = log(abs(det(w))) + sum(means_logp);
         ScalarType H = std::log(absdet);
         for(std::size_t i = 0; i < NC_ ; ++i){
             H+=means_logp[i];
         }
 
-        if(value){
+        if(value)
             *value = -H;
-        }
 
         if(grad){
+            nonlinearity_.compute_phi(Z,first_signs,phi);
 
-            //dbias = mean(phi,2)
-            //compute_mean(phi,NC_,NF_,dbias);
-
-            /*dweights = -(eye(N) - 1/n*phi*z1')*inv(W)'*/
-            //WLU = inv(W)
+            //dweights = W^-T - 1/n*Phi*X'
             backend<ScalarType>::getri(NC_,WLU,NC_,ipiv_);
-            //lhs = I(N,N) - 1/N*phi*z1')
-            backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,NF_ ,-1/(ScalarType)NF_,z1,NF_,phi,NF_,0,phi_z1t,NC_);
             for(std::size_t i = 0 ; i < NC_; ++i)
-                phi_z1t[i*NC_+i] += 1;
-            //dweights = -lhs*Winv'
-            backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,NC_,-1,WLU,NC_,phi_z1t,NC_,0,dweights,NC_);
-            std::memcpy(*grad, dweights,sizeof(ScalarType)*NC_*NC_);
-            //std::memcpy(*grad+NC_*NC_, dbias, sizeof(ScalarType)*NC_);
+                for(std::size_t j = 0 ; j < NC_; ++j)
+                    dweights[i*NC_+j] = WLU[j*NC_+i];
+            backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,NF_ ,-1/(ScalarType)NF_,data_,NF_,phi,NF_,1,dweights,NC_);
+
+            //Copy back
+            for(std::size_t i = 0 ; i < NC_*NC_; ++i)
+                (*grad)[i] = -dweights[i];
         }
 
     }
@@ -163,16 +188,18 @@ private:
     typename backend<ScalarType>::size_t *ipiv_;
 
     //MiniBatch
-    ScalarType* z1;
+    ScalarType* Z;
+    ScalarType* RZ;
     ScalarType* phi;
 
     //Mixing
-    ScalarType* phi_z1t;
+    ScalarType* psi;
     ScalarType* dweights;
-    //ScalarType* dbias;
+    ScalarType* V;
+    ScalarType* HV;
+    ScalarType* WinvV;
     ScalarType* W;
     ScalarType* WLU;
-    //ScalarType* b_;
     ScalarType* means_logp;
 
     NonlinearityType nonlinearity_;
@@ -194,20 +221,8 @@ options make_default_options(){
 template<class ScalarType>
 void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t NC, std::size_t DataNF, options const & opt, double* W, double* S){
     typedef typename umintl_backend<ScalarType>::type BackendType;
-    umintl::minimizer<BackendType> minimizer;
-    if(opt.optimization_method==SD)
-        minimizer.direction = new umintl::steepest_descent<BackendType>();
-    else if(opt.optimization_method==LBFGS)
-        minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::lbfgs<BackendType>(16));
-    else if(opt.optimization_method==NCG)
-        minimizer.direction = new umintl::conjugate_gradient<BackendType>(new umintl::polak_ribiere<BackendType>());
-    else if(opt.optimization_method==BFGS)
-        minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::bfgs<BackendType>());
-    else if(opt.optimization_method==HESSIAN_FREE)
-        minimizer.direction = new umintl::truncated_newton<BackendType>();
-    minimizer.verbosity_level = opt.verbosity_level;
-    minimizer.max_iter = opt.max_iter;
-    minimizer.stopping_criterion = new umintl::gradient_treshold<BackendType>(1e-6);
+    typedef ica_functor<ScalarType, extended_infomax_ica<ScalarType> > IcaFunctorType;
+
     std::size_t N = NC*NC;
     std::size_t padsize = 4;
     std::size_t NF=(DataNF%padsize==0)?DataNF:(DataNF/padsize)*padsize;
@@ -231,8 +246,25 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     //Whiten Data
     whiten<ScalarType>(NC, DataNF, NF, data,Sphere,white_data);
     detail::shuffle(white_data,NC,NF);
-    ica_functor<ScalarType, extended_infomax_ica<ScalarType> > objective(white_data,NF,NC);
+    IcaFunctorType objective(white_data,NF,NC);
 
+    umintl::minimizer<BackendType> minimizer;
+    if(opt.optimization_method==SD)
+        minimizer.direction = new umintl::steepest_descent<BackendType>();
+    else if(opt.optimization_method==LBFGS)
+        minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::lbfgs<BackendType>(16));
+    else if(opt.optimization_method==NCG)
+        minimizer.direction = new umintl::conjugate_gradient<BackendType>(new umintl::polak_ribiere<BackendType>());
+    else if(opt.optimization_method==BFGS)
+        minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::bfgs<BackendType>());
+    else if(opt.optimization_method==HESSIAN_FREE){
+        minimizer.direction = new umintl::truncated_newton<BackendType>(
+                                           umintl::hessian_free::options<BackendType>(30
+                                                                             , new umintl::hessian_free::hessian_vector_product_custom<BackendType,IcaFunctorType>(objective)));
+    }
+    minimizer.verbosity_level = opt.verbosity_level;
+    minimizer.max_iter = opt.max_iter;
+    minimizer.stopping_criterion = new umintl::gradient_treshold<BackendType>(1e-4);
     do{
         minimizer(X,objective,X,N);
     }while(objective.recompute_signs());
