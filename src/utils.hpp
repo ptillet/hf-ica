@@ -7,18 +7,6 @@ namespace curveica{
 
     namespace detail{
 
-        std::size_t round_to_previous_multiple(std::size_t x, std::size_t multiple){
-            if((x%multiple)==0)
-                return x;
-            return x/multiple * multiple;
-        }
-
-        std::size_t get_n_minibatch(std::size_t N, std::size_t batch_size){
-            if(N%batch_size==0)
-                return N/batch_size;
-            return (N/batch_size+1);
-        }
-
         template<class ScalarType>
         std::size_t shuffle(ScalarType* data, std::size_t NC, std::size_t NF){
             srand(0);

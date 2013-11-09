@@ -43,6 +43,7 @@ int main(){
 
     curveica::options options = curveica::make_default_options();
     options.verbosity_level = 2;
+    options.optimization_method = curveica::HESSIAN_FREE;
     Timer t;
     t.start();
     for(unsigned int i = 0 ; i < BENCHMARK_COUNT ; ++i)
