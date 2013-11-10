@@ -146,9 +146,6 @@ public:
         //Copy back
         for(std::size_t i = 0 ; i < NC_*NC_; ++i)
             Hv[i] = HV[i];
-
-
-
     }
 
     void operator()(VectorType const & x, ScalarType& value, VectorType & grad, umintl::value_gradient_tag tag) const {
@@ -275,15 +272,19 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
         minimizer.direction = new umintl::conjugate_gradient<BackendType>(new umintl::polak_ribiere<BackendType>());
     else if(opt.optimization_method==BFGS)
         minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::bfgs<BackendType>());
-    else if(opt.optimization_method==HESSIAN_FREE)
-      minimizer.direction = new umintl::truncated_newton<BackendType>(new umintl::hessian_vector_product::provided_function<BackendType>(new umintl::model_type::stochastic(NF/100,NF)),30);
+    else if(opt.optimization_method==HESSIAN_FREE){
+      minimizer.direction = new umintl::truncated_newton<BackendType>();
+      minimizer.evaluation_policies.hv_product.computation = umintl::hv_product_evaluation_policy::PROVIDED;
+      minimizer.evaluation_policies.hv_product.model = new umintl::model_type::stochastic((10000)/4*4,NF);
+    }
 
     minimizer.verbosity_level = opt.verbosity_level;
     minimizer.max_iter = opt.max_iter;
-    minimizer.stopping_criterion = new umintl::gradient_treshold<BackendType>(1e-4);
+    minimizer.stopping_criterion = new umintl::value_treshold<BackendType>(1e-6);
     do{
         minimizer(X,objective,X,N);
     }while(objective.recompute_signs());
+
 
     //Copies into datastructures
     std::memcpy(Weights, X,sizeof(ScalarType)*NC*NC);
