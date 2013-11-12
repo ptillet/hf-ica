@@ -13,6 +13,7 @@
 
 #include "umintl/check_grad.hpp"
 #include "umintl/minimize.hpp"
+#include "umintl/stopping_criterion/parameter_change_threshold.hpp"
 
 #include "src/whiten.hpp"
 #include "src/utils.hpp"
@@ -27,18 +28,6 @@ namespace curveica{
 template<class ScalarType, class NonlinearityType>
 struct ica_functor{
     typedef ScalarType * VectorType;
-
-    void get_offset_sample_size(std::size_t & offset, std::size_t & sample_size, umintl::model_type_base const * m) const{
-      if(umintl::model_type::stochastic const * p = dynamic_cast<umintl::model_type::stochastic const *>(m)){
-          offset = p->sample_offset();
-          sample_size = p->sample_size();
-      }
-      else{
-          offset = 0;
-          sample_size = NF_;
-      }
-    }
-
 public:
     ica_functor(ScalarType const * data, std::size_t NF, std::size_t NC) : data_(data), NC_(NC), NF_(NF), nonlinearity_(NC,NF){
         is_first_ = true;
@@ -116,10 +105,17 @@ public:
     }
 
 
-    void operator()(VectorType const & x, VectorType const & v, VectorType & Hv, umintl::hessian_vector_product_tag tag) const{
+    void operator()(VectorType const & x, VectorType const & v, VectorType & Hv, umintl::hessian_vector_product tag) const{
         std::size_t offset;
         std::size_t sample_size;
-        get_offset_sample_size(offset,sample_size,&tag.model);
+        if(tag.model==umintl::DETERMINISTIC){
+          offset = 0;
+          sample_size = NF_;
+        }
+        else{
+          offset = tag.offset;
+          sample_size = tag.sample_size;
+        }
 
         std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
         std::memcpy(WLU,x,sizeof(ScalarType)*NC_*NC_);
@@ -148,17 +144,25 @@ public:
             Hv[i] = HV[i];
     }
 
-    void operator()(VectorType const & x, ScalarType& value, VectorType & grad, umintl::value_gradient_tag tag) const {
+    void operator()(VectorType const & x, ScalarType& value, VectorType & grad, umintl::value_gradient tag) const {
         std::size_t offset;
         std::size_t sample_size;
-        get_offset_sample_size(offset,sample_size,&tag.model);
+        if(tag.model==umintl::DETERMINISTIC){
+          offset = 0;
+          sample_size = NF_;
+        }
+        else{
+          offset = tag.offset;
+          sample_size = tag.sample_size;
+        }
+        if(tag.sample_size>1)
 
         //Rerolls the variables into the appropriates datastructures
         std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
         std::memcpy(WLU,W,sizeof(ScalarType)*NC_*NC_);
 
         //z1 = W*data_;
-        backend<ScalarType>::gemm(NoTrans,NoTrans,NF_,NC_,NC_,1,data_,NF_,W,NC_,0,Z,NF_);
+        backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
 
         //phi = mean(mata.*abs(z2).^(mata-1).*sign(z2),2);
         nonlinearity_.compute_means_logp(offset,sample_size,Z,first_signs,means_logp);
@@ -185,7 +189,7 @@ public:
         for(std::size_t i = 0 ; i < NC_; ++i)
             for(std::size_t j = 0 ; j < NC_; ++j)
                 dweights[i*NC_+j] = WLU[j*NC_+i];
-        backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,NF_ ,-1/(ScalarType)NF_,data_,NF_,phi,NF_,1,dweights,NC_);
+        backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,-1/(ScalarType)sample_size,data_+offset,NF_,phi+offset,NF_,1,dweights,NC_);
 
         //Copy back
         for(std::size_t i = 0 ; i < NC_*NC_; ++i)
@@ -226,7 +230,7 @@ private:
 
 options make_default_options(){
     options opt;
-    opt.max_iter = 200;
+    opt.max_iter = 1000;
     opt.verbosity_level = 2;
     opt.optimization_method = LBFGS;
     return opt;
@@ -263,9 +267,14 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     detail::shuffle(white_data,NC,NF);
     IcaFunctorType objective(white_data,NF,NC);
 
+
     umintl::minimizer<BackendType> minimizer;
-    if(opt.optimization_method==SD)
+    minimizer.hessian_vector_product_computation = umintl::PROVIDED;
+    //minimizer.model = new umintl::deterministic<BackendType>();
+    if(opt.optimization_method==SD){
+        minimizer.model = new umintl::dynamically_sampled<BackendType>(0.1,100,NF,0.5);
         minimizer.direction = new umintl::steepest_descent<BackendType>();
+    }
     else if(opt.optimization_method==LBFGS)
         minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::lbfgs<BackendType>(16));
     else if(opt.optimization_method==NCG)
@@ -274,13 +283,13 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
         minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::bfgs<BackendType>());
     else if(opt.optimization_method==HESSIAN_FREE){
       minimizer.direction = new umintl::truncated_newton<BackendType>();
-      minimizer.evaluation_policies.hv_product.computation = umintl::hv_product_evaluation_policy::PROVIDED;
-      minimizer.evaluation_policies.hv_product.model = new umintl::model_type::stochastic((10000)/4*4,NF);
+      minimizer.model = new umintl::semi_stochastic<BackendType>(10000,NF);
     }
 
     minimizer.verbosity_level = opt.verbosity_level;
     minimizer.max_iter = opt.max_iter;
-    minimizer.stopping_criterion = new umintl::value_treshold<BackendType>(1e-6);
+    //minimizer.stopping_criterion = new umintl::parameter_change_threshold<BackendType>(1e-6);
+    minimizer.stopping_criterion = new umintl::gradient_treshold<BackendType>(1e-6);
     do{
         minimizer(X,objective,X,N);
     }while(objective.recompute_signs());

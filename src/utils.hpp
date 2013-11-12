@@ -21,16 +21,24 @@ namespace curveica{
                 std::swap(perms[i], perms[j]);
             }
             for(std::size_t c = 0 ; c < NC ; ++c){
-                for(std::size_t f = 0 ; f < NF ; ++f){
+                for(std::size_t f = 0 ; f < NF ; ++f)
                     shuffled_va[f] = data[c*NF+perms[f]];
-                }
-                for(std::size_t f = 0 ; f < NF ; ++f){
+                for(std::size_t f = 0 ; f < NF ; ++f)
                     data[c*NF+f] = shuffled_va[f];
-                }
             }
 
             delete[] shuffled_va;
             delete[] perms;
+        }
+
+        template<class T>
+        T round_to_previous_multiple(T const & val, unsigned int multiple){
+          return val/multiple*multiple;
+        }
+
+        template<class T>
+        T round_to_next_multiple(T const & val, unsigned int multiple){
+          return (val+multiple-1)/multiple*multiple;
         }
     }
 

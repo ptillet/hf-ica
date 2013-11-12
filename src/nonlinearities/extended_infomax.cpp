@@ -7,6 +7,8 @@
 #include "omp.h"
 
 #include "src/math/math.h"
+#include "src/utils.hpp"
+
 #include <pmmintrin.h>
 #include <cstddef>
 
@@ -40,7 +42,10 @@ void extended_infomax_ica<float>::compute_phi(std::size_t offset, std::size_t sa
     for(unsigned int c = 0 ; c < NC_ ; ++c){
         int s = signs[c];
         __m128 phi_signs = _mm_set1_ps(s);
-        for(unsigned int f = offset; f < offset+sample_size  ; f+=4){
+        unsigned int f = offset;
+        for(; f < detail::round_to_next_multiple(offset,4); ++f)
+          phi[c*NF_+f] = z1[c*NF_+f] + s*std::tanh(z1[c*NF_+f]);
+        for(; f < detail::round_to_previous_multiple(offset+sample_size,4)  ; f+=4){
             __m128 z2 = _mm_load_ps(&z1[c*NF_+f]);
             //compute phi
             __m128 y = curveica::math::vtanh(z2);
@@ -48,6 +53,8 @@ void extended_infomax_ica<float>::compute_phi(std::size_t offset, std::size_t sa
             __m128 v = _mm_add_ps(z2,y);
             _mm_store_ps(&phi[c*NF_+f],v);
         }
+        for(; f < offset+sample_size ; ++f)
+          phi[c*NF_+f] = z1[c*NF_+f] + s*std::tanh(z1[c*NF_+f]);
     }
 
 }
@@ -57,7 +64,12 @@ void extended_infomax_ica<float>::compute_dphi(std::size_t offset, std::size_t s
 #pragma omp parallel for
     for(unsigned int c = 0 ; c < NC_ ; ++c){
         int s = signs[c];
-        for(unsigned int f = offset; f < offset+sample_size  ; f+=4){
+        unsigned int f = offset;
+        for(; f < detail::round_to_next_multiple(offset,4); ++f){
+          float y = std::tanh(z1[c*NF_+f]);
+          dphi[c*NF_+f] = (s>0)?2-y*y:y*y;
+        }
+        for(unsigned int f = offset; f < detail::round_to_previous_multiple(offset+sample_size,4)  ; f+=4){
             __m128 z2 = _mm_load_ps(&z1[c*NF_+f]);
             __m128 y = curveica::math::vtanh(z2);
             __m128 val;
@@ -66,6 +78,10 @@ void extended_infomax_ica<float>::compute_dphi(std::size_t offset, std::size_t s
             else
                 val = y*y;
             _mm_store_ps(&dphi[c*NF_+f],val);
+        }
+        for(; f < offset+sample_size ; ++f){
+          float y = std::tanh(z1[c*NF_+f]);
+          dphi[c*NF_+f] = (s>0)?2-y*y:y*y;
         }
     }
 }
@@ -77,7 +93,13 @@ void extended_infomax_ica<float>::compute_means_logp(std::size_t offset, std::si
     for(unsigned int c = 0 ; c < NC_ ; ++c){
         __m128d vsum = _mm_set1_pd(0.0d);
         int s = signs[c];
-        for(unsigned int f = offset; f < offset+sample_size  ; f+=4){
+        double sum = 0;
+        unsigned int f = offset;
+        for(; f < detail::round_to_next_multiple(offset,4); ++f){
+          float z = z1[c*NF_+f];
+          sum+=(s<0)? - 0.693147 - 0.5*(z-1)*(z-1) + std::log(1+std::exp(-2*z)):-std::log(std::cosh(z))-0.5*z*z;
+        }
+        for(; f < detail::round_to_previous_multiple(offset+sample_size,4)  ; f+=4){
             __m128 z2 = _mm_load_ps(&z1[c*NF_+f]);
 
             //Computes mean_logp
@@ -92,13 +114,17 @@ void extended_infomax_ica<float>::compute_means_logp(std::size_t offset, std::si
             vsum=_mm_add_pd(vsum,_mm_cvtps_pd(val));
             vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(val,val)));
         }
-        double sum;
+        for(; f < offset+sample_size; ++f){
+          float z = z1[c*NF_+f];
+          sum+=(s<0)? - 0.693147 - 0.5*(z-1)*(z-1) + std::log(1+std::exp(-2*z)):-std::log(std::cosh(z))-0.5*z*z;
+        }
         vsum = _mm_hadd_pd(vsum, vsum);
         _mm_store_sd(&sum, vsum);
         means_logp[c] = 1/(double)sample_size*sum;
     }
 
 }
+
 
 //template<>
 //void extended_infomax_ica<double>::operator()(double * z1, double * b, int const * signs, double* phi, double* means_logp) const {
@@ -124,11 +150,15 @@ void extended_infomax_ica<float>::compute_means_logp(std::size_t offset, std::si
 
 template<>
 void extended_infomax_ica<double>::compute_phi(std::size_t offset, std::size_t sample_size, double * z1, int const * signs, double* phi) const {
-#pragma omp parallel for
+//#pragma omp parallel for
     for(unsigned int c = 0 ; c < NC_ ; ++c){
-        float k = signs[c];
-        __m128 phi_signs = (k<0)?_mm_set1_ps(-1):_mm_set1_ps(1);
-        for(unsigned int f = offset; f < offset+sample_size  ; f+=4){
+        float k = (signs[c]>0)?1:-1;
+        __m128 phi_signs = _mm_set1_ps(k);
+
+        unsigned int f = offset;
+        for(; f < detail::round_to_next_multiple(offset,4); ++f)
+          phi[c*NF_+f] = z1[c*NF_+f] + k*std::tanh(z1[c*NF_+f]);
+        for(; f < detail::round_to_previous_multiple(offset+sample_size,4)  ; f+=4){
             __m128d z2lo = _mm_load_pd(&z1[c*NF_+f]);
             __m128d z2hi = _mm_load_pd(&z1[c*NF_+f+2]);
             __m128 z2 = _mm_movelh_ps(_mm_cvtpd_ps(z2lo), _mm_cvtpd_ps(z2hi));
@@ -139,6 +169,9 @@ void extended_infomax_ica<double>::compute_phi(std::size_t offset, std::size_t s
             _mm_store_pd(&phi[c*NF_+f],_mm_cvtps_pd(v));
             _mm_store_pd(&phi[c*NF_+f+2],_mm_cvtps_pd(_mm_movehl_ps(v,v)));
         }
+        for(; f < offset+sample_size ; ++f)
+          phi[c*NF_+f] = z1[c*NF_+f] + k*std::tanh(z1[c*NF_+f]);
+
     }
 }
 
@@ -147,7 +180,12 @@ void extended_infomax_ica<double>::compute_dphi(std::size_t offset, std::size_t 
 #pragma omp parallel for
     for(unsigned int c = 0 ; c < NC_ ; ++c){
         int s = signs[c];
-        for(unsigned int f = offset; f < offset+sample_size  ; f+=4){
+        unsigned int f = offset;
+        for(; f < detail::round_to_next_multiple(offset,4); ++f){
+          double y = std::tanh(z1[c*NF_+f]);
+          dphi[c*NF_+f] = (s>0)?2-y*y:y*y;
+        }
+        for(; f < detail::round_to_previous_multiple(offset+sample_size,4)  ; f+=4){
             __m128d z2lo = _mm_load_pd(&z1[c*NF_+f]);
             __m128d z2hi = _mm_load_pd(&z1[c*NF_+f+2]);
             __m128 z2 = _mm_movelh_ps(_mm_cvtpd_ps(z2lo), _mm_cvtpd_ps(z2hi));
@@ -160,6 +198,10 @@ void extended_infomax_ica<double>::compute_dphi(std::size_t offset, std::size_t 
             _mm_store_pd(&dphi[c*NF_+f],_mm_cvtps_pd(val));
             _mm_store_pd(&dphi[c*NF_+f+2],_mm_cvtps_pd(_mm_movehl_ps(val,val)));
         }
+        for(; f < offset+sample_size ; ++f){
+          double y = std::tanh(z1[c*NF_+f]);
+          dphi[c*NF_+f] = (s>0)?2-y*y:y*y;
+        }
     }
 }
 
@@ -169,7 +211,13 @@ void extended_infomax_ica<double>::compute_means_logp(std::size_t offset, std::s
     for(unsigned int c = 0 ; c < NC_ ; ++c){
         __m128d vsum = _mm_set1_pd(0.0d);
         float k = signs[c];
-        for(unsigned int f = offset; f < offset+sample_size ; f+=4){
+        double sum = 0;
+        unsigned int f = offset;
+        for(; f < detail::round_to_next_multiple(offset,4); ++f){
+          double z = z1[c*NF_+f];
+          sum+=(k<0)? - 0.693147 - 0.5*(z-1)*(z-1) + std::log(1+std::exp(-2*z)):-std::log(std::cosh(z))-0.5*z*z;
+        }
+        for(; f < detail::round_to_previous_multiple(offset+sample_size,4) ; f+=4){
             __m128d z2lo = _mm_load_pd(&z1[c*NF_+f]);
             __m128d z2hi = _mm_load_pd(&z1[c*NF_+f+2]);
             __m128 z2 = _mm_movelh_ps(_mm_cvtpd_ps(z2lo), _mm_cvtpd_ps(z2hi));
@@ -184,7 +232,11 @@ void extended_infomax_ica<double>::compute_means_logp(std::size_t offset, std::s
             vsum=_mm_add_pd(vsum,_mm_cvtps_pd(val));
             vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(val,val)));
         }
-        double sum;
+        for(; f < offset+sample_size; ++f){
+          double z = z1[c*NF_+f];
+          sum+=(k<0)? - 0.693147 - 0.5*(z-1)*(z-1) + std::log(1+std::exp(-2*z)):-std::log(std::cosh(z))-0.5*z*z;
+        }
+
         vsum = _mm_hadd_pd(vsum, vsum);
         _mm_store_sd(&sum, vsum);
         means_logp[c] = 1/(double)sample_size*sum;
