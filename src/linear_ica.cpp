@@ -144,6 +144,44 @@ public:
             Hv[i] = HV[i];
     }
 
+    void operator()(VectorType const & x, VectorType const & grad, VectorType & variance, umintl::gradient_variance tag){
+      std::size_t offset;
+      std::size_t sample_size;
+      if(tag.model==umintl::DETERMINISTIC){
+        offset = 0;
+        sample_size = NF_;
+      }
+      else{
+        offset = tag.offset;
+        sample_size = tag.sample_size;
+      }
+
+      std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
+      std::memcpy(WLU, W,sizeof(ScalarType)*NC_*NC_);
+      std::memcpy(dweights, grad,sizeof(ScalarType)*NC_*NC_);
+      backend<ScalarType>::getrf(NC_,NC_,WLU,NC_,ipiv_);
+      backend<ScalarType>::getri(NC_,WLU,NC_,ipiv_);
+      backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
+      nonlinearity_.compute_phi(offset,sample_size,Z,first_signs,phi);
+
+      for(std::size_t i = 0 ; i < NC_; ++i){
+          for(std::size_t j = offset ; j < offset+sample_size; ++j){
+              phi[i*NF_+j] = phi[i*NF_+j]*phi[i*NF_+j];
+              RZ[i*NF_+j] = data_[i*NF_+j]*data_[i*NF_+j];
+          }
+      }
+
+      backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size,1,RZ+offset,NF_,phi+offset,NF_,0,variance,NC_);
+
+      for(std::size_t i = 0 ; i < NC_; ++i){
+          for(std::size_t j = 0 ; j < NC_; ++j){
+            ScalarType m = dweights[i*NC_+j]+WLU[j*NC_+i];
+            variance[i*NC_+j] = (ScalarType)1/(sample_size-1)*(variance[i*NC_+j] - sample_size*m*m);
+          }
+      }
+
+    }
+
     void operator()(VectorType const & x, ScalarType& value, VectorType & grad, umintl::value_gradient tag) const {
         std::size_t offset;
         std::size_t sample_size;
@@ -155,7 +193,6 @@ public:
           offset = tag.offset;
           sample_size = tag.sample_size;
         }
-        if(tag.sample_size>1)
 
         //Rerolls the variables into the appropriates datastructures
         std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
@@ -230,7 +267,7 @@ private:
 
 options make_default_options(){
     options opt;
-    opt.max_iter = 1000;
+    opt.max_iter = 100;
     opt.verbosity_level = 2;
     opt.optimization_method = LBFGS;
     return opt;
@@ -272,7 +309,7 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     minimizer.hessian_vector_product_computation = umintl::PROVIDED;
     //minimizer.model = new umintl::deterministic<BackendType>();
     if(opt.optimization_method==SD){
-        minimizer.model = new umintl::dynamically_sampled<BackendType>(0.1,100,NF,0.5);
+        minimizer.model = new umintl::dynamically_sampled<BackendType>(0.1,4,NF,0.5);
         minimizer.direction = new umintl::steepest_descent<BackendType>();
     }
     else if(opt.optimization_method==LBFGS)
@@ -290,9 +327,9 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     minimizer.max_iter = opt.max_iter;
     //minimizer.stopping_criterion = new umintl::parameter_change_threshold<BackendType>(1e-6);
     minimizer.stopping_criterion = new umintl::gradient_treshold<BackendType>(1e-6);
-    do{
+    //do{
         minimizer(X,objective,X,N);
-    }while(objective.recompute_signs());
+    //}while(objective.recompute_signs());
 
 
     //Copies into datastructures

@@ -154,18 +154,16 @@ void extended_infomax_ica<double>::compute_phi(std::size_t offset, std::size_t s
     for(unsigned int c = 0 ; c < NC_ ; ++c){
         float k = (signs[c]>0)?1:-1;
         __m128 phi_signs = _mm_set1_ps(k);
-
         unsigned int f = offset;
         for(; f < detail::round_to_next_multiple(offset,4); ++f)
           phi[c*NF_+f] = z1[c*NF_+f] + k*std::tanh(z1[c*NF_+f]);
+
         for(; f < detail::round_to_previous_multiple(offset+sample_size,4)  ; f+=4){
             __m128d z2lo = _mm_load_pd(&z1[c*NF_+f]);
             __m128d z2hi = _mm_load_pd(&z1[c*NF_+f+2]);
             __m128 z2 = _mm_movelh_ps(_mm_cvtpd_ps(z2lo), _mm_cvtpd_ps(z2hi));
 
-            __m128 y = math::vtanh(z2);
-            y = _mm_mul_ps(phi_signs,y);
-            __m128 v = _mm_add_ps(z2,y);
+            __m128 v = z2 + phi_signs*math::vtanh(z2);
             _mm_store_pd(&phi[c*NF_+f],_mm_cvtps_pd(v));
             _mm_store_pd(&phi[c*NF_+f+2],_mm_cvtps_pd(_mm_movehl_ps(v,v)));
         }
