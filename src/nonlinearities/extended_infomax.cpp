@@ -69,7 +69,7 @@ void extended_infomax_ica<float>::compute_dphi(std::size_t offset, std::size_t s
           float y = std::tanh(z1[c*NF_+f]);
           dphi[c*NF_+f] = (s>0)?2-y*y:y*y;
         }
-        for(unsigned int f = offset; f < detail::round_to_previous_multiple(offset+sample_size,4)  ; f+=4){
+        for(; f < detail::round_to_previous_multiple(offset+sample_size,4)  ; f+=4){
             __m128 z2 = _mm_load_ps(&z1[c*NF_+f]);
             __m128 y = curveica::math::vtanh(z2);
             __m128 val;

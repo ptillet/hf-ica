@@ -308,10 +308,10 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     umintl::minimizer<BackendType> minimizer;
     minimizer.hessian_vector_product_computation = umintl::PROVIDED;
     //minimizer.model = new umintl::deterministic<BackendType>();
-    if(opt.optimization_method==SD){
-        minimizer.model = new umintl::dynamically_sampled<BackendType>(0.1,4,NF,0.5);
+    minimizer.model = new umintl::dynamically_sampled<BackendType>(0.1,1000,NF,0.5);
+
+    if(opt.optimization_method==SD)
         minimizer.direction = new umintl::steepest_descent<BackendType>();
-    }
     else if(opt.optimization_method==LBFGS)
         minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::lbfgs<BackendType>(16));
     else if(opt.optimization_method==NCG)
@@ -320,16 +320,15 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
         minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::bfgs<BackendType>());
     else if(opt.optimization_method==HESSIAN_FREE){
       minimizer.direction = new umintl::truncated_newton<BackendType>();
-      minimizer.model = new umintl::semi_stochastic<BackendType>(10000,NF);
     }
 
     minimizer.verbosity_level = opt.verbosity_level;
     minimizer.max_iter = opt.max_iter;
-    //minimizer.stopping_criterion = new umintl::parameter_change_threshold<BackendType>(1e-6);
-    minimizer.stopping_criterion = new umintl::gradient_treshold<BackendType>(1e-6);
-    //do{
+    minimizer.stopping_criterion = new umintl::parameter_change_threshold<BackendType>(1e-6);
+    //minimizer.stopping_criterion = new umintl::gradient_treshold<BackendType>(1e-6);
+    do{
         minimizer(X,objective,X,N);
-    //}while(objective.recompute_signs());
+    }while(objective.recompute_signs());
 
 
     //Copies into datastructures
