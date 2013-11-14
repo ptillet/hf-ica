@@ -15,9 +15,9 @@
 
 #define BENCHMARK_COUNT 1
 
-typedef float ScalarType;
+typedef double ScalarType;
 static const unsigned int NC=4;
-static const unsigned int NF=100000;
+static const unsigned int NF=10000;
 static const unsigned int T=20;
 
 int main(){
@@ -39,11 +39,14 @@ int main(){
             mixing[i*NC+j] = static_cast<double>(rand())/RAND_MAX;
 
 
-    cblas_sgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,NF,NC,NC,1,src,NF,mixing,NC,0,mixed_src,NF);
+    cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,NF,NC,NC,1,src,NF,mixing,NC,0,mixed_src,NF);
 
     curveica::options options = curveica::make_default_options();
     options.verbosity_level = 2;
     options.optimization_method = curveica::HESSIAN_FREE;
+    options.max_iter=10;
+    //options.RS = 0.1;
+    //options.S0 = 10000;
     //options.optimization_method = curveica::SD;
     Timer t;
     t.start();

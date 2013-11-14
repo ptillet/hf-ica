@@ -17,9 +17,19 @@ struct curveica_options_type{
 
 
 void fill_options(mxArray* options_mx, curveica_options_type & options){
+    /*-RS-*/
+    if(mxArray * RS = mxGetField(options_mx,0, "RS")){
+        options.opts.RS = mxGetScalar(RS);
+    }
+
+    /*-S0-*/
+    if(mxArray * S0 = mxGetField(options_mx,0, "S0")){
+        options.opts.S0 = mxGetScalar(S0);
+    }
+
     /*-Max Iter-*/
-    if(mxArray * use_float = mxGetField(options_mx,0, "useFloat")){
-        options.use_float = static_cast<bool>(mxGetScalar(use_float));
+    if(mxArray * theta = mxGetField(options_mx,0, "theta")){
+        options.opts.theta = mxGetScalar(theta);
     }
 
     /*-Max Iter-*/

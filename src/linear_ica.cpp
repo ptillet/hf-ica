@@ -37,9 +37,12 @@ public:
         RZ = new ScalarType[NC_*NF_];
 
         phi = new ScalarType[NC_*NF_];
-        psi = new ScalarType[NC_*NF_];
+        phixT = new ScalarType[NC_*NC_];
 
-        dweights = new ScalarType[NC_*NC_];
+        psi = new ScalarType[NC_*NF_];
+        psixT = new ScalarType[NC_*NC_];
+
+        wmT = new ScalarType[NC_*NC_];
 
         W = new ScalarType[NC_*NC_];
         WLU = new ScalarType[NC_*NC_];
@@ -93,8 +96,12 @@ public:
         delete[] RZ;
 
         delete[] phi;
+        delete[] phixT;
+
         delete[] psi;
-        delete[] dweights;
+        delete[] psixT;
+
+        delete[] wmT;
         delete[] W;
         delete[] WLU;
         delete[] V;
@@ -104,6 +111,46 @@ public:
         delete[] means_logp;
     }
 
+    void operator()(VectorType const & x, VectorType const & v, VectorType & variance, umintl::hv_product_variance tag) const{
+        std::size_t offset;
+        std::size_t sample_size;
+        if(tag.model==umintl::DETERMINISTIC){
+          offset = 0;
+          sample_size = NF_;
+        }
+        else{
+          offset = tag.offset;
+          sample_size = tag.sample_size;
+        }
+
+        std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
+        std::memcpy(WLU,x,sizeof(ScalarType)*NC_*NC_);
+        std::memcpy(V, v,sizeof(ScalarType)*NC_*NC_);
+
+        backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
+        backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,V,NC_,0,RZ+offset,NF_);
+
+        //Psi = dphi(Z).*RZ
+        nonlinearity_.compute_dphi(offset,sample_size,Z,first_signs,psi);
+        for(unsigned int c = 0 ; c < NC_ ; ++c)
+            for(unsigned int f = offset; f < offset+sample_size ; ++f)
+                psi[c*NF_+f] *= RZ[c*NF_+f];
+
+        backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,psi+offset,NF_,0,psixT,NC_);
+
+        for(std::size_t i = 0 ; i < NC_; ++i){
+            for(std::size_t j = offset ; j < offset+sample_size; ++j){
+                psi[i*NF_+j] = psi[i*NF_+j]*psi[i*NF_+j];
+                RZ[i*NF_+j] = data_[i*NF_+j]*data_[i*NF_+j];
+            }
+        }
+        backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size,1,RZ+offset,NF_,psi+offset,NF_,0,variance,NC_);
+        for(std::size_t i = 0 ; i < NC_; ++i){
+            for(std::size_t j = 0 ; j < NC_; ++j){
+              variance[i*NC_+j] = (ScalarType)1/(sample_size-1)*(variance[i*NC_+j] - psixT[i*NC_+j]*psixT[i*NC_+j]/(ScalarType)sample_size);
+            }
+        }
+    }
 
     void operator()(VectorType const & x, VectorType const & v, VectorType & Hv, umintl::hessian_vector_product tag) const{
         std::size_t offset;
@@ -137,14 +184,14 @@ public:
         backend<ScalarType>::gemm(Trans,Trans,NC_,NC_,NC_ ,1,WLU,NC_,V,NC_,0,WinvV,NC_);
         backend<ScalarType>::gemm(NoTrans,Trans,NC_,NC_,NC_ ,1,WinvV,NC_,WLU,NC_,0,HV,NC_);
 
-        backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1/(ScalarType)sample_size,data_+offset,NF_,psi+offset,NF_,1,HV,NC_);
+        backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,psi+offset,NF_,0,psixT,NC_);
 
         //Copy back
         for(std::size_t i = 0 ; i < NC_*NC_; ++i)
-            Hv[i] = HV[i];
+            Hv[i] = HV[i] + psixT[i]/(ScalarType)sample_size;
     }
 
-    void operator()(VectorType const & x, VectorType const & grad, VectorType & variance, umintl::gradient_variance tag){
+    void operator()(VectorType const & x, VectorType & variance, umintl::gradient_variance tag){
       std::size_t offset;
       std::size_t sample_size;
       if(tag.model==umintl::DETERMINISTIC){
@@ -157,29 +204,22 @@ public:
       }
 
       std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
-      std::memcpy(WLU, W,sizeof(ScalarType)*NC_*NC_);
-      std::memcpy(dweights, grad,sizeof(ScalarType)*NC_*NC_);
-      backend<ScalarType>::getrf(NC_,NC_,WLU,NC_,ipiv_);
-      backend<ScalarType>::getri(NC_,WLU,NC_,ipiv_);
       backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
       nonlinearity_.compute_phi(offset,sample_size,Z,first_signs,phi);
-
+      backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,phi+offset,NF_,0,phixT,NC_);
+      //GradVariance
       for(std::size_t i = 0 ; i < NC_; ++i){
           for(std::size_t j = offset ; j < offset+sample_size; ++j){
               phi[i*NF_+j] = phi[i*NF_+j]*phi[i*NF_+j];
               RZ[i*NF_+j] = data_[i*NF_+j]*data_[i*NF_+j];
           }
       }
-
       backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size,1,RZ+offset,NF_,phi+offset,NF_,0,variance,NC_);
-
       for(std::size_t i = 0 ; i < NC_; ++i){
           for(std::size_t j = 0 ; j < NC_; ++j){
-            ScalarType m = dweights[i*NC_+j]+WLU[j*NC_+i];
-            variance[i*NC_+j] = (ScalarType)1/(sample_size-1)*(variance[i*NC_+j] - sample_size*m*m);
+            variance[i*NC_+j] = (ScalarType)1/(sample_size-1)*(variance[i*NC_+j] - phixT[i*NC_+j]*phixT[i*NC_+j]/(ScalarType)sample_size);
           }
       }
-
     }
 
     void operator()(VectorType const & x, ScalarType& value, VectorType & grad, umintl::value_gradient tag) const {
@@ -220,17 +260,21 @@ public:
         }
         value = -H;
 
+        /* Gradient */
         nonlinearity_.compute_phi(offset,sample_size,Z,first_signs,phi);
+
+        //Grad = - (wmT - 1/S*phixT)
+        backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,phi+offset,NF_,0,phixT,NC_);
+
         //dweights = W^-T - 1/n*Phi*X'
         backend<ScalarType>::getri(NC_,WLU,NC_,ipiv_);
         for(std::size_t i = 0 ; i < NC_; ++i)
             for(std::size_t j = 0 ; j < NC_; ++j)
-                dweights[i*NC_+j] = WLU[j*NC_+i];
-        backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,-1/(ScalarType)sample_size,data_+offset,NF_,phi+offset,NF_,1,dweights,NC_);
+                wmT[i*NC_+j] = WLU[j*NC_+i];
 
         //Copy back
         for(std::size_t i = 0 ; i < NC_*NC_; ++i)
-            grad[i] = -dweights[i];
+          grad[i] = - (wmT[i] - phixT[i]/(ScalarType)sample_size);
     }
 
 private:
@@ -250,13 +294,15 @@ private:
 
     //Mixing
     ScalarType* psi;
-    ScalarType* dweights;
+    ScalarType* psixT;
+    ScalarType* wmT;
     ScalarType* V;
     ScalarType* HV;
     ScalarType* WinvV;
     ScalarType* W;
     ScalarType* WLU;
     ScalarType* means_logp;
+    ScalarType* phixT;
 
     NonlinearityType nonlinearity_;
 
@@ -270,14 +316,19 @@ options make_default_options(){
     opt.max_iter = 100;
     opt.verbosity_level = 2;
     opt.optimization_method = LBFGS;
+    opt.RS = 0.1;
+    opt.S0 = 0;
+    opt.theta = 0.5;
     return opt;
 }
 
 
 template<class ScalarType>
-void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t NC, std::size_t DataNF, options const & opt, double* W, double* S){
+void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t NC, std::size_t DataNF, options const & optimization_options, double* W, double* S){
     typedef typename umintl_backend<ScalarType>::type BackendType;
     typedef ica_functor<ScalarType, extended_infomax_ica<ScalarType> > IcaFunctorType;
+
+    options opt(optimization_options);
 
     std::size_t N = NC*NC;
     std::size_t padsize = 4;
@@ -308,7 +359,9 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     umintl::minimizer<BackendType> minimizer;
     minimizer.hessian_vector_product_computation = umintl::PROVIDED;
     //minimizer.model = new umintl::deterministic<BackendType>();
-    minimizer.model = new umintl::dynamically_sampled<BackendType>(0.1,1000,NF,0.5);
+    if(opt.S0==0)
+      opt.S0=NF;
+    minimizer.model = new umintl::dynamically_sampled<BackendType>(opt.RS,opt.S0,NF,opt.theta);
 
     if(opt.optimization_method==SD)
         minimizer.direction = new umintl::steepest_descent<BackendType>();
@@ -325,7 +378,8 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     minimizer.verbosity_level = opt.verbosity_level;
     minimizer.max_iter = opt.max_iter;
     minimizer.stopping_criterion = new umintl::parameter_change_threshold<BackendType>(1e-6);
-    //minimizer.stopping_criterion = new umintl::gradient_treshold<BackendType>(1e-6);
+    //minimizer.stopping_criterion = new umintl::value_treshold<BackendType>(1e-4);
+    //minimizer.stopping_criterion = new umintl::gradient_treshold<BackendType>(1e-5);
     do{
         minimizer(X,objective,X,N);
     }while(objective.recompute_signs());

@@ -26,6 +26,9 @@ struct options{
     std::size_t max_iter;
     unsigned int verbosity_level;
     optimization_method_type optimization_method;
+    double theta;
+    double RS;
+    std::size_t S0;
 };
 
 options make_default_options();
