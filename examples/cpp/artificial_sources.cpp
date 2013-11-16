@@ -46,7 +46,7 @@ int main(){
     options.optimization_method = curveica::HESSIAN_FREE;
     options.max_iter=10;
     //options.RS = 0.1;
-    //options.S0 = 10000;
+    options.S0 = 1000;
     //options.optimization_method = curveica::SD;
     Timer t;
     t.start();

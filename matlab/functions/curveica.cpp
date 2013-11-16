@@ -16,6 +16,29 @@ struct curveica_options_type{
 };
 
 
+template<class ScalarType>
+inline void transpose(ScalarType *m, int w, int h)
+{
+  int start, next, i;
+  double tmp;
+
+  for (start = 0; start <= w * h - 1; start++) {
+    next = start;
+    i = 0;
+    do {	i++;
+      next = (next % h) * w + next / h;
+    } while (next > start);
+    if (next < start || i == 1) continue;
+
+    tmp = m[next = start];
+    do {
+      i = (next % h) * w + next / h;
+      m[next] = (i == start) ? tmp : m[i];
+      next = i;
+    } while (next > start);
+  }
+}
+
 void fill_options(mxArray* options_mx, curveica_options_type & options){
     /*-RS-*/
     if(mxArray * RS = mxGetField(options_mx,0, "RS")){
@@ -108,20 +131,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         mxArray* result_tmp = plhs[0] = mxCreateDoubleMatrix(NC,NF,mxREAL);
         double* result = mxGetPr(result_tmp);
 
-        double* data_double = new double[NC*NF];
-        double* result_double = new double[NC*NF];
-        for(std::size_t c = 0 ; c < NC; ++c)
-            for(std::size_t f = 0 ; f < NF ; ++f)
-                data_double[c*NF+f] = data[f*NC+c];
+        transpose(data,NC,NF);
 
-        curveica::inplace_linear_ica(data_double, result_double,NC,NF,options.opts,weights,sphere);
+        curveica::inplace_linear_ica(data, result,NC,NF,options.opts,weights,sphere);
 
-        for(std::size_t c = 0 ; c < NC; ++c)
-            for(std::size_t f = 0 ; f < NF ; ++f)
-                result[f*NC+c] = result_double[c*NF+f];
-
-        delete[] data_double;
-        delete[] result_double;
+        transpose(data,NF,NC);
+        transpose(result,NF,NC);
     }
     else{
         //Get data
@@ -129,19 +144,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         mxArray* result_tmp = plhs[0] = mxCreateNumericMatrix(NC,NF,mxSINGLE_CLASS, mxREAL);
         float * result = (float*)mxGetPr(result_tmp);
 
-        float* data_float = new float[NC*NF];
-        float* result_float = new float[NC*NF];
-        for(std::size_t c = 0 ; c < NC; ++c)
-            for(std::size_t f = 0 ; f < NF ; ++f)
-                data_float[c*NF+f] = data[f*NC+c];
+        transpose(data,NC,NF);
 
-        curveica::inplace_linear_ica(data_float, result_float,NC,NF,options.opts,weights,sphere);
+        curveica::inplace_linear_ica(data, result,NC,NF,options.opts,weights,sphere);
 
-        for(std::size_t c = 0 ; c < NC; ++c)
-            for(std::size_t f = 0 ; f < NF ; ++f)
-                result[f*NC+c] = result_float[c*NF+f];
-
-        delete[] data_float;
-        delete[] result_float;
+        transpose(data,NF,NC);
+        transpose(result,NF,NC);
     }
 }
