@@ -1,7 +1,7 @@
-#ifndef curveica_BACKEND_HPP_
-#define curveica_BACKEND_HPP_
+#ifndef dshf_ica_BACKEND_HPP_
+#define dshf_ica_BACKEND_HPP_
 
-#ifdef curveica_WITH_BLAS
+#ifdef dshf_ica_WITH_BLAS
 
 using std::ptrdiff_t;
 
@@ -17,10 +17,10 @@ using std::ptrdiff_t;
 
 #endif
 
-namespace curveica{
+namespace dshf_ica{
 
 
-#ifdef curveica_WITH_BLAS
+#ifdef dshf_ica_WITH_BLAS
 
 static std::ptrdiff_t dummy_info;
 

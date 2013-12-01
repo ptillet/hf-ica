@@ -2,7 +2,7 @@
  *
  * Copyright (c) 2013 Philippe Tillet - National Chiao Tung University
  *
- * curveica - Hybrid ICA using ViennaCL + Eigen
+ * dshf_ica - Hybrid ICA using ViennaCL + Eigen
  *
  * License : MIT X11 - See the LICENSE file in the root folder
  * ===========================*/
@@ -11,10 +11,10 @@
 
 #include "utils.hpp"
 
-#include "curveica.h"
+#include "dshf_ica.h"
 #include "backend.hpp"
 
-namespace curveica{
+namespace dshf_ica{
 
     namespace detail{
 

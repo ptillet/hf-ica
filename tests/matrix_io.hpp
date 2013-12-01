@@ -1,11 +1,11 @@
-#ifndef curveica_TESTS_READMATRIX_HPP_
-#define curveica_TESTS_READMATRIX_HPP_
+#ifndef dshf_ica_TESTS_READMATRIX_HPP_
+#define dshf_ica_TESTS_READMATRIX_HPP_
 
 /* ===========================
  *
  * Copyright (c) 2013 Philippe Tillet - National Chiao Tung University
  *
- * curveica - Hybrid ICA using ViennaCL + Eigen
+ * dshf_ica - Hybrid ICA using ViennaCL + Eigen
  *
  * License : MIT X11 - See the LICENSE file in the root folder
  * ===========================*/

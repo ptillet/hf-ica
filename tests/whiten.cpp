@@ -2,7 +2,7 @@
  *
  * Copyright (c) 2013 Philippe Tillet - National Chiao Tung University
  *
- * curveica - Hybrid ICA using ViennaCL + Eigen
+ * dshf_ica - Hybrid ICA using ViennaCL + Eigen
  *
  * License : MIT X11 - See the LICENSE file in the root folder
  * ===========================*/
@@ -12,9 +12,9 @@
 #include "viennacl/matrix.hpp"
 #include "matrix_io.hpp"
 #include "viennacl/generator/custom_operation.hpp"
-#include "curveica.h"
+#include "dshf_ica.h"
 
-#define DATA_PATH "/home/philippe/Development/curveica/tests/data/"
+#define DATA_PATH "/home/philippe/Development/dshf_ica/tests/data/"
 
 typedef double NumericT;
 
@@ -39,7 +39,7 @@ int main(){
     viennacl::matrix<NumericT, viennacl::row_major> true_whitened_data;
     read_mtx(mixed_signals,DATA_PATH "mixed_signals.mtx");
     read_mtx(true_whitened_data,DATA_PATH "white_data.mtx");
-    viennacl::matrix<NumericT, viennacl::row_major> curveica_whitened_data(mixed_signals.size1(), mixed_signals.size2());
-    curveica::whiten(mixed_signals, curveica_whitened_data);
-    return diff(curveica_whitened_data, true_whitened_data) > tol;
+    viennacl::matrix<NumericT, viennacl::row_major> dshf_ica_whitened_data(mixed_signals.size1(), mixed_signals.size2());
+    dshf_ica::whiten(mixed_signals, dshf_ica_whitened_data);
+    return diff(dshf_ica_whitened_data, true_whitened_data) > tol;
 }

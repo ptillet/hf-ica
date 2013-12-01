@@ -12,7 +12,7 @@
 #include <pmmintrin.h>
 #include <cstddef>
 
-namespace curveica{
+namespace dshf_ica{
 
 //template<>
 //void extended_infomax_ica<float>::operator()(float * z1, float * b, int const * signs, float* phi, float* means_logp) const {
@@ -48,7 +48,7 @@ void extended_infomax_ica<float>::compute_phi(std::size_t offset, std::size_t sa
         for(; f < detail::round_to_previous_multiple(offset+sample_size,4)  ; f+=4){
             __m128 z2 = _mm_load_ps(&z1[c*NF_+f]);
             //compute phi
-            __m128 y = curveica::math::vtanh(z2);
+            __m128 y = dshf_ica::math::vtanh(z2);
             y = _mm_mul_ps(phi_signs,y);
             __m128 v = _mm_add_ps(z2,y);
             _mm_store_ps(&phi[c*NF_+f],v);
@@ -71,7 +71,7 @@ void extended_infomax_ica<float>::compute_dphi(std::size_t offset, std::size_t s
         }
         for(; f < detail::round_to_previous_multiple(offset+sample_size,4)  ; f+=4){
             __m128 z2 = _mm_load_ps(&z1[c*NF_+f]);
-            __m128 y = curveica::math::vtanh(z2);
+            __m128 y = dshf_ica::math::vtanh(z2);
             __m128 val;
             if(s>0)
                 val =  _mm_set1_ps(2) - y*y;
@@ -108,7 +108,7 @@ void extended_infomax_ica<float>::compute_means_logp(std::size_t offset, std::si
             const __m128 _2 = _mm_set1_ps(2);
             __m128 val;
             if(s<0)
-                val = _mm_set1_ps(-0.693147) - _0_5*(z2 - _1)*(z2 - _1) + curveica::math::vlog(_1 + math::vexp(-_2*z2));
+                val = _mm_set1_ps(-0.693147) - _0_5*(z2 - _1)*(z2 - _1) + dshf_ica::math::vlog(_1 + math::vexp(-_2*z2));
             else
                 val = - math::vlog(math::vcosh(z2)) - _0_5*z2*z2;
             vsum=_mm_add_pd(vsum,_mm_cvtps_pd(val));
@@ -187,7 +187,7 @@ void extended_infomax_ica<double>::compute_dphi(std::size_t offset, std::size_t 
             __m128d z2lo = _mm_load_pd(&z1[c*NF_+f]);
             __m128d z2hi = _mm_load_pd(&z1[c*NF_+f+2]);
             __m128 z2 = _mm_movelh_ps(_mm_cvtpd_ps(z2lo), _mm_cvtpd_ps(z2hi));
-            __m128 y = curveica::math::vtanh(z2);
+            __m128 y = dshf_ica::math::vtanh(z2);
             __m128 val;
             if(s>0)
                 val =  _mm_set1_ps(2) - y*y;
@@ -224,7 +224,7 @@ void extended_infomax_ica<double>::compute_means_logp(std::size_t offset, std::s
             const __m128 _2 = _mm_set1_ps(2);
             __m128 val;
             if(k<0)
-                val = _mm_set1_ps(-0.693147) - _0_5*(z2 - _1)*(z2 - _1) + curveica::math::vlog(_1 + math::vexp(-_2*z2));
+                val = _mm_set1_ps(-0.693147) - _0_5*(z2 - _1)*(z2 - _1) + dshf_ica::math::vlog(_1 + math::vexp(-_2*z2));
             else
                 val = - math::vlog(math::vcosh(z2)) - _0_5*z2*z2;
             vsum=_mm_add_pd(vsum,_mm_cvtps_pd(val));

@@ -1,4 +1,4 @@
 foreach(PROG artificial_sources)
     add_executable(${PROG} ${PROG}.cpp)
-    target_link_libraries(${PROG} curveica)
+    target_link_libraries(${PROG} dshf_ica)
 endforeach(PROG)

@@ -1,9 +1,9 @@
-#ifndef curveica_UTILS_HPP_
-#define curveica_UTILS_HPP_
+#ifndef dshf_ica_UTILS_HPP_
+#define dshf_ica_UTILS_HPP_
 
 #include <cstddef>
 
-namespace curveica{
+namespace dshf_ica{
 
     namespace detail{
 

@@ -2,14 +2,14 @@
  *
  * Copyright (c) 2013 Philippe Tillet - National Chiao Tung University
  *
- * curveica - Hybrid ICA using ViennaCL + Eigen
+ * dshf_ica - Hybrid ICA using ViennaCL + Eigen
  *
  * License : MIT X11 - See the LICENSE file in the root folder
  * ===========================*/
 
 #include "tests/benchmark-utils.hpp"
 
-#include "curveica.h"
+#include "dshf_ica.h"
 
 #include "umintl/check_grad.hpp"
 #include "umintl/minimize.hpp"
@@ -22,7 +22,7 @@
 #include "src/nonlinearities/extended_infomax.h"
 
 
-namespace curveica{
+namespace dshf_ica{
 
 
 template<class ScalarType, class NonlinearityType>
@@ -402,13 +402,13 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     if(opt.optimization_method==SD)
         minimizer.direction = new umintl::steepest_descent<BackendType>();
     else if(opt.optimization_method==LBFGS)
-        minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::lbfgs<BackendType>(16));
+        minimizer.direction = new umintl::low_memory_quasi_newton<BackendType>(16);
     else if(opt.optimization_method==NCG)
-        minimizer.direction = new umintl::conjugate_gradient<BackendType>(new umintl::polak_ribiere<BackendType>());
+        minimizer.direction = new umintl::conjugate_gradient<BackendType>();
     else if(opt.optimization_method==BFGS)
-        minimizer.direction = new umintl::quasi_newton<BackendType>(new umintl::bfgs<BackendType>());
+        minimizer.direction = new umintl::quasi_newton<BackendType>();
     else if(opt.optimization_method==HESSIAN_FREE){
-      minimizer.direction = new umintl::truncated_newton<BackendType>();
+      minimizer.direction = new umintl::truncated_newton<BackendType>(umintl::tag::truncated_newton::STOP_HV_VARIANCE);
     }
 
     minimizer.verbosity_level = opt.verbosity_level;
@@ -445,8 +445,8 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
 
 }
 
-template void inplace_linear_ica<float>(float const * data, float * out, std::size_t NC, std::size_t NF, curveica::options const & opt, double* Weights, double* Sphere);
-template void inplace_linear_ica<double>(double const * data, double * out, std::size_t NC, std::size_t NF, curveica::options const & opt, double * Weights, double * Sphere);
+template void inplace_linear_ica<float>(float const * data, float * out, std::size_t NC, std::size_t NF, dshf_ica::options const & opt, double* Weights, double* Sphere);
+template void inplace_linear_ica<double>(double const * data, double * out, std::size_t NC, std::size_t NF, dshf_ica::options const & opt, double * Weights, double * Sphere);
 
 }
 

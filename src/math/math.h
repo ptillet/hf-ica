@@ -1,12 +1,12 @@
-#ifndef CURVEICA_MATH_H
-#define CURVEICA_MATH_H
+#ifndef DSHFICA_MATH_H
+#define DSHFICA_MATH_H
 
 #include <pmmintrin.h>
 //#include "fastapprox.h"
 //#include "sse_mathfun.h"
 #include "fmath.hpp"
 
-namespace curveica{
+namespace dshf_ica{
 	
     namespace math{
 

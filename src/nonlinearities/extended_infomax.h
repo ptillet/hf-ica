@@ -3,7 +3,7 @@
 
 #include <cstddef>
 
-namespace curveica{
+namespace dshf_ica{
 
 template<class ScalarType>
 struct extended_infomax_ica{
