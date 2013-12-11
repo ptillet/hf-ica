@@ -11,7 +11,7 @@
 
 #include "dshf_ica.h"
 
-#include "umintl/check_grad.hpp"
+#include "umintl/debug.hpp"
 #include "umintl/minimize.hpp"
 #include "umintl/stopping_criterion/parameter_change_threshold.hpp"
 
@@ -387,6 +387,7 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
         X[i*(NC+1)] = 1;
 
     //Whiten Data
+
     whiten<ScalarType>(NC, DataNF, NF, data,Sphere,white_data);
     detail::shuffle(white_data,NC,NF);
     IcaFunctorType objective(white_data,NF,NC);

@@ -34,20 +34,20 @@ int main(){
         src[3*NF + f]  = rand()/(double)RAND_MAX;
     }
 
+    srand(0);
     for(std::size_t i = 0 ; i < NC ; ++i)
         for(std::size_t j = 0 ; j < NC ; ++j)
-            mixing[i*NC+j] = static_cast<double>(rand())/RAND_MAX;
-
+            mixing[i*NC+j] = static_cast<double>(std::rand())/RAND_MAX;
 
     cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,NF,NC,NC,1,src,NF,mixing,NC,0,mixed_src,NF);
 
     dshf_ica::options options = dshf_ica::make_default_options();
     options.verbosity_level = 2;
     options.optimization_method = dshf_ica::HESSIAN_FREE;
-    options.max_iter=10;
-    //options.RS = 0.1;
+    options.max_iter=100;
+    options.RS = 0.05;
     options.S0 = 1000;
-    options.optimization_method = dshf_ica::SD;
+    //options.optimization_method = dshf_ica::SD;
     Timer t;
     t.start();
     for(unsigned int i = 0 ; i < BENCHMARK_COUNT ; ++i)
