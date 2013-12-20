@@ -13,7 +13,7 @@ if(CROSS_WIN64)
     include(CrossMinGW32)
 endif()
 
-#Modules
+include(GenerateExportHeader)
 
 #Include
 include_directories(".")
@@ -31,12 +31,11 @@ file( GLOB_RECURSE QtCreatorCompatibility_SRC
     *.hpp *.h *.cl)
 add_custom_target( QtCreatorCompatibility SOURCES ${QtCreatorCompatibility_SRC} )
 
-
-set(CMAKE_CXX_FLAGS_RELEASE "-funroll-loops -O3")
+set(CMAKE_CXX_FLAGS_RELEASE "-funroll-loops -O3 -msse3")
 set(CMAKE_BUILD_TYPE Release)
 
 #OpenBlas
-find_package(OpenBlas)
+#find_package(OpenBlas)
 
 ##OpenMP
 find_package(OpenMP)
@@ -47,19 +46,28 @@ endif()
 
 
 
-set(SRC_PATH "${PROJECT_SOURCE_DIR}/src")
-set(SRC ${SRC_PATH}/linear_ica.cpp
-        ${SRC_PATH}/nonlinearities/extended_infomax.cpp)
-add_library(dshf_ica ${SRC})
+set(DSHF_ICA_SRC_PATH "${PROJECT_SOURCE_DIR}/src")
+set(DSHF_ICA_SRC ${DSHF_ICA_SRC_PATH}/linear_ica.cpp
+        ${DSHF_ICA_SRC_PATH}/nonlinearities/extended_infomax.cpp)
+add_library(dshf_ica ${DSHF_ICA_SRC})
+if(CROSS_WIN64)
+    GENERATE_EXPORT_HEADER( dshf_ica
+                 BASE_NAME dshf_ica
+                 EXPORT_MACRO_NAME dshf_ica_EXPORT
+                 EXPORT_FILE_NAME dshf_ica_Export.h
+                 STATIC_DEFINE dshf_ica_BUILT_AS_STATIC
+    )
+endif()
 
-IF( ${CMAKE_COMPILER_IS_GNUCXX} )
-  SET(CMAKE_CXX_LINK_EXECUTABLE "${CMAKE_CXX_LINK_EXECUTABLE} -static-libstdc++ -static-libgcc")
-ENDIF( ${CMAKE_COMPILER_IS_GNUCXX} )
+#set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS} -static-libgcc -static-libstdc++")
 
-set_target_properties(dshf_ica PROPERTIES COMPILE_FLAGS "-msse3 -fPIC")
+set_target_properties(dshf_ica PROPERTIES COMPILE_FLAGS "-fPIC")
+target_link_libraries(dshf_ica openblas.a gfortran)
 
-target_link_libraries(dshf_ica ${OPENBLAS_LIB})
-
+#get_cmake_property(_variableNames VARIABLES)
+#foreach (_variableName ${_variableNames})
+#    message(STATUS "${_variableName}=${${_variableName}}")
+#endforeach()
 
 
 add_subdirectory(examples)

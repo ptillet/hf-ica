@@ -1,53 +1,28 @@
-set(MATLAB /opt/matlab)
-set(MEX_EXT .mexa64)
+# We need the mex compiler for this to work.
+find_package(MatlabMex)
 
-#### define compile switches
-set(MATLAB_CFLAGS "-fexceptions -fPIC -fno-omit-frame-pointer -pthread")
+if(MATLAB_MEX_FOUND)
 
-set(CMAKE_C_FLAGS_DEBUG    "-g -Wall")
-set(CMAKE_CXX_FLAGS_DEBUG  "-g -Wall")
-set(CMAKE_C_FLAGS_RELEASE   "-O3 -funroll-all-loops")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -funroll-all-loops")
+include_directories(${MATLAB_MEX_INCLUDE_DIRS})
 
-#### platform specific defines
-if(UNIX)
-  set(PLATFORM "_UNIX_")
-  set(MEXDEFFILE "")
-endif(UNIX)
-if(WIN32)
-  set(PLATFORM "_WIN32_")
-  set(MEXDEFFILE ../../MATLAB/mexfunction.def)
-  set(MEXLIB "libmx;libmex")
-endif(WIN32)
-if(APPLE)
-  set(PLATFORM "_UNIX_")
-  set(MEXDEFFILE "")
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -undefined
-dynamic_lookup")
-endif(APPLE)
+#get_property(DSHF_ICA_LOCATION TARGET dshf_ica PROPERTY LOCATION)
 
-#### common defines
-set(CDEFS "-D${PLATFORM}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MATLAB_CFLAGS} ${CDEFS} ${OpenMP_C_FLAGS} -largeArrayDims")
-set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   ${MATLAB_CFLAGS} ${CDEFS} ${OpenMP_CXX_FLAGS} -largeArrayDims ")
-set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
+# Don't make 'lib<method>.mexglx'.
+set(CMAKE_SHARED_LIBRARY_PREFIX "")
+set(CMAKE_SHARED_MODULE_PREFIX "")
 
-#### define target-specific flags
-set(BUILD_SHARED_LIBS 1)
-if(WIN32)
-  add_definitions(-D_MAKEDLL_)
-  link_directories("${MATLAB}/extern/lib/win32/microsoft")
-  add_definitions(-D_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1)
-  message(STATUS "- MSVC: _CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES=1")
-  add_definitions(-D_CRT_NONSTDC_NO_WARNINGS)
-  message(STATUS "- MSVC: _CRT_NONSTDC_NO_WARNINGS")
-endif(WIN32)
-
-#### add subdirectories containing include files (MEX)
-include_directories("${MATLAB}/extern/include")
-include_directories("${MATLAB}/simulink/include")
+if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
+  set(CMAKE_SHARED_LIBRARY_SUFFIX ".mexa64")
+  set(CMAKE_SHARED_MODULE_SUFFIX  ".mexa64")
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86" OR ${CMAKE_SYSTEM_PROCESSOR}
+    STREQUAL "i686")
+  set(CMAKE_SHARED_LIBRARY_SUFFIX ".mexglx")
+  set(CMAKE_SHARED_MODULE_SUFFIX  ".mexglx")
+endif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
 
 # Set MATLAB toolbox install directory.
-set(MATLAB_TOOLBOX_DIR "${MATLAB}/toolbox")
+set(MATLAB_TOOLBOX_DIR "${MATLAB_ROOT}/toolbox")
 
 add_subdirectory(functions)
+
+endif(MATLAB_MEX_FOUND)

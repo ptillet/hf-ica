@@ -3,8 +3,27 @@
 #include <mex.h>
 
 #include <cstring>
+#include <streambuf>
+#include <iostream>
 #include "dshf_ica.h"
 
+
+class mstream : public std::streambuf {
+public:
+protected:
+  virtual std::streamsize xsputn(const char *s, std::streamsize n){
+        mexPrintf("%.*s",n,s);
+        return n;
+  }
+  virtual int overflow(int c = EOF){
+        if (c != EOF) {
+          mexPrintf("%.1s",&c);
+        }
+        return 1;
+  }
+};
+
+mstream mout;
 
 inline bool are_string_equal(const char * a, const char * b){
     return std::strcmp(a,b)==0;
@@ -83,6 +102,7 @@ void fill_options(mxArray* options_mx, dshf_ica_options_type & options){
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
+    std::cout.rdbuf(&mout);
     dshf_ica_options_type options;
     //Set default
     options.opts= dshf_ica::make_default_options();

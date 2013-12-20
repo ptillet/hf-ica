@@ -21,6 +21,8 @@
 
 #include "src/nonlinearities/extended_infomax.h"
 
+#include "omp.h"
+#include "openblas_config.h"
 
 namespace dshf_ica{
 
@@ -361,6 +363,7 @@ options make_default_options(){
 
 template<class ScalarType>
 void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t NC, std::size_t DataNF, options const & optimization_options, double* W, double* S){
+
     typedef typename umintl_backend<ScalarType>::type BackendType;
     typedef ica_functor<ScalarType, extended_infomax_ica<ScalarType> > IcaFunctorType;
 

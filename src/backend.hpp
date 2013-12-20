@@ -11,9 +11,19 @@ using std::ptrdiff_t;
 
 #else
 
+#ifdef __cplusplus
+extern "C"{
+#endif
+
 #include "lapacke.h"
 #include "cblas.h"
+
+#ifdef __cplusplus
+}
+#endif
+
 #include "umintl/backends/cblas.hpp"
+
 
 #endif
 
