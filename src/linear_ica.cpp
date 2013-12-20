@@ -353,7 +353,7 @@ options make_default_options(){
     options opt;
     opt.max_iter = 100;
     opt.verbosity_level = 2;
-    opt.optimization_method = LBFGS;
+    opt.optimization_method = HESSIAN_FREE;
     opt.RS = 0.1;
     opt.S0 = 0;
     opt.theta = 0.5;
