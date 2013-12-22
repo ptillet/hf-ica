@@ -17,7 +17,7 @@
 
 typedef double ScalarType;
 static const unsigned int NC=4;
-static const unsigned int NF=100000;
+static const unsigned int NF=1000;
 static const unsigned int T=20;
 
 int main(){
@@ -45,8 +45,8 @@ int main(){
     options.verbosity_level = 2;
     options.optimization_method = dshf_ica::HESSIAN_FREE;
     options.max_iter=100;
-    options.RS = 0.05;
-    options.S0 = 1000;
+    options.RS = 0.1;
+    options.S0 = 100;
     //options.optimization_method = dshf_ica::SD;
     Timer t;
     t.start();

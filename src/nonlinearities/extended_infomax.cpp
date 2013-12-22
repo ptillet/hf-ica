@@ -234,7 +234,6 @@ void extended_infomax_ica<double>::compute_means_logp(std::size_t offset, std::s
           double z = z1[c*NF_+f];
           sum+=(k<0)? - 0.693147 - 0.5*(z-1)*(z-1) + std::log(1+std::exp(-2*z)):-std::log(std::cosh(z))-0.5*z*z;
         }
-
         vsum = _mm_hadd_pd(vsum, vsum);
         _mm_store_sd(&sum, vsum);
         means_logp[c] = 1/(double)sample_size*sum;

@@ -8,16 +8,37 @@ set(DSHF-ICA_VERSION_MINOR 0)
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
 #Cross-Compile
+include(CrossWindows)
+
+option(CROSS_WIN32 "Cross compile for Win32 using MinGW32" OFF)
 option(CROSS_WIN64 "Cross compile for Win64 using MinGW32" OFF)
+option(MEX "Build MATLAB MEX file" ON)
+
+set(MATLAB_ROOT "" CACHE STRING "Root of the MATLAB environment")
+
 if(CROSS_WIN64)
-    include(CrossMinGW32)
+    cross_windows(x86_64-w64-mingw32 /opt/cross_win64/)
+elseif(CROSS_WIN32)
+    cross_windows(i686-w64-mingw32 /opt/cross_win32/)
 endif()
 
-include(GenerateExportHeader)
+set(_WIN64 ${CROSS_WIN64})
+set(_WIN32 ${CROSS_WIN32})
+
+if(MEX)
+    if(_WIN64)
+        set(MATLAB_ARCH win64)
+    elseif(_WIN32)
+        set(MATLAB_ARCH win32)
+    else()
+        set(MATLAB_ARCH glnxa64)
+    endif()
+endif()
 
 #Include
 include_directories(".")
 include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${CMAKE_PREFIX_PATH}/include)
 include_directories(${OPENBLAS_INCLUDE_DIR})
 
 #Tests
@@ -50,14 +71,6 @@ set(DSHF_ICA_SRC_PATH "${PROJECT_SOURCE_DIR}/src")
 set(DSHF_ICA_SRC ${DSHF_ICA_SRC_PATH}/linear_ica.cpp
         ${DSHF_ICA_SRC_PATH}/nonlinearities/extended_infomax.cpp)
 add_library(dshf_ica ${DSHF_ICA_SRC})
-if(CROSS_WIN64)
-    GENERATE_EXPORT_HEADER( dshf_ica
-                 BASE_NAME dshf_ica
-                 EXPORT_MACRO_NAME dshf_ica_EXPORT
-                 EXPORT_FILE_NAME dshf_ica_Export.h
-                 STATIC_DEFINE dshf_ica_BUILT_AS_STATIC
-    )
-endif()
 
 #set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS} -static-libgcc -static-libstdc++")
 

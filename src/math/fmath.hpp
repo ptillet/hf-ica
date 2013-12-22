@@ -46,7 +46,7 @@
 	#endif
 	#ifndef MIE_ALIGN
 		#define MIE_ALIGN(x) __attribute__((aligned(x)))
-	#endif
+    #endif
 #endif
 #ifndef MIE_PACK
 	#define MIE_PACK(x, y, z, w) ((x) * 64 + (y) * 16 + (z) * 4 + (w))
