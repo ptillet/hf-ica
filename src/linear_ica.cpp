@@ -28,9 +28,13 @@
 
 //#define ALLOC_ALIGN(size) _aligned_malloc(size, 16)
 //#define FREE_ALIGN(ptr) _aligned_free(ptr)
-
+#ifdef __MINGW32__
+#define ALLOC_ALIGN(size) __mingw_aligned_malloc(size, 16)
+#define FREE_ALIGN(ptr) __mingw_aligned_free(ptr)
+#else
 #define ALLOC_ALIGN(size) aligned_alloc(16, size)
 #define FREE_ALIGN(ptr) free(ptr)
+#endif
 
 namespace dshf_ica{
 
@@ -246,6 +250,7 @@ public:
       }
 
       std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
+
       backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
 
       nonlinearity_.compute_phi(offset,sample_size,Z,first_signs,phi);
@@ -318,6 +323,7 @@ public:
         //Copy back
         for(std::size_t i = 0 ; i < NC_*NC_; ++i)
           grad[i] = - (wmT[i] - phixT[i]/(ScalarType)sample_size);
+
     }
 
 private:
@@ -383,12 +389,14 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     std::size_t padsize = 4;
     std::size_t NF=(DataNF%padsize==0)?DataNF:(DataNF/padsize)*padsize;
 
+    ScalarType * white_data =  (ScalarType*)ALLOC_ALIGN(NC*NF*sizeof(ScalarType));
+
     ScalarType * Sphere = new ScalarType[NC*NC];
     ScalarType * Weights = new ScalarType[NC*NC];
-    //ScalarType * b = new ScalarType[NC];
     ScalarType * X = new ScalarType[N];
+
     std::memset(X,0,N*sizeof(ScalarType));
-    ScalarType * white_data = new ScalarType[NC*NF];
+
 
 
     //Optimization Vector
@@ -453,9 +461,9 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     }
 
     delete[] Weights;
-    //delete[] b;
     delete[] X;
-    delete[] white_data;
+
+    FREE_ALIGN(white_data);
 
 }
 

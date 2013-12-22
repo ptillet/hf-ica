@@ -125,32 +125,9 @@ void extended_infomax_ica<float>::compute_means_logp(std::size_t offset, std::si
 
 }
 
-
-//template<>
-//void extended_infomax_ica<double>::operator()(double * z1, double * b, int const * signs, double* phi, double* means_logp) const {
-//    for(unsigned int c = 0 ; c < NC_ ; ++c){
-//        double current = 0;
-//        double k = signs[c];
-//        double bias = b[c];
-//        for(unsigned int f = 0; f < NF_ ; f++){
-//            double z2 = z1[c*NF_+f] + bias;
-//            double y = std::tanh(z2);
-//            if(k<0){
-//                current+= std::log((std::exp(-0.5*std::pow(z2-1,2)) + std::exp(-0.5*std::pow(z2+1,2))));
-//                phi[c*NF_+f] = z2 - y;
-//            }
-//            else{
-//                current+= -std::log(std::cosh(z2)) - 0.5*z2*z2;
-//                phi[c*NF_+f] = z2 + y;
-//            }
-//        }
-//        means_logp[c] = current/(double)NF_;
-//    }
-//}
-
 template<>
 void extended_infomax_ica<double>::compute_phi(std::size_t offset, std::size_t sample_size, double * z1, int const * signs, double* phi) const {
-//#pragma omp parallel for
+#pragma omp parallel for
     for(unsigned int c = 0 ; c < NC_ ; ++c){
         float k = (signs[c]>0)?1:-1;
         __m128 phi_signs = _mm_set1_ps(k);
@@ -172,6 +149,16 @@ void extended_infomax_ica<double>::compute_phi(std::size_t offset, std::size_t s
 
     }
 }
+
+//template<>
+//void extended_infomax_ica<double>::compute_phi(std::size_t offset, std::size_t sample_size, double * z1, int const * signs, double* phi) const {
+//#pragma omp parallel for
+//    for(unsigned int c = 0 ; c < NC_ ; ++c){
+//        double k = (signs[c]>0)?1:-1;
+//        for(unsigned int f = offset ; f < offset + sample_size ; ++f)
+//          phi[c*NF_+f] = z1[c*NF_+f] + k*std::tanh(z1[c*NF_+f]);
+//    }
+//}
 
 template<>
 void extended_infomax_ica<double>::compute_dphi(std::size_t offset, std::size_t sample_size, double * z1, int const * signs, double* dphi) const {
@@ -202,6 +189,19 @@ void extended_infomax_ica<double>::compute_dphi(std::size_t offset, std::size_t 
         }
     }
 }
+
+//template<>
+//void extended_infomax_ica<double>::compute_dphi(std::size_t offset, std::size_t sample_size, double * z1, int const * signs, double* dphi) const {
+//#pragma omp parallel for
+//    for(unsigned int c = 0 ; c < NC_ ; ++c){
+//        double s = signs[c];
+//        for(unsigned int f = offset ; f < offset + sample_size ; ++f){
+//          double y = std::tanh(z1[c*NF_+f]);
+//          dphi[c*NF_+f] = (s>0)?2-y*y:y*y;
+//        }
+//    }
+//}
+
 
 template<>
 void extended_infomax_ica<double>::compute_means_logp(std::size_t offset, std::size_t sample_size, double * z1, int const * signs, double* means_logp) const {
@@ -239,5 +239,19 @@ void extended_infomax_ica<double>::compute_means_logp(std::size_t offset, std::s
         means_logp[c] = 1/(double)sample_size*sum;
     }
 }
+
+//template<>
+//void extended_infomax_ica<double>::compute_means_logp(std::size_t offset, std::size_t sample_size, double * z1, int const * signs, double* means_logp) const {
+//#pragma omp parallel for
+//    for(unsigned int c = 0 ; c < NC_ ; ++c){
+//        double sum = 0;
+//        double k = signs[c];
+//        for(unsigned int f = offset ; f < offset + sample_size ; ++f){
+//          double z = z1[c*NF_+f];
+//          sum+=(k<0)? - 0.693147 - 0.5*(z-1)*(z-1) + std::log(1+std::exp(-2*z)):-std::log(std::cosh(z))-0.5*z*z;
+//        }
+//        means_logp[c] = 1/(double)sample_size*sum;
+//    }
+//}
 
 }
