@@ -1,3 +1,12 @@
+/* ===========================
+ *
+ * Copyright (c) 2013 Philippe Tillet - National Chiao Tung University
+ *
+ * DSHF-ICA - Dynamically Sampled Hessian Free Independent Comopnent Analaysis
+ *
+ * License : MIT X11 - See the LICENSE file in the root folder
+ * ===========================*/
+
 #ifndef dshf_ica_UTILS_HPP_
 #define dshf_ica_UTILS_HPP_
 

@@ -1,3 +1,12 @@
+/* ===========================
+ *
+ * Copyright (c) 2013 Philippe Tillet - National Chiao Tung University
+ *
+ * DSHF-ICA - Dynamically Sampled Hessian Free Independent Comopnent Analaysis
+ *
+ * License : MIT X11 - See the LICENSE file in the root folder
+ * ===========================*/
+
 #include "extended_infomax.h"
 
 #include "tests/benchmark-utils.hpp"
