@@ -24,11 +24,20 @@
 #include "omp.h"
 #include "openblas_config.h"
 
+#include <stdlib.h>
+
+//#define ALLOC_ALIGN(size) _aligned_malloc(size, 16)
+//#define FREE_ALIGN(ptr) _aligned_free(ptr)
+
+#define ALLOC_ALIGN(size) aligned_alloc(16, size)
+#define FREE_ALIGN(ptr) free(ptr)
+
 namespace dshf_ica{
 
 
-template<class ScalarType, class NonlinearityType>
+template<class _ScalarType, class NonlinearityType>
 struct ica_functor{
+    typedef _ScalarType ScalarType  __attribute__((aligned (16)));
     typedef ScalarType * VectorType;
 
     bool weights_have_changed(VectorType x) const {
@@ -45,18 +54,19 @@ public:
         is_first_ = true;
 
         ipiv_ =  new typename backend<ScalarType>::size_t[NC_+1];
-        Z = new ScalarType[NC_*NF_];
-        RZ = new ScalarType[NC_*NF_];
 
-        dphi = new ScalarType[NC_*NF_];
+        Z = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
+        RZ = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
 
-        phi = new ScalarType[NC_*NF_];
+        dphi = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
+
+        phi = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
         phixT = new ScalarType[NC_*NC_];
 
-        psi = new ScalarType[NC_*NF_];
-        psixT = new ScalarType[NC_*NC_];
+        psi = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
+        psixT = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
 
-        datasq_ = new ScalarType[NC_*NF_];
+        datasq_ = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
 
         wmT = new ScalarType[NC_*NC_];
 
@@ -113,18 +123,18 @@ public:
     ~ica_functor(){
         delete[] ipiv_;
 
-        delete[] Z;
-        delete[] RZ;
+        FREE_ALIGN(Z);
+        FREE_ALIGN(RZ);
 
-        delete[] dphi;
+        FREE_ALIGN(dphi);
 
-        delete[] phi;
-        delete[] phixT;
+        FREE_ALIGN(phi);
+        FREE_ALIGN(phixT);
 
-        delete[] psi;
-        delete[] psixT;
+        FREE_ALIGN(psi);
+        FREE_ALIGN(psixT);
 
-        delete[] datasq_;
+        FREE_ALIGN(datasq_);
 
         delete[] wmT;
 
@@ -274,7 +284,7 @@ public:
         //z1 = W*data_;
         backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
 
-        //phi = mean(mata.*abs(z2).^(mata-1).*sign(z2),2);
+//        //phi = mean(mata.*abs(z2).^(mata-1).*sign(z2),2);
         nonlinearity_.compute_means_logp(offset,sample_size,Z,first_signs,means_logp);
 
         //LU Decomposition
@@ -321,7 +331,7 @@ private:
     typename backend<ScalarType>::size_t *ipiv_;
 
 
-    ScalarType* Z;
+    ScalarType* Z ;
     ScalarType* RZ;
 
     ScalarType* dphi;
