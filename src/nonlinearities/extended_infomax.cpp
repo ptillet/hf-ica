@@ -23,29 +23,11 @@
 
 namespace dshf_ica{
 
-//template<>
-//void extended_infomax_ica<float>::operator()(float * z1, float * b, int const * signs, float* phi, float* means_logp) const {
-//    for(unsigned int c = 0 ; c < NC_ ; ++c){
-//        float current = 0;
-//        float k = signs[c];
-//        float bias = b[c];
-//        for(unsigned int f = 0; f < NF_ ; f++){
-//            float z2 = z1[c*NF_+f] + bias;
-//            float y = std::tanh(z2);
-//            if(k<0){
-//                current+= std::log((std::exp(-0.5*std::pow(z2-1,2)) + std::exp(-0.5*std::pow(z2+1,2))));
-//                phi[c*NF_+f] = z2 - y;
-//            }
-//            else{
-//                current+= -std::log(std::cosh(z2)) - 0.5*z2*z2;
-//                phi[c*NF_+f] = z2 + y;
-//            }
-//        }
-//        means_logp[c] = current/(float)NF_;
-//    }
-//}
 
 template<>
+#ifdef __MINGW32__
+__attribute__((force_align_arg_pointer))
+#endif
 void extended_infomax_ica<float>::compute_phi(std::size_t offset, std::size_t sample_size, float * z1, int const * signs, float* phi) const {
 #pragma omp parallel for
     for(unsigned int c = 0 ; c < NC_ ; ++c){
@@ -69,6 +51,9 @@ void extended_infomax_ica<float>::compute_phi(std::size_t offset, std::size_t sa
 }
 
 template<>
+#ifdef __MINGW32__
+__attribute__((force_align_arg_pointer))
+#endif
 void extended_infomax_ica<float>::compute_dphi(std::size_t offset, std::size_t sample_size, float * z1, int const * signs, float* dphi) const {
 #pragma omp parallel for
     for(unsigned int c = 0 ; c < NC_ ; ++c){
@@ -96,6 +81,9 @@ void extended_infomax_ica<float>::compute_dphi(std::size_t offset, std::size_t s
 }
 
 template<>
+#ifdef __MINGW32__
+__attribute__((force_align_arg_pointer))
+#endif
 void extended_infomax_ica<float>::compute_means_logp(std::size_t offset, std::size_t sample_size, float * z1, int const * signs, float* means_logp) const {
 
 #pragma omp parallel for
@@ -135,6 +123,9 @@ void extended_infomax_ica<float>::compute_means_logp(std::size_t offset, std::si
 }
 
 template<>
+#ifdef __MINGW32__
+__attribute__((force_align_arg_pointer))
+#endif
 void extended_infomax_ica<double>::compute_phi(std::size_t offset, std::size_t sample_size, double * z1, int const * signs, double* phi) const {
 #pragma omp parallel for
     for(unsigned int c = 0 ; c < NC_ ; ++c){
@@ -170,6 +161,9 @@ void extended_infomax_ica<double>::compute_phi(std::size_t offset, std::size_t s
 //}
 
 template<>
+#ifdef __MINGW32__
+__attribute__((force_align_arg_pointer))
+#endif
 void extended_infomax_ica<double>::compute_dphi(std::size_t offset, std::size_t sample_size, double * z1, int const * signs, double* dphi) const {
 #pragma omp parallel for
     for(unsigned int c = 0 ; c < NC_ ; ++c){
@@ -213,6 +207,9 @@ void extended_infomax_ica<double>::compute_dphi(std::size_t offset, std::size_t 
 
 
 template<>
+#ifdef __MINGW32__
+__attribute__((force_align_arg_pointer))
+#endif
 void extended_infomax_ica<double>::compute_means_logp(std::size_t offset, std::size_t sample_size, double * z1, int const * signs, double* means_logp) const {
 #pragma omp parallel for
     for(unsigned int c = 0 ; c < NC_ ; ++c){

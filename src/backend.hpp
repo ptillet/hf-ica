@@ -10,7 +10,7 @@
 #ifndef dshf_ica_BACKEND_HPP_
 #define dshf_ica_BACKEND_HPP_
 
-#ifdef dshf_ica_WITH_BLAS
+#ifdef USE_FORTRAN_BLAS
 
 using std::ptrdiff_t;
 
@@ -39,7 +39,7 @@ extern "C"{
 namespace dshf_ica{
 
 
-#ifdef dshf_ica_WITH_BLAS
+#ifdef USE_FORTRAN_BLAS
 
 static std::ptrdiff_t dummy_info;
 

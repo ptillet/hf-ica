@@ -19,18 +19,16 @@ namespace dshf_ica{
 
         template<class ScalarType>
         std::size_t shuffle(ScalarType* data, std::size_t NC, std::size_t NF){
-            srand(0);
-
             std::size_t* perms = new std::size_t[NF];
             ScalarType * shuffled_va = new ScalarType[NF];
 
             std::tr1::minstd_rand gen;
-            //gen.seed(time(NULL));
+//            //gen.seed(time(NULL));
 
             for(std::size_t i = 0 ; i < NF ; ++i)
                 perms[i] = i;
             for(std::size_t i = 0 ; i < NF ; ++i){
-                std::size_t j = std::tr1::uniform_int<std::size_t>(i, NF)(gen);
+                std::size_t j = std::tr1::uniform_int<std::size_t>(i, NF-1)(gen);
                 std::swap(perms[i], perms[j]);
             }
             for(std::size_t c = 0 ; c < NC ; ++c){

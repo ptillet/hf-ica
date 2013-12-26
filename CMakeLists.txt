@@ -52,7 +52,8 @@ file( GLOB_RECURSE QtCreatorCompatibility_SRC
     *.hpp *.h *.cl)
 add_custom_target( QtCreatorCompatibility SOURCES ${QtCreatorCompatibility_SRC} )
 
-set(CMAKE_CXX_FLAGS_RELEASE "-funroll-loops -O3 -msse3")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3")
+set(CMAKE_CXX_FLAGS_RELEASE "-funroll-loops -O3")
 set(CMAKE_BUILD_TYPE Release)
 
 #OpenBlas
@@ -74,7 +75,10 @@ add_library(dshf_ica ${DSHF_ICA_SRC})
 
 #set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS} -static-libgcc -static-libstdc++")
 
-set_target_properties(dshf_ica PROPERTIES COMPILE_FLAGS "-fPIC")
+if(NOT _WIN32 AND NOT _WIN64)
+    set_target_properties(dshf_ica PROPERTIES COMPILE_FLAGS "-fPIC")
+endif()
+
 target_link_libraries(dshf_ica openblas.a gfortran)
 
 #get_cmake_property(_variableNames VARIABLES)
