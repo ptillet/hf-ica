@@ -42,10 +42,17 @@ else()
     set(MEX_ARCHITECTURE_OPTIONS "-fPIC -pthread -Wl,--version-script,${MATLAB_ROOT}/extern/lib/${MATLAB_ARCH}/mexFunction.map")
 endif()
 
-#-DMX_COMPAT32
-
 set(CMAKE_CXX_CREATE_SHARED_MODULE "<CMAKE_CXX_COMPILER> -O -shared -fexceptions -fno-omit-frame-pointer ${MEX_ARCHITECTURE_OPTIONS} -Wl,--no-undefined <LINK_FLAGS> -o <TARGET> <OBJECTS>  -Wl,-rpath-link,${MATLAB_MEX_LIBRARY_PATHS} -L${MATLAB_MEX_LIBRARY_PATHS} -lmx -lmex <LINK_LIBRARIES>")
 set(CMAKE_CXX_CREATE_SHARED_LIBRARY "${CMAKE_CXX_CREATE_SHARED_MODULE}")
+
+if(_WIN32 OR _WIN64)
+    add_custom_target(zip_mex ALL COMMAND zip "-jr" "${CMAKE_BINARY_DIR}/dshf-ica_mex-${MATLAB_ARCH}"
+                                                "${CMAKE_CURRENT_BINARY_DIR}/functions/*${CMAKE_SHARED_LIBRARY_SUFFIX}"
+                                                "${PROJECT_SOURCE_DIR}/external/${MATLAB_ARCH}/*"
+                                                "${PROJECT_SOURCE_DIR}/tests/matlab/artificial_sources.m"
+                                                "${PROJECT_SOURCE_DIR}/LICENSE"
+                                                "${PROJECT_SOURCE_DIR}/README.md")
+endif()
 
 add_subdirectory(functions)
 

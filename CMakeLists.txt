@@ -73,7 +73,7 @@ set(DSHF_ICA_SRC ${DSHF_ICA_SRC_PATH}/linear_ica.cpp
         ${DSHF_ICA_SRC_PATH}/nonlinearities/extended_infomax.cpp)
 add_library(dshf_ica ${DSHF_ICA_SRC})
 
-#set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS} -static-libgcc -static-libstdc++")
+set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS} -static-libgcc -static-libstdc++")
 
 if(NOT _WIN32 AND NOT _WIN64)
     set_target_properties(dshf_ica PROPERTIES COMPILE_FLAGS "-fPIC")
