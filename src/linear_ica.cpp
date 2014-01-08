@@ -22,8 +22,6 @@
 #include "src/nonlinearities/extended_infomax.h"
 
 #include "omp.h"
-#include "openblas_config.h"
-
 #include <stdlib.h>
 
 //#define ALLOC_ALIGN(size) _aligned_malloc(size, 16)
@@ -369,7 +367,6 @@ options make_default_options(){
     options opt;
     opt.max_iter = 100;
     opt.verbosity_level = 2;
-    opt.optimization_method = HESSIAN_FREE;
     opt.RS = 0.1;
     opt.S0 = 0;
     opt.theta = 0.5;
@@ -378,7 +375,7 @@ options make_default_options(){
 
 
 template<class ScalarType>
-void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t NC, std::size_t DataNF, options const & optimization_options, double* W, double* S){
+void inplace_linear_ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, std::size_t NC, std::size_t DataNF, options const & optimization_options){
 
     typedef typename umintl_backend<ScalarType>::type BackendType;
     typedef ica_functor<ScalarType, extended_infomax_ica<ScalarType> > IcaFunctorType;
@@ -390,9 +387,6 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     std::size_t NF=(DataNF%padsize==0)?DataNF:(DataNF/padsize)*padsize;
 
     ScalarType * white_data =  (ScalarType*)ALLOC_ALIGN(NC*NF*sizeof(ScalarType));
-
-    ScalarType * Sphere = new ScalarType[NC*NC];
-    ScalarType * Weights = new ScalarType[NC*NC];
     ScalarType * X = new ScalarType[N];
 
     std::memset(X,0,N*sizeof(ScalarType));
@@ -420,18 +414,7 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
     if(opt.S0==0)
       opt.S0=NF;
     minimizer.model = new umintl::dynamically_sampled<BackendType>(opt.RS,opt.S0,NF,opt.theta);
-
-    if(opt.optimization_method==SD)
-        minimizer.direction = new umintl::steepest_descent<BackendType>();
-    else if(opt.optimization_method==LBFGS)
-        minimizer.direction = new umintl::low_memory_quasi_newton<BackendType>(16);
-    else if(opt.optimization_method==NCG)
-        minimizer.direction = new umintl::conjugate_gradient<BackendType>();
-    else if(opt.optimization_method==BFGS)
-        minimizer.direction = new umintl::quasi_newton<BackendType>();
-    else if(opt.optimization_method==HESSIAN_FREE){
-      minimizer.direction = new umintl::truncated_newton<BackendType>(umintl::tag::truncated_newton::STOP_HV_VARIANCE);
-    }
+    minimizer.direction = new umintl::truncated_newton<BackendType>(umintl::tag::truncated_newton::STOP_HV_VARIANCE);
 
     minimizer.verbosity_level = opt.verbosity_level;
     minimizer.max_iter = opt.max_iter;
@@ -445,30 +428,14 @@ void inplace_linear_ica(ScalarType const * data, ScalarType * out, std::size_t N
 
     //Copies into datastructures
     std::memcpy(Weights, X,sizeof(ScalarType)*NC*NC);
-    //std::memcpy(b, X+NC*NC, sizeof(ScalarType)*NC);
 
-    //out = W*Sphere*data;
-    backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,1,data,DataNF,Sphere,NC,0,white_data,NF);
-    backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,1,white_data,NF,Weights,NC,0,out,NF);
-
-    for(std::size_t i = 0 ; i < NC ; ++i){
-        for(std::size_t j = 0 ; j < NC ; ++j){
-            if(W)
-                W[i*NC+j] = Weights[j*NC+i];
-            if(S)
-                S[i*NC+j] = Sphere[j*NC+i];
-        }
-    }
-
-    delete[] Weights;
     delete[] X;
 
     FREE_ALIGN(white_data);
-
 }
 
-template void inplace_linear_ica<float>(float const * data, float * out, std::size_t NC, std::size_t NF, dshf_ica::options const & opt, double* Weights, double* Sphere);
-template void inplace_linear_ica<double>(double const * data, double * out, std::size_t NC, std::size_t NF, dshf_ica::options const & opt, double * Weights, double * Sphere);
+template void inplace_linear_ica<float>(float const * data, float* Weights, float* Sphere, std::size_t NC, std::size_t NF, dshf_ica::options const & opt);
+template void inplace_linear_ica<double>(double const * data, double* Weights, double* Sphere, std::size_t NC, std::size_t NF, dshf_ica::options const & opt);
 
 }
 

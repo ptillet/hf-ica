@@ -39,7 +39,7 @@ endif()
 include_directories(".")
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${CMAKE_PREFIX_PATH}/include)
-include_directories(${OPENBLAS_INCLUDE_DIR})
+include_directories(${PROJECT_SOURCE_DIR}/external/include)
 
 #Tests
 include(CTest)
@@ -73,20 +73,15 @@ set(DSHF_ICA_SRC ${DSHF_ICA_SRC_PATH}/linear_ica.cpp
         ${DSHF_ICA_SRC_PATH}/nonlinearities/extended_infomax.cpp)
 add_library(dshf_ica ${DSHF_ICA_SRC})
 
-set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS} -static-libgcc -static-libstdc++")
-
 if(NOT _WIN32 AND NOT _WIN64)
     set_target_properties(dshf_ica PROPERTIES COMPILE_FLAGS "-fPIC")
+    add_subdirectory(examples)
 endif()
 
-target_link_libraries(dshf_ica openblas.a gfortran)
+add_subdirectory(matlab)
 
 #get_cmake_property(_variableNames VARIABLES)
 #foreach (_variableName ${_variableNames})
 #    message(STATUS "${_variableName}=${${_variableName}}")
 #endforeach()
-
-
-add_subdirectory(examples)
-add_subdirectory(matlab)
 

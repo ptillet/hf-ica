@@ -78,7 +78,7 @@ void fill_options(mxArray* options_mx, dshf_ica_options_type & options){
         options.opts.S0 = mxGetScalar(S0);
     }
 
-    /*-Max Iter-*/
+    /*-Theta-*/
     if(mxArray * theta = mxGetField(options_mx,0, "theta")){
         options.opts.theta = mxGetScalar(theta);
     }
@@ -91,27 +91,14 @@ void fill_options(mxArray* options_mx, dshf_ica_options_type & options){
     if(mxArray * verbosity_level = mxGetField(options_mx,0, "verbosityLevel")){
         options.opts.verbosity_level = mxGetScalar(verbosity_level);
     }
-
-    /*-Direction-*/
-   if(mxArray * direction = mxGetField(options_mx,0,"optimizationMethod")){
-       char* direction_name = mxArrayToString(direction);
-       if(are_string_equal(direction_name,"HESSIAN_FREE"))
-           options.opts.optimization_method = dshf_ica::HESSIAN_FREE;
-       if(are_string_equal(direction_name,"SD"))
-           options.opts.optimization_method = dshf_ica::SD;
-       if(are_string_equal(direction_name,"NCG"))
-           options.opts.optimization_method = dshf_ica::NCG;
-       if(are_string_equal(direction_name,"LBFGS"))
-           options.opts.optimization_method = dshf_ica::LBFGS;
-       if(are_string_equal(direction_name,"BFGS"))
-           options.opts.optimization_method = dshf_ica::BFGS;
-   }
 }
 
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
+#ifndef __linux__
     std::cout.rdbuf(&mout);
+#endif
     dshf_ica_options_type options;
     //Set default
     options.opts= dshf_ica::make_default_options();
@@ -138,46 +125,45 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 
     mxArray* weights_tmp = NULL;
     double * weights = NULL;
-    if(nlhs>=2){
-        weights_tmp = plhs[1] = mxCreateDoubleMatrix(NC,NC,mxREAL);
-        weights = mxGetPr(weights_tmp);
-    }
+    weights_tmp = plhs[0] = mxCreateDoubleMatrix(NC,NC,mxREAL);
+    weights = mxGetPr(weights_tmp);
 
     mxArray* sphere_tmp = NULL;
     double * sphere = NULL;
-    if(nlhs>=3){
-        sphere_tmp = plhs[2] = mxCreateDoubleMatrix(NC,NC,mxREAL);
-        sphere = mxGetPr(sphere_tmp);
-    }
-    if(nlhs>=4)
-        mexErrMsgIdAndTxt( "dshf_ica:TooManyOutputArguments",
-                           "Too many output arguments : independent_components = linear_dshf_ica(data [, options])");
+    sphere_tmp = plhs[1] = mxCreateDoubleMatrix(NC,NC,mxREAL);
+    sphere = mxGetPr(sphere_tmp);
+
+    if(nlhs!=2)
+        mexErrMsgIdAndTxt( "dshf_ica:WrongOutputArguments",
+                           "Usage : [W, Sphere] = dshf_ica(data [, options])");
 
 
     if(mxIsDouble(prhs[0])){
         //Get data
         double* data = mxGetPr(prhs[0]);
-        mxArray* result_tmp = plhs[0] = mxCreateDoubleMatrix(NC,NF,mxREAL);
-        double* result = mxGetPr(result_tmp);
-
         transpose(data,NC,NF);
 
-        dshf_ica::inplace_linear_ica(data, result,NC,NF,options.opts,weights,sphere);
+        dshf_ica::inplace_linear_ica(data, weights, sphere, NC, NF, options.opts);
 
+        transpose(weights,NC,NC);
+        transpose(sphere,NC,NC);
         transpose(data,NF,NC);
-        transpose(result,NF,NC);
     }
     else{
         //Get data
         float * data = (float*)mxGetPr(prhs[0]);
-        mxArray* result_tmp = plhs[0] = mxCreateNumericMatrix(NC,NF,mxSINGLE_CLASS, mxREAL);
-        float * result = (float*)mxGetPr(result_tmp);
-
+        float * weights_float = new float[NC*NC];
+        float * sphere_float = new float[NC*NC];
         transpose(data,NC,NF);
 
-        dshf_ica::inplace_linear_ica(data, result,NC,NF,options.opts,weights,sphere);
+        dshf_ica::inplace_linear_ica(data, weights_float, sphere_float, NC, NF, options.opts);
 
+        for(std::size_t i = 0 ; i < NC ; ++i){
+            for(std::size_t j = 0 ; j < NC ; ++j){
+                weights[i*NC+j] = weights_float[j*NC+i];
+                sphere[i*NC+j] = sphere_float[j*NC+i];
+            }
+        }
         transpose(data,NF,NC);
-        transpose(result,NF,NC);
     }
 }
