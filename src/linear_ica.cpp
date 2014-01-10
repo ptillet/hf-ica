@@ -7,6 +7,17 @@
  * License : MIT X11 - See the LICENSE file in the root folder
  * ===========================*/
 
+#ifdef __MINGW32__
+#include <stdlib.h>
+#include <mm_malloc.h> /* not even needed */
+#include <windows.h> /* not even needed */
+#define ALLOC_ALIGN(size) _mm_malloc(size,16)
+#define FREE_ALIGN(ptr) _mm_free(ptr)
+#else
+#define ALLOC_ALIGN(size) aligned_alloc(16, size)
+#define FREE_ALIGN(ptr) free(ptr)
+#endif
+
 #include "tests/benchmark-utils.hpp"
 
 #include "dshf_ica.h"
@@ -21,18 +32,7 @@
 
 #include "src/nonlinearities/extended_infomax.h"
 
-#include "omp.h"
 #include <stdlib.h>
-
-//#define ALLOC_ALIGN(size) _aligned_malloc(size, 16)
-//#define FREE_ALIGN(ptr) _aligned_free(ptr)
-#ifdef __MINGW32__
-#define ALLOC_ALIGN(size) __mingw_aligned_malloc(size, 16)
-#define FREE_ALIGN(ptr) __mingw_aligned_free(ptr)
-#else
-#define ALLOC_ALIGN(size) aligned_alloc(16, size)
-#define FREE_ALIGN(ptr) free(ptr)
-#endif
 
 namespace dshf_ica{
 
@@ -59,26 +59,21 @@ public:
 
         Z = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
         RZ = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
-
         dphi = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
-
         phi = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
-        phixT = new ScalarType[NC_*NC_];
-
         psi = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
-        psixT = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
-
         datasq_ = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
 
+        psixT = new ScalarType[NC_*NC_];
+        phixT = new ScalarType[NC_*NC_];
         wmT = new ScalarType[NC_*NC_];
-
         W = new ScalarType[NC_*NC_];
         WLU = new ScalarType[NC_*NC_];
         V = new ScalarType[NC_*NC_];
         HV = new ScalarType[NC_*NC_];
         WinvV = new ScalarType[NC_*NC_];
-
         means_logp = new ScalarType[NC_];
+
         first_signs = new int[NC_];
 
         for(std::size_t i = 0 ; i < NC_; ++i)
@@ -127,26 +122,19 @@ public:
 
         FREE_ALIGN(Z);
         FREE_ALIGN(RZ);
-
         FREE_ALIGN(dphi);
-
         FREE_ALIGN(phi);
-        FREE_ALIGN(phixT);
-
         FREE_ALIGN(psi);
-        FREE_ALIGN(psixT);
-
         FREE_ALIGN(datasq_);
 
+        delete[] psixT;
+        delete[] phixT;
         delete[] wmT;
-
         delete[] V;
         delete[] HV;
-
         delete[] W;
         delete[] WLU;
         delete[] WinvV;
-
         delete[] means_logp;
     }
 
@@ -287,7 +275,7 @@ public:
         //z1 = W*data_;
         backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
 
-//        //phi = mean(mata.*abs(z2).^(mata-1).*sign(z2),2);
+        //phi = mean(mata.*abs(z2).^(mata-1).*sign(z2),2);
         nonlinearity_.compute_means_logp(offset,sample_size,Z,first_signs,means_logp);
 
         //LU Decomposition
@@ -376,28 +364,24 @@ options make_default_options(){
 
 template<class ScalarType>
 void inplace_linear_ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, std::size_t NC, std::size_t DataNF, options const & optimization_options){
-
     typedef typename umintl_backend<ScalarType>::type BackendType;
     typedef ica_functor<ScalarType, extended_infomax_ica<ScalarType> > IcaFunctorType;
 
     options opt(optimization_options);
 
-    std::size_t N = NC*NC;
     std::size_t padsize = 4;
+
+    std::size_t N = NC*NC;
     std::size_t NF=(DataNF%padsize==0)?DataNF:(DataNF/padsize)*padsize;
-
     ScalarType * white_data =  (ScalarType*)ALLOC_ALIGN(NC*NF*sizeof(ScalarType));
+
     ScalarType * X = new ScalarType[N];
-
     std::memset(X,0,N*sizeof(ScalarType));
-
-
 
     //Optimization Vector
 
     //Solution vector
     //Initial guess W_0 = I
-    //b_0 = 0
     for(unsigned int i = 0 ; i < NC; ++i)
         X[i*(NC+1)] = 1;
 
@@ -430,7 +414,6 @@ void inplace_linear_ica(ScalarType const * data, ScalarType* Weights, ScalarType
     std::memcpy(Weights, X,sizeof(ScalarType)*NC*NC);
 
     delete[] X;
-
     FREE_ALIGN(white_data);
 }
 
