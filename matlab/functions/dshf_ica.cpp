@@ -17,6 +17,8 @@
 #include "dshf_ica.h"
 
 
+static std::string USAGE_STR = "Usage : [W, Sphere] = dshf_ica(data [, options])";
+
 class mstream : public std::streambuf {
 public:
 protected:
@@ -93,49 +95,47 @@ void fill_options(mxArray* options_mx, dshf_ica_options_type & options){
     }
 }
 
+void printErrorExit(std::string const & str){
+    std::cout << str << std::endl;
+}
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
     dshf_ica_options_type options;
-    //Set default
     options.opts= dshf_ica::make_default_options();
+
     mstream mout;
-    if(options.opts.verbosity_level>0){
-        std::cout.rdbuf(&mout);
-    }
+    std::streambuf* oldbuf = std::cout.rdbuf(&mout);
 
-    if(nrhs>2)
-        mexErrMsgIdAndTxt( "dshf_ica:invalidNumInputs",
-                           "Invalid input arguments : independent_components = linear_dshf_ica(data [, options])");
-    if(nrhs>1){
-        if(mxIsStruct(prhs[1])){
-            mxArray * options_mx = mxDuplicateArray(prhs[1]);
-            fill_options(options_mx, options);
-        }
-        else
-            mexErrMsgIdAndTxt("dshf_ica:invalidOptionsType",
-                              "Invalid input arguments : The options must be a valid struct");
-    }
+    if(nlhs!=2)
+        return printErrorExit(USAGE_STR);
 
+    //Check inputs and Outputs
+    if(nrhs==1){
+        if(!(mxIsSingle(prhs[0]) || mxIsDouble(prhs[0])))
+            return printErrorExit("Invalid input arguments : The data must be a valid single/double matrix");
+    }
+    else if(nrhs==2){
+        if(!mxIsStruct(prhs[1]))
+            return printErrorExit("Invalid input arguments : The options must be a valid struct");
+        mxArray * options_mx = mxDuplicateArray(prhs[1]);
+        fill_options(options_mx, options);
+    }
+    else
+        return printErrorExit(USAGE_STR);
 
     //Get dimensions
     const mwSize * dims = mxGetDimensions(prhs[0]);
     std::size_t NC = static_cast<std::size_t>(dims[0]);
     std::size_t NF = static_cast<std::size_t>(dims[1]);
 
-    mxArray* weights_tmp = NULL;
     double * weights = NULL;
-    weights_tmp = plhs[0] = mxCreateDoubleMatrix(NC,NC,mxREAL);
-    weights = mxGetPr(weights_tmp);
+    plhs[0] = mxCreateDoubleMatrix(NC,NC,mxREAL);
+    weights = mxGetPr(plhs[0]);
 
-    mxArray* sphere_tmp = NULL;
     double * sphere = NULL;
-    sphere_tmp = plhs[1] = mxCreateDoubleMatrix(NC,NC,mxREAL);
-    sphere = mxGetPr(sphere_tmp);
-
-    if(nlhs!=2)
-        mexErrMsgIdAndTxt( "dshf_ica:WrongOutputArguments",
-                           "Usage : [W, Sphere] = dshf_ica(data [, options])");
+    plhs[1] = mxCreateDoubleMatrix(NC,NC,mxREAL);
+    sphere = mxGetPr(plhs[1]);
 
 
     if(mxIsDouble(prhs[0])){
@@ -164,6 +164,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
                 sphere[i*NC+j] = sphere_float[j*NC+i];
             }
         }
+
         transpose(data,NF,NC);
+        delete[] weights_float;
+        delete[] sphere_float;
     }
+
+    std::cout.rdbuf(oldbuf);
 }
