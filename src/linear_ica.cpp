@@ -257,6 +257,8 @@ public:
     }
 
     void operator()(VectorType const & x, ScalarType& value, VectorType & grad, umintl::value_gradient tag) const {
+        throw_if_mex_and_ctrl_c();
+
         std::size_t offset;
         std::size_t sample_size;
         if(tag.model==umintl::DETERMINISTIC){

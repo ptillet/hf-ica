@@ -1,6 +1,6 @@
 foreach(F dshf_ica)
-        add_library(${F}_mex SHARED ${F}.cpp)
-        target_link_libraries(${F}_mex dshf_ica gomp)
+        add_library(${F}_mex SHARED ${F}.cpp ${DSHF_ICA_SRC})
+        target_link_libraries(${F}_mex gomp)
         set_target_properties(${F}_mex PROPERTIES OUTPUT_NAME ${F})
         install(TARGETS ${F}_mex LIBRARY DESTINATION "${MATLAB_TOOLBOX_DIR}/dshf_ica/")
         add_dependencies(zip_mex ${F}_mex)

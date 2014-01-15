@@ -12,6 +12,7 @@ include(CrossWindows)
 
 option(CROSS_WIN32 "Cross compile for Win32 using MinGW32" OFF)
 option(CROSS_WIN64 "Cross compile for Win64 using MinGW32" OFF)
+option(BUILD_EXAMPLE "Build simple C++ example" OFF)
 option(MEX "Build MATLAB MEX file" ON)
 
 set(MATLAB_ROOT "" CACHE STRING "Root of the MATLAB environment")
@@ -35,6 +36,9 @@ if(MEX)
     endif()
 endif()
 
+#OpenBlas
+#find_package(OpenBlas)
+
 #Include
 include_directories(".")
 include_directories(${PROJECT_SOURCE_DIR}/include)
@@ -56,14 +60,11 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3")
 set(CMAKE_CXX_FLAGS_RELEASE "-funroll-loops -O3")
 set(CMAKE_BUILD_TYPE Release)
 
-#OpenBlas
-#find_package(OpenBlas)
-
 ##OpenMP
 find_package(OpenMP)
 if (OPENMP_FOUND)
-    set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${OpenMP_C_FLAGS}")
-    set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${OpenMP_CXX_FLAGS}")
+    set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${OpenMP_C_FLAGS} -static")
+    set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${OpenMP_CXX_FLAGS} -static")
 endif()
 
 
@@ -71,14 +72,14 @@ endif()
 set(DSHF_ICA_SRC_PATH "${PROJECT_SOURCE_DIR}/src")
 set(DSHF_ICA_SRC ${DSHF_ICA_SRC_PATH}/linear_ica.cpp
         ${DSHF_ICA_SRC_PATH}/nonlinearities/extended_infomax.cpp)
-add_library(dshf_ica ${DSHF_ICA_SRC})
 
-if(NOT _WIN32 AND NOT _WIN64)
+add_subdirectory(matlab)
+
+if(BUILD_EXAMPLE AND NOT _WIN32 AND NOT _WIN64)
+    add_library(dshf_ica ${DSHF_ICA_SRC})
     set_target_properties(dshf_ica PROPERTIES COMPILE_FLAGS "-fPIC")
     add_subdirectory(examples)
 endif()
-
-add_subdirectory(matlab)
 
 #get_cmake_property(_variableNames VARIABLES)
 #foreach (_variableName ${_variableNames})

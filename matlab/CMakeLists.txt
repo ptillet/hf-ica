@@ -5,10 +5,6 @@ if(MATLAB_MEX_FOUND)
 
 include_directories(${MATLAB_MEX_INCLUDE_DIRS})
 
-get_property(DSHFICA_LOCATION TARGET dshf_ica PROPERTY LOCATION)
-#set(CMAKE_SHARED_LIBRARY_CXX_FLAGS "${DSHFICA_LOCATION}")
-#get_property(DSHF_ICA_LOCATION TARGET dshf_ica PROPERTY LOCATION)
-
 # Don't make 'lib<method>.mexglx'.
 set(CMAKE_SHARED_LIBRARY_PREFIX "")
 set(CMAKE_SHARED_MODULE_PREFIX "")
@@ -42,7 +38,8 @@ else()
     set(MEX_ARCHITECTURE_OPTIONS "-fPIC -pthread -Wl,--version-script,${MATLAB_ROOT}/extern/lib/${MATLAB_ARCH}/mexFunction.map")
 endif()
 
-set(CMAKE_CXX_CREATE_SHARED_MODULE "<CMAKE_CXX_COMPILER> -O -shared -fexceptions -fno-omit-frame-pointer ${MEX_ARCHITECTURE_OPTIONS} -Wl,--no-undefined <LINK_FLAGS> -o <TARGET> <OBJECTS> -DMX_COMPAT_32  -static-libgcc -static-libstdc++ -Wl,-rpath-link,${MATLAB_MEX_LIBRARY_PATHS} -L${MATLAB_MEX_LIBRARY_PATHS} <LINK_LIBRARIES> -lmx -lmex -lmwblas -lmwlapack")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_MEX")
+set(CMAKE_CXX_CREATE_SHARED_MODULE "<CMAKE_CXX_COMPILER> -O -shared -fexceptions -fno-omit-frame-pointer ${MEX_ARCHITECTURE_OPTIONS} -Wl,--no-undefined <LINK_FLAGS> -o <TARGET> <OBJECTS> -DMX_COMPAT_32  -static-libgcc -static-libstdc++ -Wl,-rpath-link,${MATLAB_MEX_LIBRARY_PATHS} -L${MATLAB_MEX_LIBRARY_PATHS} <LINK_LIBRARIES> -lut -lmx -lmex -lmwblas -lmwlapack")
 set(CMAKE_CXX_CREATE_SHARED_LIBRARY "${CMAKE_CXX_CREATE_SHARED_MODULE}")
 
 if(_WIN32 OR _WIN64)

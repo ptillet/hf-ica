@@ -22,17 +22,17 @@ public:
 protected:
   virtual std::streamsize xsputn(const char *s, std::streamsize n){
         mexPrintf("%.*s",n,s);
+        mexEvalString("pause(.0001);"); // to dump string.
         return n;
   }
   virtual int overflow(int c = EOF){
         if (c != EOF) {
           mexPrintf("%.1s",&c);
         }
-        return 1;
+        return c;
   }
 };
 
-mstream mout;
 
 inline bool are_string_equal(const char * a, const char * b){
     return std::strcmp(a,b)==0;
@@ -96,13 +96,13 @@ void fill_options(mxArray* options_mx, dshf_ica_options_type & options){
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
-#ifndef __linux__
-    std::cout.rdbuf(&mout);
-#endif
     dshf_ica_options_type options;
     //Set default
     options.opts= dshf_ica::make_default_options();
-
+    mstream mout;
+    if(options.opts.verbosity_level>0){
+        std::cout.rdbuf(&mout);
+    }
 
     if(nrhs>2)
         mexErrMsgIdAndTxt( "dshf_ica:invalidNumInputs",

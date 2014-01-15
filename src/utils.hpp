@@ -13,7 +13,36 @@
 #include <cstddef>
 #include <tr1/random>
 
+#ifdef USE_MEX
+    #include "mex.h"
+    #ifdef __cplusplus
+        extern "C" bool utIsInterruptPending();
+    #else
+        extern bool utIsInterruptPending();
+    #endif
+#endif
 namespace dshf_ica{
+
+    class exception : public std::exception
+    {
+    public:
+      exception() : message_() {}
+      exception(std::string message) : message_("DSHF-ICA: " + message) {}
+      virtual const char* what() const throw() { return message_.c_str(); }
+      virtual ~exception() throw() {}
+    private:
+      std::string message_;
+    };
+
+
+    inline void throw_if_mex_and_ctrl_c(){
+#ifdef USE_MEX
+        if (utIsInterruptPending()) {
+            throw dshf_ica::exception("Ctrl-C Pressed : Aborting...");
+        }
+#endif
+
+    }
 
     namespace detail{
 
