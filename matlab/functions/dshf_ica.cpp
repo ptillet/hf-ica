@@ -90,9 +90,12 @@ void fill_options(mxArray* options_mx, dshf_ica_options_type & options){
         options.opts.max_iter = mxGetScalar(max_iter);
 
     /*-Verbosity Level-*/
-    if(mxArray * verbosity_level = mxGetField(options_mx,0, "verbosityLevel")){
+    if(mxArray * verbosity_level = mxGetField(options_mx,0, "verbosityLevel"))
         options.opts.verbosity_level = mxGetScalar(verbosity_level);
-    }
+
+    /*-OMP NumThreads-*/
+    if(mxArray * omp_num_threads = mxGetField(options_mx,0, "OMPNumThreads"))
+        options.opts.omp_num_threads = mxGetScalar(omp_num_threads);
 }
 
 void printErrorExit(std::string const & str){

@@ -32,6 +32,8 @@
 
 #include "src/nonlinearities/extended_infomax.h"
 
+#include "omp.h"
+
 #include <stdlib.h>
 
 namespace dshf_ica{
@@ -81,6 +83,7 @@ public:
                 datasq_[i*NF_+j] = data_[i*NF_+j]*data_[i*NF_+j];
 
 
+        int n_subgauss = 0;
         for(unsigned int c = 0 ; c < NC_ ; ++c){
             ScalarType m2 = 0, m4 = 0;
             for(unsigned int f = 0; f < NF_ ; f++){
@@ -92,7 +95,9 @@ public:
             m4 = 1/(ScalarType)NF_*m4;
             ScalarType k = m4/m2 - 3;
             first_signs[c] = (k+0.02>0)?1:-1;
+            if(first_signs[c] < 0) n_subgauss++;
         }
+        std::cout << n_subgauss << std::endl;
     }
 
     bool recompute_signs(){
@@ -355,12 +360,20 @@ private:
 
 options make_default_options(){
     options opt;
-    opt.max_iter = 100;
+    opt.max_iter = 500;
+    opt.omp_num_threads = 0;
     opt.verbosity_level = 2;
     opt.RS = 0.1;
     opt.S0 = 0;
     opt.theta = 0.5;
     return opt;
+}
+
+static int omp_thread_count() {
+    int n = 0;
+    #pragma omp parallel reduction(+:n)
+    n += 1;
+    return n;
 }
 
 
@@ -379,6 +392,11 @@ void inplace_linear_ica(ScalarType const * data, ScalarType* Weights, ScalarType
 
     ScalarType * X = new ScalarType[N];
     std::memset(X,0,N*sizeof(ScalarType));
+
+    if(opt.omp_num_threads>0)
+        omp_set_num_threads(opt.omp_num_threads);
+    if(opt.verbosity_level>=1)
+        std::cout << "Number of OMP Threads : " << omp_thread_count() << std::endl;
 
     //Optimization Vector
 
