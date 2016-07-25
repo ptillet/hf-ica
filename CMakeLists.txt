@@ -57,7 +57,7 @@ file( GLOB_RECURSE QtCreatorCompatibility_SRC
 add_custom_target( QtCreatorCompatibility SOURCES ${QtCreatorCompatibility_SRC} )
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3")
-set(CMAKE_CXX_FLAGS_RELEASE "-funroll-loops -O3")
+set(CMAKE_CXX_FLAGS_RELEASE "-funroll-loops -O2")
 set(CMAKE_BUILD_TYPE Release)
 
 ##OpenMP

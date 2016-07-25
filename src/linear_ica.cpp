@@ -97,7 +97,7 @@ public:
             first_signs[c] = (k+0.02>0)?1:-1;
             if(first_signs[c] < 0) n_subgauss++;
         }
-        std::cout << n_subgauss << std::endl;
+        std::cout << "Number of subgaussian sources: " << n_subgauss << std::endl;
     }
 
     bool recompute_signs(){
@@ -393,8 +393,8 @@ void inplace_linear_ica(ScalarType const * data, ScalarType* Weights, ScalarType
     ScalarType * X = new ScalarType[N];
     std::memset(X,0,N*sizeof(ScalarType));
 
-    if(opt.omp_num_threads>0)
-        omp_set_num_threads(opt.omp_num_threads);
+//    if(opt.omp_num_threads>0)
+//        omp_set_num_threads(opt.omp_num_threads);
     if(opt.verbosity_level>=1)
         std::cout << "Number of OMP Threads : " << omp_thread_count() << std::endl;
 
