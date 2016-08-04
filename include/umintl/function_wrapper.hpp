@@ -106,7 +106,7 @@ namespace umintl{
             }
 
         public:
-            function_wrapper_impl(Fun & fun, std::size_t N, computation_type hessian_vector_product_computation) : fun_(fun), N_(N), hessian_vector_product_computation_(hessian_vector_product_computation){
+            function_wrapper_impl(Fun & fun, size_t N, computation_type hessian_vector_product_computation) : fun_(fun), N_(N), hessian_vector_product_computation_(hessian_vector_product_computation){
               n_value_computations_ = 0;
               n_gradient_computations_ = 0;
               n_hessian_vector_product_computations_ = 0;
@@ -191,7 +191,7 @@ namespace umintl{
 
           private:
             Fun & fun_;
-            std::size_t N_;
+            size_t N_;
 
             computation_type hessian_vector_product_computation_;
 

@@ -18,25 +18,33 @@
 #define FREE_ALIGN(ptr) free(ptr)
 #endif
 
-#include "tests/benchmark-utils.hpp"
 
-#include "dshf_ica.h"
+#include "dshf_ica/dshf_ica.h"
+#include "dshf_ica/nonlinearities/extended_infomax.h"
 
 #include "umintl/debug.hpp"
 #include "umintl/minimize.hpp"
 #include "umintl/stopping_criterion/parameter_change_threshold.hpp"
 
-#include "src/whiten.hpp"
-#include "src/utils.hpp"
+#include "tools/mex.hpp"
+#include "tools/whiten.hpp"
+#include "tools/shuffle.hpp"
+
 #include "src/backend.hpp"
 
-#include "src/nonlinearities/extended_infomax.h"
 
 #include "omp.h"
 
 #include <stdlib.h>
 
 namespace dshf_ica{
+
+static int omp_thread_count() {
+    int n = 0;
+    #pragma omp parallel reduction(+:n)
+    n += 1;
+    return n;
+}
 
 
 template<class _ScalarType, class NonlinearityType>
@@ -46,7 +54,7 @@ struct ica_functor{
 
     bool weights_have_changed(VectorType x) const {
       bool result = false;
-      for(std::size_t i = 0; i < NC_*NC_ ; ++i){
+      for(size_t i = 0; i < NC_*NC_ ; ++i){
         if(W[i]!=x[i])
           result = true;
       }
@@ -54,7 +62,7 @@ struct ica_functor{
     }
 
 public:
-    ica_functor(ScalarType const * data, std::size_t NF, std::size_t NC) : data_(data), NC_(NC), NF_(NF), nonlinearity_(NC,NF){
+    ica_functor(ScalarType const * data, size_t NF, size_t NC, options const & opt) : data_(data), NC_(NC), NF_(NF), nonlinearity_(NC,NF){
         is_first_ = true;
 
         ipiv_ =  new typename backend<ScalarType>::size_t[NC_+1];
@@ -78,8 +86,8 @@ public:
 
         first_signs = new int[NC_];
 
-        for(std::size_t i = 0 ; i < NC_; ++i)
-            for(std::size_t j = 0; j < NF_; ++j)
+        for(size_t i = 0 ; i < NC_; ++i)
+            for(size_t j = 0; j < NF_; ++j)
                 datasq_[i*NF_+j] = data_[i*NF_+j]*data_[i*NF_+j];
 
 
@@ -97,7 +105,11 @@ public:
             first_signs[c] = (k+0.02>0)?1:-1;
             if(first_signs[c] < 0) n_subgauss++;
         }
-        std::cout << "Number of subgaussian sources: " << n_subgauss << std::endl;
+
+        if(opt.verbosity_level>0){
+            std::cout << "Number of subgaussian sources: " << n_subgauss << std::endl;
+            std::cout << "Number of OMP Threads : " << omp_thread_count() << std::endl;
+        }
     }
 
     bool recompute_signs(){
@@ -144,8 +156,8 @@ public:
     }
 
     void operator()(VectorType const & x, VectorType const & v, VectorType & variance, umintl::hv_product_variance tag) const{
-        std::size_t offset;
-        std::size_t sample_size;
+        size_t offset;
+        size_t sample_size;
         if(tag.model==umintl::DETERMINISTIC){
           offset = 0;
           sample_size = NF_;
@@ -155,12 +167,9 @@ public:
           sample_size = tag.sample_size;
         }
 
-        //if(weights_have_changed(x)){
-          std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
-          std::memcpy(WLU,x,sizeof(ScalarType)*NC_*NC_);
-          backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
-        //}
-
+        std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
+        std::memcpy(WLU,x,sizeof(ScalarType)*NC_*NC_);
+        backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
 
         std::memcpy(V, v,sizeof(ScalarType)*NC_*NC_);
         backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,V,NC_,0,RZ+offset,NF_);
@@ -172,23 +181,20 @@ public:
                 psi[c*NF_+f] = dphi[c*NF_+f]*RZ[c*NF_+f];
         backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,psi+offset,NF_,0,psixT,NC_);
 
-        for(std::size_t i = 0 ; i < NC_; ++i){
-            for(std::size_t j = offset ; j < offset+sample_size; ++j){
+        for(size_t i = 0 ; i < NC_; ++i)
+            for(size_t j = offset ; j < offset+sample_size; ++j)
                 psi[i*NF_+j] = psi[i*NF_+j]*psi[i*NF_+j];
-            }
-        }
+
         backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size,1,datasq_+offset,NF_,psi+offset,NF_,0,variance,NC_);
 
-        for(std::size_t i = 0 ; i < NC_; ++i){
-            for(std::size_t j = 0 ; j < NC_; ++j){
+        for(size_t i = 0 ; i < NC_; ++i)
+            for(size_t j = 0 ; j < NC_; ++j)
               variance[i*NC_+j] = (ScalarType)1/(sample_size-1)*(variance[i*NC_+j] - psixT[i*NC_+j]*psixT[i*NC_+j]/(ScalarType)sample_size);
-            }
-        }
     }
 
     void operator()(VectorType const & x, VectorType const & v, VectorType & Hv, umintl::hessian_vector_product tag) const{
-        std::size_t offset;
-        std::size_t sample_size;
+        size_t offset;
+        size_t sample_size;
         if(tag.model==umintl::DETERMINISTIC){
           offset = 0;
           sample_size = NF_;
@@ -224,13 +230,13 @@ public:
         backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,psi+offset,NF_,0,psixT,NC_);
 
         //Copy back
-        for(std::size_t i = 0 ; i < NC_*NC_; ++i)
+        for(size_t i = 0 ; i < NC_*NC_; ++i)
             Hv[i] = HV[i] + psixT[i]/(ScalarType)sample_size;
     }
 
     void operator()(VectorType const & x, VectorType & variance, umintl::gradient_variance tag){
-      std::size_t offset;
-      std::size_t sample_size;
+      size_t offset;
+      size_t sample_size;
       if(tag.model==umintl::DETERMINISTIC){
         offset = 0;
         sample_size = NF_;
@@ -248,24 +254,21 @@ public:
       backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,phi+offset,NF_,0,phixT,NC_);
 
       //GradVariance = 1/(N-1)[phi.^2*(x.^2)' - 1/N*phi*x']
-      for(std::size_t i = 0 ; i < NC_; ++i){
-          for(std::size_t j = offset ; j < offset+sample_size; ++j){
+      for(size_t i = 0 ; i < NC_; ++i)
+          for(size_t j = offset ; j < offset+sample_size; ++j)
               phi[i*NF_+j] = phi[i*NF_+j]*phi[i*NF_+j];
-          }
-      }
+
       backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size,1,datasq_+offset,NF_,phi+offset,NF_,0,variance,NC_);
-      for(std::size_t i = 0 ; i < NC_; ++i){
-          for(std::size_t j = 0 ; j < NC_; ++j){
+      for(size_t i = 0 ; i < NC_; ++i)
+          for(size_t j = 0 ; j < NC_; ++j)
             variance[i*NC_+j] = (ScalarType)1/(sample_size-1)*(variance[i*NC_+j] - phixT[i*NC_+j]*phixT[i*NC_+j]/(ScalarType)sample_size);
-          }
-      }
     }
 
     void operator()(VectorType const & x, ScalarType& value, VectorType & grad, umintl::value_gradient tag) const {
         throw_if_mex_and_ctrl_c();
 
-        std::size_t offset;
-        std::size_t sample_size;
+        size_t offset;
+        size_t sample_size;
         if(tag.model==umintl::DETERMINISTIC){
           offset = 0;
           sample_size = NF_;
@@ -289,16 +292,14 @@ public:
         backend<ScalarType>::getrf(NC_,NC_,WLU,NC_,ipiv_);
 
         //det = prod(diag(WLU))
-        ScalarType absdet = 1;
-        for(std::size_t i = 0 ; i < NC_ ; ++i){
-            absdet*=std::abs(WLU[i*NC_+i]);
-        }
+        ScalarType abs_det = 1;
+        for(size_t i = 0 ; i < NC_ ; ++i)
+            abs_det*=std::abs(WLU[i*NC_+i]);
 
         //H = log(abs(det(w))) + sum(means_logp);
-        ScalarType H = std::log(absdet);
-        for(std::size_t i = 0; i < NC_ ; ++i){
+        ScalarType H = std::log(abs_det);
+        for(size_t i = 0; i < NC_ ; ++i)
             H+=means_logp[i];
-        }
         value = -H;
 
         /* Gradient */
@@ -309,22 +310,21 @@ public:
 
         //dweights = W^-T - 1/n*Phi*X'
         backend<ScalarType>::getri(NC_,WLU,NC_,ipiv_);
-        for(std::size_t i = 0 ; i < NC_; ++i)
-            for(std::size_t j = 0 ; j < NC_; ++j)
+        for(size_t i = 0 ; i < NC_; ++i)
+            for(size_t j = 0 ; j < NC_; ++j)
                 wmT[i*NC_+j] = WLU[j*NC_+i];
 
         //Copy back
-        for(std::size_t i = 0 ; i < NC_*NC_; ++i)
+        for(size_t i = 0 ; i < NC_*NC_; ++i)
           grad[i] = - (wmT[i] - phixT[i]/(ScalarType)sample_size);
-
     }
 
 private:
     ScalarType const * data_;
     int * first_signs;
 
-    std::size_t NC_;
-    std::size_t NF_;
+    size_t NC_;
+    size_t NF_;
 
 
     typename backend<ScalarType>::size_t *ipiv_;
@@ -369,66 +369,44 @@ options make_default_options(){
     return opt;
 }
 
-static int omp_thread_count() {
-    int n = 0;
-    #pragma omp parallel reduction(+:n)
-    n += 1;
-    return n;
-}
-
-
 template<class ScalarType>
-void inplace_linear_ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, std::size_t NC, std::size_t DataNF, options const & optimization_options){
+void inplace_linear_ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, size_t NC, size_t DataNF, options const & optimization_options){
     typedef typename umintl_backend<ScalarType>::type BackendType;
     typedef ica_functor<ScalarType, extended_infomax_ica<ScalarType> > IcaFunctorType;
 
     options opt(optimization_options);
 
-    std::size_t padsize = 4;
+    //Problem sizes
+    size_t padsize = 4;
+    size_t N = NC*NC;
+    size_t NF=(DataNF%padsize==0)?DataNF:(DataNF/padsize)*padsize;
+    if(opt.S0==0) opt.S0=NF;
 
-    std::size_t N = NC*NC;
-    std::size_t NF=(DataNF%padsize==0)?DataNF:(DataNF/padsize)*padsize;
+    //Allocate
     ScalarType * white_data =  (ScalarType*)ALLOC_ALIGN(NC*NF*sizeof(ScalarType));
-
     ScalarType * X = new ScalarType[N];
     std::memset(X,0,N*sizeof(ScalarType));
 
-//    if(opt.omp_num_threads>0)
-//        omp_set_num_threads(opt.omp_num_threads);
-    if(opt.verbosity_level>=1)
-        std::cout << "Number of OMP Threads : " << omp_thread_count() << std::endl;
+    //Whiten Data
+    whiten<ScalarType>(NC, DataNF, NF, data,Sphere,white_data);
+    shuffle(white_data,NC,NF);
+    IcaFunctorType objective(white_data,NF,NC,opt);
 
-    //Optimization Vector
-
-    //Solution vector
     //Initial guess W_0 = I
     for(unsigned int i = 0 ; i < NC; ++i)
         X[i*(NC+1)] = 1;
 
-    //Whiten Data
-
-    whiten<ScalarType>(NC, DataNF, NF, data,Sphere,white_data);
-    detail::shuffle(white_data,NC,NF);
-    IcaFunctorType objective(white_data,NF,NC);
-
-
+    //Optimizer
     umintl::minimizer<BackendType> minimizer;
     minimizer.hessian_vector_product_computation = umintl::PROVIDED;
-    //minimizer.model = new umintl::deterministic<BackendType>();
-    if(opt.S0==0)
-      opt.S0=NF;
     minimizer.model = new umintl::dynamically_sampled<BackendType>(opt.RS,opt.S0,NF,opt.theta);
     minimizer.direction = new umintl::truncated_newton<BackendType>(umintl::tag::truncated_newton::STOP_HV_VARIANCE);
-
     minimizer.verbosity_level = opt.verbosity_level;
     minimizer.max_iter = opt.max_iter;
     minimizer.stopping_criterion = new umintl::parameter_change_threshold<BackendType>(1e-6);
-    //minimizer.stopping_criterion = new umintl::value_treshold<BackendType>(1e-4);
-    //minimizer.stopping_criterion = new umintl::gradient_treshold<BackendType>(1e-5);
     do{
         minimizer(X,objective,X,N);
     }while(objective.recompute_signs());
-
 
     //Copies into datastructures
     std::memcpy(Weights, X,sizeof(ScalarType)*NC*NC);
@@ -437,8 +415,8 @@ void inplace_linear_ica(ScalarType const * data, ScalarType* Weights, ScalarType
     FREE_ALIGN(white_data);
 }
 
-template void inplace_linear_ica<float>(float const * data, float* Weights, float* Sphere, std::size_t NC, std::size_t NF, dshf_ica::options const & opt);
-template void inplace_linear_ica<double>(double const * data, double* Weights, double* Sphere, std::size_t NC, std::size_t NF, dshf_ica::options const & opt);
+template void inplace_linear_ica<float>(float const * data, float* Weights, float* Sphere, size_t NC, size_t NF, dshf_ica::options const & opt);
+template void inplace_linear_ica<double>(double const * data, double* Weights, double* Sphere, size_t NC, size_t NF, dshf_ica::options const & opt);
 
 }
 

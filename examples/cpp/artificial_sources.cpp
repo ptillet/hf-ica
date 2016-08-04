@@ -9,7 +9,7 @@
 
 #include <cmath>
 #include "tests/benchmark-utils.hpp"
-#include "dshf_ica.h"
+#include "dshf_ica/dshf_ica.h"
 #include "cblas.h"
 #include <cstdlib>
 
@@ -30,8 +30,6 @@ int main(){
     ScalarType * sphere = new ScalarType[NC*NC];
     ScalarType * weights = new ScalarType[NC*NC];
 
-
-
     for(unsigned int f=0 ; f< NF ; ++f){
         double t = (double)f/(NF-1)*T - T/2;
         src[0*NF + f] = std::sin(3*t) + std::cos(6*t);
@@ -41,8 +39,8 @@ int main(){
     }
 
     std::srand(0);
-    for(std::size_t i = 0 ; i < NC ; ++i)
-        for(std::size_t j = 0 ; j < NC ; ++j)
+    for(size_t i = 0 ; i < NC ; ++i)
+        for(size_t j = 0 ; j < NC ; ++j)
             mixing[i*NC+j] = static_cast<double>(std::rand())/RAND_MAX;
 
     cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,NF,NC,NC,1,src,NF,mixing,NC,0,mixed_src,NF);

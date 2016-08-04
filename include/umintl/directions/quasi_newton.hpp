@@ -105,7 +105,7 @@ struct quasi_newton : public direction<BackendType>{
 
 private:
 
-    std::size_t N_;
+    size_t N_;
 
     VectorType Hy_;
     VectorType s_;

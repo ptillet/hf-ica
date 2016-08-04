@@ -36,7 +36,7 @@ struct deterministic : public model_base<BackendType> {
 template<class BackendType>
 struct mini_batch : public model_base<BackendType> {
   public:
-    mini_batch(std::size_t sample_size, std::size_t dataset_size) : sample_size_(std::min(sample_size,dataset_size)), offset_(0), dataset_size_(dataset_size){ }
+    mini_batch(size_t sample_size, size_t dataset_size) : sample_size_(std::min(sample_size,dataset_size)), offset_(0), dataset_size_(dataset_size){ }
     bool update(optimization_context<BackendType> &){
       offset_=(offset_+sample_size_)%dataset_size_;
       return false;
@@ -44,9 +44,9 @@ struct mini_batch : public model_base<BackendType> {
     value_gradient get_value_gradient_tag() const { return value_gradient(STOCHASTIC,dataset_size_,0); }
     hessian_vector_product get_hv_product_tag() const { return hessian_vector_product(STOCHASTIC,sample_size_,offset_); }
 private:
-    std::size_t sample_size_;
-    std::size_t offset_;
-    std::size_t dataset_size_;
+    size_t sample_size_;
+    size_t offset_;
+    size_t dataset_size_;
 };
 
 /** @brief the dynamically_sampled class
@@ -65,7 +65,7 @@ struct dynamically_sampled : public model_base<BackendType> {
     typedef typename BackendType::VectorType VectorType;
 
   public:
-    dynamically_sampled(double r, std::size_t S0, std::size_t dataset_size, double theta = 0.5) : r_(r), S(std::min(S0,dataset_size)), offset_(0), H_offset_(0), N(dataset_size), theta_(theta){ }
+    dynamically_sampled(double r, size_t S0, size_t dataset_size, double theta = 0.5) : r_(r), S(std::min(S0,dataset_size)), offset_(0), H_offset_(0), N(dataset_size), theta_(theta){ }
 
     bool update(optimization_context<BackendType> & c){
 //      {
@@ -75,21 +75,21 @@ struct dynamically_sampled : public model_base<BackendType> {
 //        BackendType::set_to_value(var,0,c.N());
 //        c.fun().compute_hv_product(c.x(),c.g(),c.g(),Hv,hessian_vector_product(STOCHASTIC,S,offset_));
 
-//        for(std::size_t i = 0 ; i < S ; ++i){
+//        for(size_t i = 0 ; i < S ; ++i){
 //          //tmp = (grad(xi) - grad(X)).^2
 //          //var += tmp
 //          c.fun().compute_hv_product(c.x(),c.g(),c.g(),tmp,hessian_vector_product(STOCHASTIC,1,offset_+i));
-//          for(std::size_t i = 0 ; i < c.N() ; ++i)
+//          for(size_t i = 0 ; i < c.N() ; ++i)
 //            var[i]+=std::pow(tmp[i]-Hv[i],2);
 //        }
 //        BackendType::scale(c.N(),(ScalarType)1/(S-1),var);
-//        for(std::size_t i = 0 ; i < c.N() ; ++i)
+//        for(size_t i = 0 ; i < c.N() ; ++i)
 //          std::cout << var[i] << " ";
 //        std::cout << std::endl;
 
 //        c.fun().compute_hv_product_variance(c.x(),c.g(), var, hv_product_variance(STOCHASTIC,S,offset_));
 
-//        for(std::size_t i = 0 ; i < c.N() ; ++i)
+//        for(size_t i = 0 ; i < c.N() ; ++i)
 //          std::cout << var[i] << " ";
 //        std::cout << std::endl;
 
@@ -114,7 +114,7 @@ struct dynamically_sampled : public model_base<BackendType> {
         bool is_descent_direction = (nrm1var/S <= (std::pow(theta_,2)*std::pow(nrm2grad,2)));
 
         //Update parameters
-        std::size_t old_S = S;
+        size_t old_S = S;
         if(is_descent_direction==false){
           S = nrm1var/std::pow(theta_*nrm2grad,2);
           S = std::min(S,N);
@@ -143,10 +143,10 @@ struct dynamically_sampled : public model_base<BackendType> {
 private:
     double theta_;
     double r_;
-    std::size_t S;
-    std::size_t offset_;
-    std::size_t H_offset_;
-    std::size_t N;
+    size_t S;
+    size_t offset_;
+    size_t H_offset_;
+    size_t N;
 };
 
 

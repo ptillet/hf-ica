@@ -29,7 +29,7 @@ namespace umintl{
         typedef typename BackendType::VectorType VectorType;
         typedef typename BackendType::MatrixType MatrixType;
 
-        optimization_context(VectorType const & x0, std::size_t dim, model_base<BackendType> & model, detail::function_wrapper<BackendType> * fun) : fun_(fun), model_(model), iter_(0), dim_(dim){
+        optimization_context(VectorType const & x0, size_t dim, model_base<BackendType> & model, detail::function_wrapper<BackendType> * fun) : fun_(fun), model_(model), iter_(0), dim_(dim){
             x_ = BackendType::create_vector(dim_);
             g_ = BackendType::create_vector(dim_);
             p_ = BackendType::create_vector(dim_);

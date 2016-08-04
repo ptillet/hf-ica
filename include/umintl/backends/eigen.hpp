@@ -24,38 +24,38 @@ namespace umintl{
         typedef Eigen::Matrix<ScalarType, Eigen::Dynamic, 1> VectorType;
         typedef Eigen::Matrix<ScalarType, Eigen::Dynamic, Eigen::Dynamic> MatrixType;
 
-        static VectorType create_vector(std::size_t N)
+        static VectorType create_vector(size_t N)
         { return VectorType(N); }
-        static MatrixType create_matrix(std::size_t M, std::size_t N)
+        static MatrixType create_matrix(size_t M, size_t N)
         { return MatrixType(M,N); }
         static void delete_if_dynamically_allocated(VectorType const &) { }
         static void delete_if_dynamically_allocated(MatrixType const &) { }
 
-        static void copy(std::size_t /*N*/, VectorType const & from, VectorType & to)
+        static void copy(size_t /*N*/, VectorType const & from, VectorType & to)
         { to = from; }
-        static void axpy(std::size_t /*N*/, ScalarType alpha, VectorType const & x, VectorType & y)
+        static void axpy(size_t /*N*/, ScalarType alpha, VectorType const & x, VectorType & y)
         {  y = alpha*x + y; }
-        static void scale(std::size_t /*N*/, ScalarType alpha, VectorType & x)
+        static void scale(size_t /*N*/, ScalarType alpha, VectorType & x)
         { x = alpha*x; }
-        static void scale(std::size_t /*M*/, std::size_t /*N*/, ScalarType alpha, MatrixType & A)
+        static void scale(size_t /*M*/, size_t /*N*/, ScalarType alpha, MatrixType & A)
         { A = alpha*A; }
-        static ScalarType asum(std::size_t /*N*/, VectorType const & x)
+        static ScalarType asum(size_t /*N*/, VectorType const & x)
         { return x.array().abs().sum(); }
-        static ScalarType nrm2(std::size_t /*N*/, VectorType const & x)
+        static ScalarType nrm2(size_t /*N*/, VectorType const & x)
         { return x.norm(); }
-        static ScalarType dot(std::size_t /*N*/, VectorType const & x, VectorType const & y)
+        static ScalarType dot(size_t /*N*/, VectorType const & x, VectorType const & y)
         { return x.dot(y); }
-        static void symv(std::size_t /*N*/, ScalarType alpha, MatrixType const& A, VectorType const & x, ScalarType beta, VectorType & y)
+        static void symv(size_t /*N*/, ScalarType alpha, MatrixType const& A, VectorType const & x, ScalarType beta, VectorType & y)
         { y = alpha*A*x + beta*y;  }
-        static void gemv(std::size_t /*M*/, std::size_t /*N*/, ScalarType alpha, MatrixType const& A, VectorType const & x, ScalarType beta, VectorType & y)
+        static void gemv(size_t /*M*/, size_t /*N*/, ScalarType alpha, MatrixType const& A, VectorType const & x, ScalarType beta, VectorType & y)
         { y = alpha*A*x + beta*y;  }
-        static void syr1(std::size_t /*N*/, ScalarType const & alpha, VectorType const & x, MatrixType & A)
+        static void syr1(size_t /*N*/, ScalarType const & alpha, VectorType const & x, MatrixType & A)
         { A+=alpha*x*x.transpose(); }
-        static void syr2(std::size_t /*N*/, ScalarType const & alpha, VectorType const & x, VectorType const & y, MatrixType & A)
+        static void syr2(size_t /*N*/, ScalarType const & alpha, VectorType const & x, VectorType const & y, MatrixType & A)
         { A+=alpha*x*y.transpose() + alpha*y*x.transpose(); }
-        static void set_to_diagonal(std::size_t N, MatrixType & A, ScalarType lambda)
+        static void set_to_diagonal(size_t N, MatrixType & A, ScalarType lambda)
         { A = lambda*MatrixType::Identity(N, N); }
-        static void set_to_value(VectorType & V, ScalarType val, std::size_t N)
+        static void set_to_value(VectorType & V, ScalarType val, size_t N)
         { V = VectorType::Constant(N,val); }
     };
 

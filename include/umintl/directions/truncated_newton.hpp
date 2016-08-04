@@ -42,7 +42,7 @@ struct truncated_newton : public direction<BackendType>{
 
     struct compute_Ab: public linear::conjugate_gradient_detail::compute_Ab<BackendType>{
         compute_Ab(VectorType const & x, VectorType const & g, model_base<BackendType> const & model, umintl::detail::function_wrapper<BackendType> & fun) : x_(x), g_(g), model_(model), fun_(fun){ }
-        virtual void operator()(std::size_t, typename BackendType::VectorType const & b, typename BackendType::VectorType & res){
+        virtual void operator()(size_t, typename BackendType::VectorType const & b, typename BackendType::VectorType & res){
           fun_.compute_hv_product(x_,g_,b,res,model_.get_hv_product_tag());
         }
       protected:
@@ -64,8 +64,8 @@ struct truncated_newton : public direction<BackendType>{
         void init(VectorType const & p0){
           VectorType var = BackendType::create_vector(c_.N());
 
-          std::size_t H = c_.model().get_hv_product_tag().sample_size;
-          std::size_t offset = c_.model().get_hv_product_tag().offset;
+          size_t H = c_.model().get_hv_product_tag().sample_size;
+          size_t offset = c_.model().get_hv_product_tag().offset;
           c_.fun().compute_hv_product_variance(c_.x(),p0,var,hv_product_variance(STOCHASTIC,H,offset));
           ScalarType nrm2p0 = BackendType::nrm2(c_.N(),p0);
           ScalarType nrm1var = BackendType::asum(c_.N(),var);
@@ -89,7 +89,7 @@ struct truncated_newton : public direction<BackendType>{
     };
 
   public:
-    truncated_newton(tag::truncated_newton::stopping_criterion _stop = tag::truncated_newton::STOP_RESIDUAL_TOLERANCE, std::size_t _max_iter = 0) : max_iter(_max_iter), stop(_stop){ }
+    truncated_newton(tag::truncated_newton::stopping_criterion _stop = tag::truncated_newton::STOP_RESIDUAL_TOLERANCE, size_t _max_iter = 0) : max_iter(_max_iter), stop(_stop){ }
 
     virtual std::string info() const{
         return "Truncated Newton";
@@ -121,7 +121,7 @@ struct truncated_newton : public direction<BackendType>{
       BackendType::delete_if_dynamically_allocated(minus_g);
     }
 
-    std::size_t max_iter;
+    size_t max_iter;
     tag::truncated_newton::stopping_criterion stop;
 };
 

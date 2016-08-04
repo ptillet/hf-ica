@@ -15,18 +15,18 @@
 namespace dshf_ica{
 
 struct options{
-    std::size_t max_iter;
+    size_t max_iter;
     unsigned int verbosity_level;
     double theta;
     double RS;
-    std::size_t S0;
+    size_t S0;
     int omp_num_threads;
 };
 
 options make_default_options();
 
 template<class ScalarType>
-void inplace_linear_ica(ScalarType const * data, ScalarType* W, ScalarType* S, std::size_t NC, std::size_t NF, options const & opt);
+void inplace_linear_ica(ScalarType const * data, ScalarType* W, ScalarType* S, size_t NC, size_t NF, options const & opt);
 
 }
 

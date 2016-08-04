@@ -17,7 +17,7 @@
 namespace umintl{
 
 template<class BackendType, class FUN>
-typename BackendType::ScalarType check_grad(FUN & fun, typename BackendType::VectorType const & x0, std::size_t N, typename BackendType::ScalarType h){
+typename BackendType::ScalarType check_grad(FUN & fun, typename BackendType::VectorType const & x0, size_t N, typename BackendType::ScalarType h){
     typedef typename BackendType::ScalarType ScalarType;
     typedef typename BackendType::VectorType VectorType;
     VectorType x = BackendType::create_vector(N);
@@ -48,7 +48,7 @@ typename BackendType::ScalarType check_grad(FUN & fun, typename BackendType::Vec
 }
 
 //template<class BackendType, class FUN>
-//typename BackendType::ScalarType check_grad_variance(FUN & fun, typename BackendType::VectorType const & x0, std::size_t N){
+//typename BackendType::ScalarType check_grad_variance(FUN & fun, typename BackendType::VectorType const & x0, size_t N){
 //    typedef typename BackendType::ScalarType ScalarType;
 //    typedef typename BackendType::VectorType VectorType;
 
@@ -58,21 +58,21 @@ typename BackendType::ScalarType check_grad(FUN & fun, typename BackendType::Vec
 //    BackendType::set_to_value(var,0,N);
 //    c.fun().compute_hv_product(x0,c.g(),c.g(),Hv,hessian_vector_product(STOCHASTIC,S,offset_));
 
-//    for(std::size_t i = 0 ; i < S ; ++i){
+//    for(size_t i = 0 ; i < S ; ++i){
 //        //tmp = (grad(xi) - grad(X)).^2
 //        //var += tmp
 //        c.fun().compute_hv_product(x0,c.g(),c.g(),tmp,hessian_vector_product(STOCHASTIC,1,offset_+i));
-//        for(std::size_t i = 0 ; i < N ; ++i)
+//        for(size_t i = 0 ; i < N ; ++i)
 //            var[i]+=std::pow(tmp[i]-Hv[i],2);
 //    }
 //    BackendType::scale(N,(ScalarType)1/(S-1),var);
-//    for(std::size_t i = 0 ; i < N ; ++i)
+//    for(size_t i = 0 ; i < N ; ++i)
 //        std::cout << var[i] << " ";
 //    std::cout << std::endl;
 
 //    c.fun().compute_hv_product_variance(x0,c.g(), var, hv_product_variance(STOCHASTIC,S,offset_));
 
-//    for(std::size_t i = 0 ; i < N ; ++i)
+//    for(size_t i = 0 ; i < N ; ++i)
 //        std::cout << var[i] << " ";
 //    std::cout << std::endl;
 

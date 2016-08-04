@@ -58,7 +58,7 @@ namespace umintl{
       template<class BackendType>
       struct compute_Ab{
           virtual ~compute_Ab(){ }
-          virtual void operator()(std::size_t N, typename BackendType::VectorType const & b, typename BackendType::VectorType & res) = 0;
+          virtual void operator()(size_t N, typename BackendType::VectorType const & b, typename BackendType::VectorType & res) = 0;
       };
 
       /** @brief symv product class */
@@ -69,7 +69,7 @@ namespace umintl{
           typedef typename BackendType::VectorType VectorType;
         public:
           symv(MatrixType const & A) : A_(A){ }
-          void operator()(std::size_t N, VectorType const & b, VectorType & res)
+          void operator()(size_t N, VectorType const & b, VectorType & res)
           {
             BackendType::symv(N,1,A_,b,0,res);
           }
@@ -100,18 +100,18 @@ namespace umintl{
 
         struct optimization_result{
             return_code ret;
-            std::size_t i;
+            size_t i;
         };
 
       private:
-        void allocate_tmp(std::size_t N){
+        void allocate_tmp(size_t N){
           best_x = BackendType::create_vector(N);
           r = BackendType::create_vector(N);
           p = BackendType::create_vector(N);
           Ap = BackendType::create_vector(N);
         }
 
-        optimization_result clear_terminate(return_code ret, std::size_t i){
+        optimization_result clear_terminate(return_code ret, size_t i){
           BackendType::delete_if_dynamically_allocated(best_x);
           BackendType::delete_if_dynamically_allocated(r);
           BackendType::delete_if_dynamically_allocated(p);
@@ -124,13 +124,13 @@ namespace umintl{
 
       public:
 
-        conjugate_gradient(std::size_t _max_iter
+        conjugate_gradient(size_t _max_iter
                           , conjugate_gradient_detail::compute_Ab<BackendType> * _compute_Ab
                           , conjugate_gradient_detail::stopping_criterion<BackendType> * _stop = new umintl::linear::conjugate_gradient_detail::residual_norm<BackendType>)
           : max_iter(_max_iter), compute_Ab(_compute_Ab), stop(_stop){ }
 
 
-        optimization_result operator()(std::size_t N, VectorType const & x0, VectorType const & b, VectorType & x)
+        optimization_result operator()(size_t N, VectorType const & x0, VectorType const & b, VectorType & x)
         {
           allocate_tmp(N);
           ScalarType nrm_b = BackendType::nrm2(N,b);
@@ -158,7 +158,7 @@ namespace umintl{
 
           ScalarType rso = BackendType::dot(N,r,r);
 
-          for(std::size_t i = 0 ; i < max_iter ; ++i){
+          for(size_t i = 0 ; i < max_iter ; ++i){
             (*compute_Ab)(N,p,Ap);
             BackendType::axpy(N,lambda*nrm_b,b,Ap);
 
@@ -193,7 +193,7 @@ namespace umintl{
           return clear_terminate(FAILURE,max_iter);
         }
 
-        std::size_t max_iter;
+        size_t max_iter;
         tools::shared_ptr<linear::conjugate_gradient_detail::compute_Ab<BackendType> > compute_Ab;
         tools::shared_ptr<linear::conjugate_gradient_detail::stopping_criterion<BackendType> > stop;
       private:

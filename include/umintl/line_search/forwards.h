@@ -47,7 +47,7 @@ namespace umintl{
       line_search_result(line_search_result const &){ }
       line_search_result & operator=(line_search_result const &){ }
     public:
-      line_search_result(std::size_t dim) : has_failed(false), best_x(BackendType::create_vector(dim)), best_g(BackendType::create_vector(dim)){ }
+      line_search_result(size_t dim) : has_failed(false), best_x(BackendType::create_vector(dim)), best_g(BackendType::create_vector(dim)){ }
       ~line_search_result() {
           BackendType::delete_if_dynamically_allocated(best_x);
           BackendType::delete_if_dynamically_allocated(best_g);

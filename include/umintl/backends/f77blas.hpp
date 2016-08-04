@@ -35,9 +35,9 @@ namespace umintl{
     public:
 
 
-        static VectorType create_vector(std::size_t N)
+        static VectorType create_vector(size_t N)
         { return new ScalarType[N]; }
-        static MatrixType create_matrix(std::size_t M, std::size_t N)
+        static MatrixType create_matrix(size_t M, size_t N)
         { return new ScalarType[M*N]; }
         static void delete_if_dynamically_allocated(ScalarType* p)
         { delete[] p;}
@@ -85,9 +85,9 @@ namespace umintl{
     public:
 
 
-        static VectorType create_vector(std::size_t N)
+        static VectorType create_vector(size_t N)
         { return new ScalarType[N]; }
-        static MatrixType create_matrix(std::size_t M, std::size_t N)
+        static MatrixType create_matrix(size_t M, size_t N)
         { return new ScalarType[M*N]; }
         static void delete_if_dynamically_allocated(ScalarType* p)
         { delete[] p;}

@@ -25,7 +25,7 @@ struct steepest_descent : public direction<BackendType>{
     }
 
     void operator()(optimization_context<BackendType> & c){
-        std::size_t N = c.N();
+        size_t N = c.N();
         BackendType::copy(N,c.g(),c.p());
         BackendType::scale(N,-1,c.p());
     }

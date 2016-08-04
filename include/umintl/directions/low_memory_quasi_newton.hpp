@@ -36,8 +36,8 @@ private:
         VectorType y;
     };
 
-    VectorType & s(std::size_t i) { return vecs_[i].s; }
-    VectorType & y(std::size_t i) { return vecs_[i].y; }
+    VectorType & s(size_t i) { return vecs_[i].s; }
+    VectorType & y(size_t i) { return vecs_[i].y; }
 
 public:
 
@@ -117,7 +117,7 @@ public:
 
 private:
 
-    std::size_t N_;
+    size_t N_;
     VectorType q_;
     VectorType r_;
     std::vector<storage_pair> vecs_;

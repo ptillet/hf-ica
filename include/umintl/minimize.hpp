@@ -88,7 +88,7 @@ namespace umintl{
          *
          *  @return Optimization result
          */
-        optimization_result terminate(optimization_result::termination_cause_type termination_cause, typename BackendType::VectorType & res, std::size_t N, optimization_context<BackendType> & context){
+        optimization_result terminate(optimization_result::termination_cause_type termination_cause, typename BackendType::VectorType & res, size_t N, optimization_context<BackendType> & context){
             optimization_result result;
             BackendType::copy(N,context.x(),res);
             result.f = context.val();
@@ -120,7 +120,7 @@ namespace umintl{
 
     public:
         template<class Fun>
-        optimization_result operator()(typename BackendType::VectorType & res, Fun & fun, typename BackendType::VectorType const & x0, std::size_t N){
+        optimization_result operator()(typename BackendType::VectorType & res, Fun & fun, typename BackendType::VectorType const & x0, size_t N){
             tools::shared_ptr<umintl::direction<BackendType> > steepest_descent(new umintl::steepest_descent<BackendType>());
             line_search_result<BackendType> search_res(N);
             optimization_context<BackendType> c(x0, N, *model, new detail::function_wrapper_impl<BackendType, Fun>(fun,N,hessian_vector_product_computation));

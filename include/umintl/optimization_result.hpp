@@ -26,11 +26,11 @@ namespace umintl{
       /** @brief the final function value */
       double f;
       /** @brief the final number of iterations */
-      std::size_t iteration;
+      size_t iteration;
       /** @brief the final number of functions evaluation */
-      std::size_t n_functions_eval;
+      size_t n_functions_eval;
       /** @brief the final number of gradient evaluations */
-      std::size_t n_gradient_eval;
+      size_t n_gradient_eval;
       /** @brief the cause of the termination */
       termination_cause_type termination_cause;
   };
