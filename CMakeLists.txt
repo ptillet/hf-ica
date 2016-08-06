@@ -1,9 +1,9 @@
-project(DSHF-ICA)
+project(neo_ica)
 
 cmake_minimum_required(VERSION 2.8)
 
-set(DSHF-ICA_VERSION_MAJOR 1)
-set(DSHF-ICA_VERSION_MINOR 0)
+set(NEO_ICA_VERSION_MAJOR 1)
+set(NEO_ICA_VERSION_MINOR 0)
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
@@ -26,16 +26,6 @@ endif()
 set(_WIN64 ${CROSS_WIN64})
 set(_WIN32 ${CROSS_WIN32})
 
-if(MEX)
-    if(_WIN64)
-        set(MATLAB_ARCH win64)
-    elseif(_WIN32)
-        set(MATLAB_ARCH win32)
-    else()
-        set(MATLAB_ARCH glnxa64)
-    endif()
-endif()
-
 #OpenBlas
 #find_package(OpenBlas)
 
@@ -49,7 +39,6 @@ include_directories(${PROJECT_SOURCE_DIR}/external/include)
 include(CTest)
 enable_testing()
 add_subdirectory(tests)
-
 
 #QT Creator Hackery
 file( GLOB_RECURSE QtCreatorCompatibility_SRC
@@ -67,22 +56,22 @@ if (OPENMP_FOUND)
     set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${OpenMP_CXX_FLAGS}")
 endif()
 
+##Sources
+set(NEO_ICA_SRC_PATH "${PROJECT_SOURCE_DIR}/src")
+set(NEO_ICA_SRC ${NEO_ICA_SRC_PATH}/linear_ica.cpp
+        ${NEO_ICA_SRC_PATH}/nonlinearities/extended_infomax.cpp)
 
-
-set(DSHF_ICA_SRC_PATH "${PROJECT_SOURCE_DIR}/src")
-set(DSHF_ICA_SRC ${DSHF_ICA_SRC_PATH}/linear_ica.cpp
-        ${DSHF_ICA_SRC_PATH}/nonlinearities/extended_infomax.cpp)
-
-add_subdirectory(matlab)
-
-if(BUILD_EXAMPLE AND NOT _WIN32 AND NOT _WIN64)
-    add_library(dshf_ica ${DSHF_ICA_SRC})
-    set_target_properties(dshf_ica PROPERTIES COMPILE_FLAGS "-fPIC")
-    add_subdirectory(examples)
+##Adds static library and examples
+if(NOT _WIN32 AND NOT _WIN64)
+    add_library(neo_ica ${NEO_ICA_SRC})
+    set_target_properties(neo_ica PROPERTIES COMPILE_FLAGS "-fPIC")
+    if(BUILD_EXAMPLE)
+        add_subdirectory(examples)
+    endif()
 endif()
 
-#get_cmake_property(_variableNames VARIABLES)
-#foreach (_variableName ${_variableNames})
-#    message(STATUS "${_variableName}=${${_variableName}}")
-#endforeach()
-
+##MATLAB
+find_package(MatlabMex)
+if(MATLAB_MEX_FOUND)
+    add_subdirectory(matlab)
+endif()

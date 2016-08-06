@@ -2,14 +2,14 @@
  *
  * Copyright (c) 2013 Philippe Tillet - National Chiao Tung University
  *
- * DSHF-ICA - Dynamically Sampled Hessian Free Independent Comopnent Analaysis
+ * NEO-ICA - Dynamically Sampled Hessian Free Independent Comopnent Analaysis
  *
  * License : MIT X11 - See the LICENSE file in the root folder
  * ===========================*/
 
 #include <cmath>
 #include "tests/benchmark-utils.hpp"
-#include "dshf_ica/dshf_ica.h"
+#include "neo_ica/neo_ica.h"
 #include "cblas.h"
 #include <cstdlib>
 
@@ -45,7 +45,7 @@ int main(){
 
     cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,NF,NC,NC,1,src,NF,mixing,NC,0,mixed_src,NF);
 
-    dshf_ica::options options = dshf_ica::make_default_options();
+    neo_ica::options options = neo_ica::make_default_options();
     options.verbosity_level = 2;
     options.max_iter=100;
     options.RS = 0.1;
@@ -53,7 +53,7 @@ int main(){
     Timer t;
     t.start();
     for(unsigned int i = 0 ; i < BENCHMARK_COUNT ; ++i){
-        dshf_ica::inplace_linear_ica(mixed_src,weights,sphere,NC,NF,options);
+        neo_ica::inplace_linear_ica(mixed_src,weights,sphere,NC,NF,options);
         cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans,NF,NC,NC,1,mixed_src,NF,sphere,NC,0,white_src,NF);
         cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans,NF,NC,NC,1,white_src,NF,weights,NC,0,independent_components,NF);
     }

@@ -2,20 +2,20 @@
  *
  * Copyright (c) 2013 Philippe Tillet - National Chiao Tung University
  *
- * DSHF-ICA - Dynamically Sampled Hessian Free Independent Comopnent Analaysis
+ * NEO-ICA - Dynamically Sampled Hessian Free Independent Comopnent Analaysis
  *
  * License : MIT X11 - See the LICENSE file in the root folder
  * ===========================*/
 
-#ifndef DSHFICA_MATH_H
-#define DSHFICA_MATH_H
+#ifndef NEOICA_MATH_H
+#define NEOICA_MATH_H
 
 #include <pmmintrin.h>
 //#include "fastapprox.h"
 //#include "sse_mathfun.h"
 #include "fmath.hpp"
 
-namespace dshf_ica{
+namespace neo_ica{
 	
     namespace math{
 

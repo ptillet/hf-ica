@@ -2,16 +2,16 @@
  *
  * Copyright (c) 2013 Philippe Tillet - National Chiao Tung University
  *
- * DSHF-ICA - Dynamically Sampled Hessian Free Independent Comopnent Analaysis
+ * NEO-ICA - Dynamically Sampled Hessian Free Independent Comopnent Analaysis
  *
  * License : MIT X11 - See the LICENSE file in the root folder
  * ===========================*/
 
 
-#include "dshf_ica/dshf_ica.h"
+#include "neo_ica/neo_ica.h"
 #include "../backend.hpp"
 
-namespace dshf_ica
+namespace neo_ica
 {
 
 namespace detail
@@ -43,7 +43,7 @@ namespace detail
 
 template<class ScalarType>
 void compute_mean(ScalarType* A, size_t NC, size_t NF, ScalarType* x){
-#pragma omp parallel for
+    #pragma omp parallel for
     for(size_t c = 0 ; c < NC ;++c){
         ScalarType sum = 0;
         for(size_t f = 0 ; f < NF ; ++f)

@@ -1,8 +1,3 @@
-# We need the mex compiler for this to work.
-find_package(MatlabMex)
-
-if(MATLAB_MEX_FOUND)
-
 include_directories(${MATLAB_MEX_INCLUDE_DIRS})
 
 # Don't make 'lib<method>.mexglx'.
@@ -43,20 +38,19 @@ set(CMAKE_CXX_CREATE_SHARED_MODULE "<CMAKE_CXX_COMPILER> -O -shared -fexceptions
 set(CMAKE_CXX_CREATE_SHARED_LIBRARY "${CMAKE_CXX_CREATE_SHARED_MODULE}")
 
 if(_WIN32 OR _WIN64)
-    add_custom_target(zip_mex ALL COMMAND zip "-jr" "dshf-ica_mex-${MATLAB_ARCH}"
+    add_custom_target(zip_mex ALL COMMAND zip "-jr" "neo-ica_mex-${MATLAB_ARCH}"
                                                 "${CMAKE_CURRENT_BINARY_DIR}/functions/*${CMAKE_SHARED_LIBRARY_SUFFIX}"
                                                 "${PROJECT_SOURCE_DIR}/external/${MATLAB_ARCH}/*"
                                                 "${PROJECT_SOURCE_DIR}/examples/matlab/artificial_sources.m"
                                                 "${PROJECT_SOURCE_DIR}/LICENSE"
                                                 "${PROJECT_SOURCE_DIR}/README.md")
 else()
-    add_custom_target(zip_mex ALL COMMAND zip "-jr" "dshf-ica_mex-${MATLAB_ARCH}"
+    add_custom_target(zip_mex ALL COMMAND zip "-jr" "neo-ica_mex-${MATLAB_ARCH}"
                                                 "${CMAKE_CURRENT_BINARY_DIR}/functions/*${CMAKE_SHARED_LIBRARY_SUFFIX}"
                                                 "${PROJECT_SOURCE_DIR}/examples/matlab/artificial_sources.m"
                                                 "${PROJECT_SOURCE_DIR}/LICENSE"
                                                 "${PROJECT_SOURCE_DIR}/README.md")
 endif()
 
+# Adds directory of matlab wrappers
 add_subdirectory(functions)
-
-endif(MATLAB_MEX_FOUND)

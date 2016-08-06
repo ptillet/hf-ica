@@ -2,7 +2,7 @@
  *
  * Copyright (c) 2013 Philippe Tillet - National Chiao Tung University
  *
- * DSHF-ICA - Dynamically Sampled Hessian Free Independent Comopnent Analaysis
+ * NEO-ICA - Dynamically Sampled Hessian Free Independent Comopnent Analaysis
  *
  * License : MIT X11 - See the LICENSE file in the root folder
  * ===========================*/
@@ -18,9 +18,8 @@
 #define FREE_ALIGN(ptr) free(ptr)
 #endif
 
-
-#include "dshf_ica/dshf_ica.h"
-#include "dshf_ica/nonlinearities/extended_infomax.h"
+#include "neo_ica/neo_ica.h"
+#include "neo_ica/nonlinearities/extended_infomax.h"
 
 #include "umintl/debug.hpp"
 #include "umintl/minimize.hpp"
@@ -32,34 +31,23 @@
 
 #include "src/backend.hpp"
 
-
 #include "omp.h"
 
 #include <stdlib.h>
 
-namespace dshf_ica{
+namespace neo_ica{
 
-static int omp_thread_count() {
+inline int omp_thread_count() {
     int n = 0;
     #pragma omp parallel reduction(+:n)
     n += 1;
     return n;
 }
 
-
 template<class _ScalarType, class NonlinearityType>
 struct ica_functor{
     typedef _ScalarType ScalarType  __attribute__((aligned (16)));
     typedef ScalarType * VectorType;
-
-    bool weights_have_changed(VectorType x) const {
-      bool result = false;
-      for(size_t i = 0; i < NC_*NC_ ; ++i){
-        if(W[i]!=x[i])
-          result = true;
-      }
-      return result;
-    }
 
 public:
     ica_functor(ScalarType const * data, size_t NF, size_t NC, options const & opt) : data_(data), NC_(NC), NF_(NF), nonlinearity_(NC,NF){
@@ -155,6 +143,7 @@ public:
         delete[] means_logp;
     }
 
+    /* Hessian-Vector product variance */
     void operator()(VectorType const & x, VectorType const & v, VectorType & variance, umintl::hv_product_variance tag) const{
         size_t offset;
         size_t sample_size;
@@ -192,6 +181,7 @@ public:
               variance[i*NC_+j] = (ScalarType)1/(sample_size-1)*(variance[i*NC_+j] - psixT[i*NC_+j]*psixT[i*NC_+j]/(ScalarType)sample_size);
     }
 
+    /* Hessian-Vector product */
     void operator()(VectorType const & x, VectorType const & v, VectorType & Hv, umintl::hessian_vector_product tag) const{
         size_t offset;
         size_t sample_size;
@@ -204,18 +194,17 @@ public:
           sample_size = tag.sample_size;
         }
 
-        //if(weights_have_changed(x)){
-          std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
-          std::memcpy(WLU,x,sizeof(ScalarType)*NC_*NC_);
+        std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
+        std::memcpy(WLU,x,sizeof(ScalarType)*NC_*NC_);
 
-          backend<ScalarType>::getrf(NC_,NC_,WLU,NC_,ipiv_);
-          backend<ScalarType>::getri(NC_,WLU,NC_,ipiv_);
-          backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
-        //}
+        //Z = X*W
+        backend<ScalarType>::getrf(NC_,NC_,WLU,NC_,ipiv_);
+        backend<ScalarType>::getri(NC_,WLU,NC_,ipiv_);
+        backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
 
+        //RZ = X*V
         std::memcpy(V, v,sizeof(ScalarType)*NC_*NC_);
         backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,V,NC_,0,RZ+offset,NF_);
-
 
         //Psi = dphi(Z).*RZ
         nonlinearity_.compute_dphi(offset,sample_size,Z,first_signs,dphi);
@@ -226,7 +215,6 @@ public:
         //HV = (inv(W)*V*inv(w))' + 1/n*Psi*X'
         backend<ScalarType>::gemm(Trans,Trans,NC_,NC_,NC_ ,1,WLU,NC_,V,NC_,0,WinvV,NC_);
         backend<ScalarType>::gemm(NoTrans,Trans,NC_,NC_,NC_ ,1,WinvV,NC_,WLU,NC_,0,HV,NC_);
-
         backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,psi+offset,NF_,0,psixT,NC_);
 
         //Copy back
@@ -234,36 +222,38 @@ public:
             Hv[i] = HV[i] + psixT[i]/(ScalarType)sample_size;
     }
 
+    /* Gradient variance */
     void operator()(VectorType const & x, VectorType & variance, umintl::gradient_variance tag){
-      size_t offset;
-      size_t sample_size;
-      if(tag.model==umintl::DETERMINISTIC){
-        offset = 0;
-        sample_size = NF_;
-      }
-      else{
-        offset = tag.offset;
-        sample_size = tag.sample_size;
-      }
+        size_t offset;
+        size_t sample_size;
+        if(tag.model==umintl::DETERMINISTIC){
+          offset = 0;
+          sample_size = NF_;
+        }
+        else{
+          offset = tag.offset;
+          sample_size = tag.sample_size;
+        }
 
-      std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
+        std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
 
-      backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
+        backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
 
-      nonlinearity_.compute_phi(offset,sample_size,Z,first_signs,phi);
-      backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,phi+offset,NF_,0,phixT,NC_);
+        nonlinearity_.compute_phi(offset,sample_size,Z,first_signs,phi);
+        backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,phi+offset,NF_,0,phixT,NC_);
 
-      //GradVariance = 1/(N-1)[phi.^2*(x.^2)' - 1/N*phi*x']
-      for(size_t i = 0 ; i < NC_; ++i)
-          for(size_t j = offset ; j < offset+sample_size; ++j)
-              phi[i*NF_+j] = phi[i*NF_+j]*phi[i*NF_+j];
+        //GradVariance = 1/(N-1)[phi.^2*(x.^2)' - 1/N*phi*x']
+        for(size_t i = 0 ; i < NC_; ++i)
+            for(size_t j = offset ; j < offset+sample_size; ++j)
+                phi[i*NF_+j] = phi[i*NF_+j]*phi[i*NF_+j];
 
-      backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size,1,datasq_+offset,NF_,phi+offset,NF_,0,variance,NC_);
-      for(size_t i = 0 ; i < NC_; ++i)
-          for(size_t j = 0 ; j < NC_; ++j)
-            variance[i*NC_+j] = (ScalarType)1/(sample_size-1)*(variance[i*NC_+j] - phixT[i*NC_+j]*phixT[i*NC_+j]/(ScalarType)sample_size);
+        backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size,1,datasq_+offset,NF_,phi+offset,NF_,0,variance,NC_);
+        for(size_t i = 0 ; i < NC_; ++i)
+            for(size_t j = 0 ; j < NC_; ++j)
+              variance[i*NC_+j] = (ScalarType)1/(sample_size-1)*(variance[i*NC_+j] - phixT[i*NC_+j]*phixT[i*NC_+j]/(ScalarType)sample_size);
     }
 
+    /* Gradient variance */
     void operator()(VectorType const & x, ScalarType& value, VectorType & grad, umintl::value_gradient tag) const {
         throw_if_mex_and_ctrl_c();
 
@@ -415,8 +405,8 @@ void inplace_linear_ica(ScalarType const * data, ScalarType* Weights, ScalarType
     FREE_ALIGN(white_data);
 }
 
-template void inplace_linear_ica<float>(float const * data, float* Weights, float* Sphere, size_t NC, size_t NF, dshf_ica::options const & opt);
-template void inplace_linear_ica<double>(double const * data, double* Weights, double* Sphere, size_t NC, size_t NF, dshf_ica::options const & opt);
+template void inplace_linear_ica<float>(float const * data, float* Weights, float* Sphere, size_t NC, size_t NF, neo_ica::options const & opt);
+template void inplace_linear_ica<double>(double const * data, double* Weights, double* Sphere, size_t NC, size_t NF, neo_ica::options const & opt);
 
 }
 

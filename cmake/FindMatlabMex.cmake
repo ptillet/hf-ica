@@ -1,5 +1,13 @@
 SET(MATLAB_MEX_FOUND 0)
 
+if(_WIN64)
+    set(MATLAB_ARCH win64)
+elseif(_WIN32)
+    set(MATLAB_ARCH win32)
+else()
+    set(MATLAB_ARCH glnxa64)
+endif()
+
 SET(MATLAB_MEX_INCLUDE_DIR_PATHS ${MATLAB_ROOT}/extern/include)
 
 SET(MATLAB_MEX_LIBRARY_PATHS   ${MATLAB_ROOT}/bin/${MATLAB_ARCH})
