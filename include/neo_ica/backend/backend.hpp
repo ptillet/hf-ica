@@ -10,7 +10,7 @@
 #ifndef NEO_ICA_BACKEND_HPP_
 #define NEO_ICA_BACKEND_HPP_
 
-
+#include <stdlib.h>
 #include "blas.h"
 #include "lapack.h"
 #include "umintl/backends/f77blas.hpp"
@@ -87,6 +87,7 @@ struct backend<double>{
         free(work);
         work = (ScalarType *) malloc(sizeof(ScalarType) * lwork);
         FORTRAN_WRAPPER(dgetri)(&n, A, &n, ipiv, work, &lwork, &dummy_info);
+        free(work);
     }
     static void gemm(char TransA, char TransB, size_t M, size_t N, size_t K , ScalarType alpha, cst_ptr_type A, size_t lda, cst_ptr_type B, size_t ldb, ScalarType beta, ptr_type C, size_t ldc)
     {   FORTRAN_WRAPPER(dgemm)(&TransA,&TransB,&M,&N,&K,&alpha,(ptr_type)A,&lda,(ptr_type)B,&ldb,&beta,C,&ldc); }

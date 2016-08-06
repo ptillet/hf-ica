@@ -9,91 +9,101 @@
 
 #include <cmath>
 #include <cstddef>
-#include "omp.h"
+#include <omp.h>
+#include <immintrin.h>
 
-#include "neo_ica/nonlinearities/extended_infomax.h"
-
-#include "tests/benchmark-utils.hpp"
-#include "src/math/math.h"
-#include "../tools/round.hpp"
+#include "neo_ica/math/math.h"
+#include "neo_ica/dist/sejnowski.h"
+#include "neo_ica/tools/round.hpp"
 
 
 namespace neo_ica{
+namespace dist{
 
 using namespace std;
 using namespace math;
 
-//template<>
-//void extended_infomax_ica<float>::compute_phi(size_t offset, size_t sample_size, float * z1, int const * signs, float* phi) const{
-//    for(size_t c = 0 ; c < NC_ ; ++c){
-//        float k = (signs[c]>0)?1:-1;
-//        for(size_t f = offset ; f < offset + sample_size ; ++f)
-//          phi[c*NF_+f] = z1[c*NF_+f] + k*tanh(z1[c*NF_+f]);
-//    }
-//}
-
-//template<>
-//void extended_infomax_ica<float>::compute_dphi(size_t offset, size_t sample_size, float * z1, int const * signs, float* dphi) const {
-//    for(size_t c = 0 ; c < NC_ ; ++c){
-//        float s = signs[c];
-//        for(size_t f = offset ; f < offset + sample_size ; ++f){
-//          float y = tanh(z1[c*NF_+f]);
-//          dphi[c*NF_+f] = (s>0)?2-y*y:y*y;
-//        }
-//    }
-//}
-
-//template<>
-//void extended_infomax_ica<float>::compute_means_logp(size_t offset, size_t sample_size, float * z1, int const * signs, float* means_logp) const {
-//    for(size_t c = 0 ; c < NC_ ; ++c){
-//        float sum = 0;
-//        float k = signs[c];
-//        for(size_t f = offset ; f < offset + sample_size ; ++f){
-//          float z = z1[c*NF_+f];
-//          sum+=(k<0)? - 0.693147 - 0.5*(z-1)*(z-1) + log(1+exp(-2*z)):-log(cosh(z))-0.5*z*z;
-//        }
-//        means_logp[c] = 1/(float)sample_size*sum;
-//    }
-//}
-
-
-
-//template<>
-//void extended_infomax_ica<double>::compute_phi(size_t offset, size_t sample_size, double * z1, int const * signs, double* phi) const {
-//    for(size_t c = 0 ; c < NC_ ; ++c){
-//        double k = (signs[c]>0)?1:-1;
-//        for(size_t f = offset ; f < offset + sample_size ; ++f)
-//          phi[c*NF_+f] = z1[c*NF_+f] + k*tanh(z1[c*NF_+f]);
-//    }
-//}
-
-//template<>
-//void extended_infomax_ica<double>::compute_dphi(size_t offset, size_t sample_size, double * z1, int const * signs, double* dphi) const {
-//    for(size_t c = 0 ; c < NC_ ; ++c){
-//        double s = signs[c];
-//        for(size_t f = offset ; f < offset + sample_size ; ++f){
-//          double y = tanh(z1[c*NF_+f]);
-//          dphi[c*NF_+f] = (s>0)?2-y*y:y*y;
-//        }
-//    }
-//}
-
-//template<>
-//void extended_infomax_ica<double>::compute_means_logp(size_t offset, size_t sample_size, double * z1, int const * signs, double* means_logp) const {
-//    for(size_t c = 0 ; c < NC_ ; ++c){
-//        double sum = 0;
-//        double k = signs[c];
-//        for(size_t f = offset ; f < offset + sample_size ; ++f){
-//          double z = z1[c*NF_+f];
-//          sum+=(k<0)? - 0.693147 - 0.5*(z-1)*(z-1) + log(1+exp(-2*z)):-log(cosh(z))-0.5*z*z;
-//        }
-//        means_logp[c] = 1/(double)sample_size*sum;
-//    }
-//}
+/*
+ * ---------------------------
+ * Fallback
+ * ---------------------------
+ */
+template<>
+void sejnowski<float>::compute_phi_fb(size_t offset, size_t sample_size, float * z1, int const * signs, float* phi) const{
+    for(size_t c = 0 ; c < NC_ ; ++c){
+        float k = (signs[c]>0)?1:-1;
+        for(size_t f = offset ; f < offset + sample_size ; ++f)
+          phi[c*NF_+f] = z1[c*NF_+f] + k*tanh(z1[c*NF_+f]);
+    }
+}
 
 template<>
-void extended_infomax_ica<float>::compute_phi(size_t offset, size_t sample_size, float * z1, int const * signs, float* phi) const {
-#pragma omp parallel for
+void sejnowski<float>::compute_dphi_fb(size_t offset, size_t sample_size, float * z1, int const * signs, float* dphi) const {
+    for(size_t c = 0 ; c < NC_ ; ++c){
+        float s = signs[c];
+        for(size_t f = offset ; f < offset + sample_size ; ++f){
+          float y = tanh(z1[c*NF_+f]);
+          dphi[c*NF_+f] = (s>0)?2-y*y:y*y;
+        }
+    }
+}
+
+template<>
+void sejnowski<float>::compute_means_logp_fb(size_t offset, size_t sample_size, float * z1, int const * signs, float* means_logp) const {
+    for(size_t c = 0 ; c < NC_ ; ++c){
+        float sum = 0;
+        float k = signs[c];
+        for(size_t f = offset ; f < offset + sample_size ; ++f){
+          float z = z1[c*NF_+f];
+          sum+=(k<0)? - 0.693147 - 0.5*(z-1)*(z-1) + log(1+exp(-2*z)):-log(cosh(z))-0.5*z*z;
+        }
+        means_logp[c] = 1/(float)sample_size*sum;
+    }
+}
+
+
+
+template<>
+void sejnowski<double>::compute_phi_fb(size_t offset, size_t sample_size, double * z1, int const * signs, double* phi) const {
+    for(size_t c = 0 ; c < NC_ ; ++c){
+        double k = (signs[c]>0)?1:-1;
+        for(size_t f = offset ; f < offset + sample_size ; ++f)
+          phi[c*NF_+f] = z1[c*NF_+f] + k*tanh(z1[c*NF_+f]);
+    }
+}
+
+template<>
+void sejnowski<double>::compute_dphi_fb(size_t offset, size_t sample_size, double * z1, int const * signs, double* dphi) const {
+    for(size_t c = 0 ; c < NC_ ; ++c){
+        double s = signs[c];
+        for(size_t f = offset ; f < offset + sample_size ; ++f){
+          double y = tanh(z1[c*NF_+f]);
+          dphi[c*NF_+f] = (s>0)?2-y*y:y*y;
+        }
+    }
+}
+
+template<>
+void sejnowski<double>::compute_means_logp_fb(size_t offset, size_t sample_size, double * z1, int const * signs, double* means_logp) const {
+    for(size_t c = 0 ; c < NC_ ; ++c){
+        double sum = 0;
+        double k = signs[c];
+        for(size_t f = offset ; f < offset + sample_size ; ++f){
+          double z = z1[c*NF_+f];
+          sum+=(k<0)? - 0.693147 - 0.5*(z-1)*(z-1) + log(1+exp(-2*z)):-log(cosh(z))-0.5*z*z;
+        }
+        means_logp[c] = 1/(double)sample_size*sum;
+    }
+}
+
+/*
+ * ---------------------------
+ * SSE3
+ * ---------------------------
+ */
+template<>
+void sejnowski<float>::compute_phi_sse3(size_t offset, size_t sample_size, float * z1, int const * signs, float* phi) const {
+    #pragma omp parallel for
     for(size_t c = 0 ; c < NC_ ; ++c){
         int s = signs[c];
         __m128 phi_signs = _mm_set1_ps(s);
@@ -115,7 +125,7 @@ void extended_infomax_ica<float>::compute_phi(size_t offset, size_t sample_size,
 }
 
 template<>
-void extended_infomax_ica<float>::compute_dphi(size_t offset, size_t sample_size, float * z1, int const * signs, float* dphi) const {
+void sejnowski<float>::compute_dphi_sse3(size_t offset, size_t sample_size, float * z1, int const * signs, float* dphi) const {
     #pragma omp parallel for
     for(size_t c = 0 ; c < NC_ ; ++c){
         int s = signs[c];
@@ -142,7 +152,7 @@ void extended_infomax_ica<float>::compute_dphi(size_t offset, size_t sample_size
 }
 
 template<>
-void extended_infomax_ica<float>::compute_means_logp(size_t offset, size_t sample_size, float * z1, int const * signs, float* means_logp) const {
+void sejnowski<float>::compute_means_logp_sse3(size_t offset, size_t sample_size, float * z1, int const * signs, float* means_logp) const {
     #pragma omp parallel for
     for(size_t c = 0 ; c < NC_ ; ++c){
         __m128d vsum = _mm_set1_pd(0.0d);
@@ -180,7 +190,7 @@ void extended_infomax_ica<float>::compute_means_logp(size_t offset, size_t sampl
 }
 
 template<>
-void extended_infomax_ica<double>::compute_phi(size_t offset, size_t sample_size, double * z1, int const * signs, double* phi) const {
+void sejnowski<double>::compute_phi_sse3(size_t offset, size_t sample_size, double * z1, int const * signs, double* phi) const {
     #pragma omp parallel for
     for(size_t c = 0 ; c < NC_ ; ++c){
         float k = (signs[c]>0)?1:-1;
@@ -206,7 +216,7 @@ void extended_infomax_ica<double>::compute_phi(size_t offset, size_t sample_size
 
 
 template<>
-void extended_infomax_ica<double>::compute_dphi(size_t offset, size_t sample_size, double * z1, int const * signs, double* dphi) const {
+void sejnowski<double>::compute_dphi_sse3(size_t offset, size_t sample_size, double * z1, int const * signs, double* dphi) const {
     #pragma omp parallel for
     for(size_t c = 0 ; c < NC_ ; ++c){
         int s = signs[c];
@@ -236,7 +246,7 @@ void extended_infomax_ica<double>::compute_dphi(size_t offset, size_t sample_siz
 }
 
 template<>
-void extended_infomax_ica<double>::compute_means_logp(size_t offset, size_t sample_size, double * z1, int const * signs, double* means_logp) const {
+void sejnowski<double>::compute_means_logp_sse3(size_t offset, size_t sample_size, double * z1, int const * signs, double* means_logp) const {
     #pragma omp parallel for
     for(size_t c = 0 ; c < NC_ ; ++c){
         __m128d vsum = _mm_set1_pd(0.0d);
@@ -272,4 +282,28 @@ void extended_infomax_ica<double>::compute_means_logp(size_t offset, size_t samp
     }
 }
 
+template<class T>
+void sejnowski<T>::compute_means_logp(size_t offset, size_t sample_size, T * z1, int const * signs, T * means_logp) const
+{
+    compute_means_logp_sse3(offset, sample_size, z1, signs, means_logp);
+}
+
+template<class T>
+void sejnowski<T>::compute_phi(size_t offset, size_t sample_size, T * z1, int const * signs, T* phi) const
+{
+    compute_phi_sse3(offset, sample_size, z1, signs, phi);
+}
+
+template<class T>
+void sejnowski<T>::compute_dphi(size_t offset, size_t sample_size, T * z1, int const * signs, T* dphi) const
+{
+    compute_dphi_sse3(offset, sample_size, z1, signs, dphi);
+}
+
+
+template class sejnowski<float>;
+template class sejnowski<double>;
+
+
+}
 }

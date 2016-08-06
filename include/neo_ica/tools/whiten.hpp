@@ -8,8 +8,7 @@
  * ===========================*/
 
 
-#include "neo_ica/neo_ica.h"
-#include "../backend.hpp"
+#include "neo_ica/backend/backend.hpp"
 
 namespace neo_ica
 {

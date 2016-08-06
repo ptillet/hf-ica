@@ -7,24 +7,17 @@ set(NEO_ICA_VERSION_MINOR 0)
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
-#Cross-Compile
-include(CrossWindows)
+#Make all files visible to some IDEs
+file( GLOB_RECURSE QtCreatorCompatibility_SRC
+    *.hpp *.h *.cpp)
+add_custom_target( QtCreatorCompatibility SOURCES ${QtCreatorCompatibility_SRC} )
 
-option(CROSS_WIN32 "Cross compile for Win32 using MinGW32" OFF)
-option(CROSS_WIN64 "Cross compile for Win64 using MinGW32" OFF)
+#Cross-Compile
 option(BUILD_EXAMPLE "Build simple C++ example" OFF)
 option(MEX "Build MATLAB MEX file" ON)
 
+#Matlab ROOT
 set(MATLAB_ROOT "" CACHE STRING "Root of the MATLAB environment")
-
-if(CROSS_WIN64)
-    cross_windows(x86_64-w64-mingw32 /opt/cross_win64/)
-elseif(CROSS_WIN32)
-    cross_windows(i686-w64-mingw32 /opt/cross_win32/)
-endif()
-
-set(_WIN64 ${CROSS_WIN64})
-set(_WIN32 ${CROSS_WIN32})
 
 #OpenBlas
 #find_package(OpenBlas)
@@ -40,11 +33,6 @@ include(CTest)
 enable_testing()
 add_subdirectory(tests)
 
-#QT Creator Hackery
-file( GLOB_RECURSE QtCreatorCompatibility_SRC
-    *.hpp *.h *.cl)
-add_custom_target( QtCreatorCompatibility SOURCES ${QtCreatorCompatibility_SRC} )
-
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3")
 set(CMAKE_CXX_FLAGS_RELEASE "-funroll-loops -O2")
 set(CMAKE_BUILD_TYPE Release)
@@ -58,8 +46,8 @@ endif()
 
 ##Sources
 set(NEO_ICA_SRC_PATH "${PROJECT_SOURCE_DIR}/src")
-set(NEO_ICA_SRC ${NEO_ICA_SRC_PATH}/linear_ica.cpp
-        ${NEO_ICA_SRC_PATH}/nonlinearities/extended_infomax.cpp)
+set(NEO_ICA_SRC ${NEO_ICA_SRC_PATH}/ica.cpp
+        ${NEO_ICA_SRC_PATH}/dist/sejnowski.cpp)
 
 ##Adds static library and examples
 if(NOT _WIN32 AND NOT _WIN64)

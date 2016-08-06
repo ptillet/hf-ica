@@ -18,18 +18,16 @@
 #define FREE_ALIGN(ptr) free(ptr)
 #endif
 
-#include "neo_ica/neo_ica.h"
-#include "neo_ica/nonlinearities/extended_infomax.h"
+#include "neo_ica/ica.h"
+#include "neo_ica/dist/sejnowski.h"
+#include "neo_ica/backend/backend.hpp"
+#include "neo_ica/tools/mex.hpp"
+#include "neo_ica/tools/shuffle.hpp"
+#include "neo_ica/tools/whiten.hpp"
 
 #include "umintl/debug.hpp"
 #include "umintl/minimize.hpp"
 #include "umintl/stopping_criterion/parameter_change_threshold.hpp"
-
-#include "tools/mex.hpp"
-#include "tools/whiten.hpp"
-#include "tools/shuffle.hpp"
-
-#include "src/backend.hpp"
 
 #include "omp.h"
 
@@ -360,9 +358,9 @@ options make_default_options(){
 }
 
 template<class ScalarType>
-void inplace_linear_ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, size_t NC, size_t DataNF, options const & optimization_options){
+void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, size_t NC, size_t DataNF, options const & optimization_options){
     typedef typename umintl_backend<ScalarType>::type BackendType;
-    typedef ica_functor<ScalarType, extended_infomax_ica<ScalarType> > IcaFunctorType;
+    typedef ica_functor<ScalarType, dist::sejnowski<ScalarType> > IcaFunctorType;
 
     options opt(optimization_options);
 
@@ -405,8 +403,8 @@ void inplace_linear_ica(ScalarType const * data, ScalarType* Weights, ScalarType
     FREE_ALIGN(white_data);
 }
 
-template void inplace_linear_ica<float>(float const * data, float* Weights, float* Sphere, size_t NC, size_t NF, neo_ica::options const & opt);
-template void inplace_linear_ica<double>(double const * data, double* Weights, double* Sphere, size_t NC, size_t NF, neo_ica::options const & opt);
+template void ica<float>(float const * data, float* Weights, float* Sphere, size_t NC, size_t NF, neo_ica::options const & opt);
+template void ica<double>(double const * data, double* Weights, double* Sphere, size_t NC, size_t NF, neo_ica::options const & opt);
 
 }
 

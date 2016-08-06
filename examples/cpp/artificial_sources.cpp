@@ -9,7 +9,7 @@
 
 #include <cmath>
 #include "tests/benchmark-utils.hpp"
-#include "neo_ica/neo_ica.h"
+#include "neo_ica/ica.h"
 #include "cblas.h"
 #include <cstdlib>
 
@@ -53,7 +53,7 @@ int main(){
     Timer t;
     t.start();
     for(unsigned int i = 0 ; i < BENCHMARK_COUNT ; ++i){
-        neo_ica::inplace_linear_ica(mixed_src,weights,sphere,NC,NF,options);
+        neo_ica::ica(mixed_src,weights,sphere,NC,NF,options);
         cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans,NF,NC,NC,1,mixed_src,NF,sphere,NC,0,white_src,NF);
         cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans,NF,NC,NC,1,white_src,NF,weights,NC,0,independent_components,NF);
     }
