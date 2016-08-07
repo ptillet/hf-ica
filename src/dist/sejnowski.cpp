@@ -32,7 +32,7 @@ using namespace math;
 template<>
 void sejnowski<float>::compute_phi_fb(size_t offset, size_t sample_size, float * z1, int const * signs, float* phi) const{
     for(size_t c = 0 ; c < NC_ ; ++c){
-        float k = (signs[c]>0)?1:-1;
+        int k = (signs[c]>0)?1:-1;
         for(size_t f = offset ; f < offset + sample_size ; ++f)
           phi[c*NF_+f] = z1[c*NF_+f] + k*tanh(z1[c*NF_+f]);
     }
@@ -41,7 +41,7 @@ void sejnowski<float>::compute_phi_fb(size_t offset, size_t sample_size, float *
 template<>
 void sejnowski<float>::compute_dphi_fb(size_t offset, size_t sample_size, float * z1, int const * signs, float* dphi) const {
     for(size_t c = 0 ; c < NC_ ; ++c){
-        float s = signs[c];
+        int s = signs[c];
         for(size_t f = offset ; f < offset + sample_size ; ++f){
           float y = tanh(z1[c*NF_+f]);
           dphi[c*NF_+f] = (s>0)?2-y*y:y*y;
@@ -53,7 +53,7 @@ template<>
 void sejnowski<float>::compute_means_logp_fb(size_t offset, size_t sample_size, float * z1, int const * signs, float* means_logp) const {
     for(size_t c = 0 ; c < NC_ ; ++c){
         float sum = 0;
-        float k = signs[c];
+        int k = signs[c];
         for(size_t f = offset ; f < offset + sample_size ; ++f){
           float z = z1[c*NF_+f];
           sum+=(k<0)? - 0.693147 - 0.5*(z-1)*(z-1) + log(1+exp(-2*z)):-log(cosh(z))-0.5*z*z;
@@ -67,7 +67,7 @@ void sejnowski<float>::compute_means_logp_fb(size_t offset, size_t sample_size, 
 template<>
 void sejnowski<double>::compute_phi_fb(size_t offset, size_t sample_size, double * z1, int const * signs, double* phi) const {
     for(size_t c = 0 ; c < NC_ ; ++c){
-        double k = (signs[c]>0)?1:-1;
+        int k = (signs[c]>0)?1:-1;
         for(size_t f = offset ; f < offset + sample_size ; ++f)
           phi[c*NF_+f] = z1[c*NF_+f] + k*tanh(z1[c*NF_+f]);
     }
@@ -76,7 +76,7 @@ void sejnowski<double>::compute_phi_fb(size_t offset, size_t sample_size, double
 template<>
 void sejnowski<double>::compute_dphi_fb(size_t offset, size_t sample_size, double * z1, int const * signs, double* dphi) const {
     for(size_t c = 0 ; c < NC_ ; ++c){
-        double s = signs[c];
+        int s = signs[c];
         for(size_t f = offset ; f < offset + sample_size ; ++f){
           double y = tanh(z1[c*NF_+f]);
           dphi[c*NF_+f] = (s>0)?2-y*y:y*y;
@@ -88,7 +88,7 @@ template<>
 void sejnowski<double>::compute_means_logp_fb(size_t offset, size_t sample_size, double * z1, int const * signs, double* means_logp) const {
     for(size_t c = 0 ; c < NC_ ; ++c){
         double sum = 0;
-        double k = signs[c];
+        int k = signs[c];
         for(size_t f = offset ; f < offset + sample_size ; ++f){
           double z = z1[c*NF_+f];
           sum+=(k<0)? - 0.693147 - 0.5*(z-1)*(z-1) + log(1+exp(-2*z)):-log(cosh(z))-0.5*z*z;
@@ -107,7 +107,7 @@ void sejnowski<float>::compute_phi_sse3(size_t offset, size_t sample_size, float
     #pragma omp parallel for
     for(size_t c = 0 ; c < NC_ ; ++c){
         int s = signs[c];
-        __m128 phi_signs = _mm_set1_ps(s);
+        __m128 phi_signs = _mm_set1_ps((float)s);
         size_t f = offset;
         for(; f < tools::round_to_next_multiple(offset,4); ++f)
           phi[c*NF_+f] = z1[c*NF_+f] + s*tanh(z1[c*NF_+f]);
@@ -156,7 +156,7 @@ template<>
 void sejnowski<float>::compute_means_logp_sse3(size_t offset, size_t sample_size, float * z1, int const * signs, float* means_logp) const {
     #pragma omp parallel for
     for(size_t c = 0 ; c < NC_ ; ++c){
-        __m128d vsum = _mm_set1_pd(0.0d);
+        __m128d vsum = _mm_set1_pd((double)0);
         int s = signs[c];
         double sum = 0;
         size_t f = offset;
@@ -173,7 +173,7 @@ void sejnowski<float>::compute_means_logp_sse3(size_t offset, size_t sample_size
             const __m128 _2 = _mm_set1_ps(2);
             __m128 val;
             if(s<0)
-                val = _mm_set1_ps(-0.693147) - _0_5*(z2 - _1)*(z2 - _1) + vlog(_1 + vexp(-_2*z2));
+                val = _mm_set1_ps((float)-0.693147) - _0_5*(z2 - _1)*(z2 - _1) + vlog(_1 + vexp(-_2*z2));
             else
                 val = - vlog(vcosh(z2)) - _0_5*z2*z2;
             vsum=_mm_add_pd(vsum,_mm_cvtps_pd(val));
@@ -185,7 +185,7 @@ void sejnowski<float>::compute_means_logp_sse3(size_t offset, size_t sample_size
         }
         vsum = _mm_hadd_pd(vsum, vsum);
         _mm_store_sd(&sum, vsum);
-        means_logp[c] = 1/(double)sample_size*sum;
+        means_logp[c] = (double)1/sample_size*sum;
     }
 
 }
@@ -194,8 +194,8 @@ template<>
 void sejnowski<double>::compute_phi_sse3(size_t offset, size_t sample_size, double * z1, int const * signs, double* phi) const {
     #pragma omp parallel for
     for(size_t c = 0 ; c < NC_ ; ++c){
-        float k = (signs[c]>0)?1:-1;
-        __m128 phi_signs = _mm_set1_ps(k);
+        int k = (signs[c]>0)?1:-1;
+        __m128 phi_signs = _mm_set1_ps((double)k);
         size_t f = offset;
         for(; f < tools::round_to_next_multiple(offset,4); ++f)
           phi[c*NF_+f] = z1[c*NF_+f] + k*tanh(z1[c*NF_+f]);
@@ -250,8 +250,8 @@ template<>
 void sejnowski<double>::compute_means_logp_sse3(size_t offset, size_t sample_size, double * z1, int const * signs, double* means_logp) const {
     #pragma omp parallel for
     for(size_t c = 0 ; c < NC_ ; ++c){
-        __m128d vsum = _mm_set1_pd(0.0d);
-        float k = signs[c];
+        __m128d vsum = _mm_set1_pd((double)0);
+        int k = signs[c];
         double sum = 0;
         size_t f = offset;
         for(; f < tools::round_to_next_multiple(offset,4); ++f){

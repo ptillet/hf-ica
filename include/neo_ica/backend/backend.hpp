@@ -46,11 +46,11 @@ struct backend<float>{
     {
         size_t lwork = -1;
         ScalarType* work = new ScalarType;
-        FORTRAN_WRAPPER(sgetri)(&n, A, &n, ipiv, work, &lwork, &dummy_info);
+        FORTRAN_WRAPPER(sgetri)(&n, A, &lda, ipiv, work, &lwork, &dummy_info);
         lwork = (size_t) work[0];
         delete work;
         work = new ScalarType[lwork];
-        FORTRAN_WRAPPER(sgetri)(&n, A, &n, ipiv, work, &lwork, &dummy_info);
+        FORTRAN_WRAPPER(sgetri)(&n, A, &lda, ipiv, work, &lwork, &dummy_info);
         delete[] work;
     }
     static void gemm(char TransA, char TransB, size_t M, size_t N, size_t K , ScalarType alpha, cst_ptr_type A, size_t lda, cst_ptr_type B, size_t ldb, ScalarType beta, ptr_type C, size_t ldc)
@@ -82,11 +82,11 @@ struct backend<double>{
     {
         size_t lwork = -1;
         ScalarType* work = (ScalarType *) malloc(sizeof(ScalarType) * 1);
-        FORTRAN_WRAPPER(dgetri)(&n, A, &n, ipiv, work, &lwork, &dummy_info);
+        FORTRAN_WRAPPER(dgetri)(&n, A, &lda, ipiv, work, &lwork, &dummy_info);
         lwork = (size_t) work[0];
         free(work);
         work = (ScalarType *) malloc(sizeof(ScalarType) * lwork);
-        FORTRAN_WRAPPER(dgetri)(&n, A, &n, ipiv, work, &lwork, &dummy_info);
+        FORTRAN_WRAPPER(dgetri)(&n, A, &lda, ipiv, work, &lwork, &dummy_info);
         free(work);
     }
     static void gemm(char TransA, char TransB, size_t M, size_t N, size_t K , ScalarType alpha, cst_ptr_type A, size_t lda, cst_ptr_type B, size_t ldb, ScalarType beta, ptr_type C, size_t ldc)

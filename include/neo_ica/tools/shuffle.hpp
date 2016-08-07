@@ -17,7 +17,7 @@ namespace neo_ica
 {
 
 template<class ScalarType>
-size_t shuffle(ScalarType* data, size_t NC, size_t NF){
+void shuffle(ScalarType* data, size_t NC, size_t NF){
     size_t* perms = new size_t[NF];
     ScalarType * shuffled_va = new ScalarType[NF];
 

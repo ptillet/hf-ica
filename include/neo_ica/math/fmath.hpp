@@ -98,7 +98,7 @@ inline unsigned int mask(int x)
 
 inline uint64_t mask64(int x)
 {
-	return (1ULL << x) - 1;
+    return (1ULL << x) - 1;
 }
 
 template<class T>
@@ -463,7 +463,7 @@ inline double expd(double x)
 	if (x >= 709.78271289338397) return std::numeric_limits<double>::infinity();
 	using namespace local;
 	const ExpdVar<>& c = C<>::expdVar;
-	const uint64_t b = 3ULL << 51;
+    const uint64_t b = 3ULL << 51;
 	di di;
 	di.d = x * c.a + b;
 	uint64_t iax = c.tbl[di.i & mask(c.sbit)];
@@ -481,7 +481,7 @@ inline void expd_v(double *px, int n)
 {
 	using namespace local;
 	const ExpdVar<>& c = C<>::expdVar;
-	const double b = double(3ULL << 51);
+    const double b = double(3ULL << 51);
 	assert((n % 2) == 0);
 	const __m128d mC1 = *cast_to<__m128d>(c.C1);
 	const __m128d mC2 = *cast_to<__m128d>(c.C2);

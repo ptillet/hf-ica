@@ -28,11 +28,14 @@ add_subdirectory(tests)
 
 #FLAGS
 if(MSVC)
-    set(VECTOR_FLAG "/arch:SSE3")
+    set(VECTOR_FLAG "/arch:SSE2")
+    set(WARNING_FLAG "/W2")
 else()
     set(VECTOR_FLAG "-msse3")
+    set(WARNING_FLAG "-Wall -Wextra")
 endif()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${VECTOR_FLAG}")
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARNING_FLAG} ${VECTOR_FLAG}")
 if(NOT MSVC)
     set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 endif()
