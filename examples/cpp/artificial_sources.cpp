@@ -9,6 +9,8 @@
 
 #include <cmath>
 #include <cstdlib>
+#include <algorithm>
+
 #include "neo_ica/ica.h"
 #include "neo_ica/backend/backend.hpp"
 #include "tests/benchmark-utils.hpp"
