@@ -1357,6 +1357,14 @@ _Matlab_find_library(
   NO_DEFAULT_PATH
 )
 
+_Matlab_find_library(
+  ${_matlab_lib_prefix_for_search}
+  Matlab_UT_LIBRARY
+  ut
+  PATHS ${_matlab_lib_dir_for_search}
+  NO_DEFAULT_PATH
+)
+
 list(APPEND _matlab_required_variables Matlab_MEX_LIBRARY)
 
 # the MEX extension is required
