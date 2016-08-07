@@ -46,8 +46,7 @@ endif()
 
 ##Sources
 set(NEO_ICA_SRC_PATH "${PROJECT_SOURCE_DIR}/src")
-set(NEO_ICA_SRC ${NEO_ICA_SRC_PATH}/ica.cpp
-        ${NEO_ICA_SRC_PATH}/dist/sejnowski.cpp)
+file(GLOB_RECURSE NEO_ICA_SRC ${NEO_ICA_SRC_PATH}/*.cpp)
 
 ##Adds static library and examples
 if(NOT _WIN32 AND NOT _WIN64)

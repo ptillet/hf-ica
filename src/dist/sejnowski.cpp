@@ -12,6 +12,7 @@
 #include <omp.h>
 #include <immintrin.h>
 
+#include "neo_ica/backend/cpu_x86.h"
 #include "neo_ica/math/math.h"
 #include "neo_ica/dist/sejnowski.h"
 #include "neo_ica/tools/round.hpp"
@@ -285,19 +286,28 @@ void sejnowski<double>::compute_means_logp_sse3(size_t offset, size_t sample_siz
 template<class T>
 void sejnowski<T>::compute_means_logp(size_t offset, size_t sample_size, T * z1, int const * signs, T * means_logp) const
 {
-    compute_means_logp_sse3(offset, sample_size, z1, signs, means_logp);
+    if(cpu.HW_SSE3)
+        compute_means_logp_sse3(offset, sample_size, z1, signs, means_logp);
+    else
+        compute_means_logp_fb(offset, sample_size, z1, signs, means_logp);
 }
 
 template<class T>
 void sejnowski<T>::compute_phi(size_t offset, size_t sample_size, T * z1, int const * signs, T* phi) const
 {
-    compute_phi_sse3(offset, sample_size, z1, signs, phi);
+    if(cpu.HW_SSE3)
+        compute_phi_sse3(offset, sample_size, z1, signs, phi);
+    else
+        compute_phi_fb(offset, sample_size, z1, signs, phi);
 }
 
 template<class T>
 void sejnowski<T>::compute_dphi(size_t offset, size_t sample_size, T * z1, int const * signs, T* dphi) const
 {
-    compute_dphi_sse3(offset, sample_size, z1, signs, dphi);
+    if(cpu.HW_SSE3)
+        compute_dphi_sse3(offset, sample_size, z1, signs, dphi);
+    else
+        compute_dphi_fb(offset, sample_size, z1, signs, dphi);
 }
 
 
