@@ -8,10 +8,10 @@
  * ===========================*/
 
 #include <cmath>
-#include "tests/benchmark-utils.hpp"
-#include "neo_ica/ica.h"
-#include "cblas.h"
 #include <cstdlib>
+#include "neo_ica/ica.h"
+#include "neo_ica/backend/backend.hpp"
+#include "tests/benchmark-utils.hpp"
 
 #define BENCHMARK_COUNT 1
 
@@ -43,7 +43,7 @@ int main(){
         for(size_t j = 0 ; j < NC ; ++j)
             mixing[i*NC+j] = static_cast<double>(std::rand())/RAND_MAX;
 
-    cblas_dgemm(CblasColMajor,CblasNoTrans,CblasNoTrans,NF,NC,NC,1,src,NF,mixing,NC,0,mixed_src,NF);
+    neo_ica::backend<ScalarType>::gemm('N','N',NF,NC,NC,1,src,NF,mixing,NC,0,mixed_src,NF);
 
     neo_ica::options options = neo_ica::make_default_options();
     options.verbosity_level = 2;
@@ -54,8 +54,8 @@ int main(){
     t.start();
     for(unsigned int i = 0 ; i < BENCHMARK_COUNT ; ++i){
         neo_ica::ica(mixed_src,weights,sphere,NC,NF,options);
-        cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans,NF,NC,NC,1,mixed_src,NF,sphere,NC,0,white_src,NF);
-        cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans,NF,NC,NC,1,white_src,NF,weights,NC,0,independent_components,NF);
+        neo_ica::backend<ScalarType>::gemm('N','N',NF,NC,NC,1,mixed_src,NF,sphere,NC,0,white_src,NF);
+        neo_ica::backend<ScalarType>::gemm('N','N',NF,NC,NC,1,white_src,NF,weights,NC,0,independent_components,NF);
     }
 
     std::cout << "Execution Time : " << t.get()/BENCHMARK_COUNT << "s" << std::endl;
