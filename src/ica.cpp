@@ -7,17 +7,6 @@
  * License : MIT X11 - See the LICENSE file in the root folder
  * ===========================*/
 
-#ifdef __MINGW32__
-#include <stdlib.h>
-#include <mm_malloc.h> /* not even needed */
-#include <windows.h> /* not even needed */
-#define ALLOC_ALIGN(size) _mm_malloc(size,16)
-#define FREE_ALIGN(ptr) _mm_free(ptr)
-#else
-#define ALLOC_ALIGN(size) aligned_alloc(16, size)
-#define FREE_ALIGN(ptr) free(ptr)
-#endif
-
 #include "neo_ica/ica.h"
 #include "neo_ica/dist/sejnowski.h"
 #include "neo_ica/backend/backend.hpp"
@@ -53,13 +42,15 @@ public:
 
         ipiv_ =  new typename backend<ScalarType>::size_t[NC_+1];
 
-        Z = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
-        RZ = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
-        dphi = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
-        phi = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
-        psi = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
-        datasq_ = (ScalarType*)ALLOC_ALIGN(NC_*NF_*sizeof(ScalarType));
+        //NC*NF matrices
+        Z = new ScalarType[NC_*NF_];
+        RZ = new ScalarType[NC_*NF_];
+        dphi = new ScalarType[NC_*NF_];
+        phi = new ScalarType[NC_*NF_];
+        psi = new ScalarType[NC_*NF_];
+        datasq_ = new ScalarType[NC_*NF_];
 
+        //NC*NC matrices
         psixT = new ScalarType[NC_*NC_];
         phixT = new ScalarType[NC_*NC_];
         wmT = new ScalarType[NC_*NC_];
@@ -122,14 +113,14 @@ public:
 
     ~ica_functor(){
         delete[] ipiv_;
-
-        FREE_ALIGN(Z);
-        FREE_ALIGN(RZ);
-        FREE_ALIGN(dphi);
-        FREE_ALIGN(phi);
-        FREE_ALIGN(psi);
-        FREE_ALIGN(datasq_);
-
+        //NC*NF matrices
+        delete[] Z;
+        delete[] RZ;
+        delete[] dphi;
+        delete[] phi;
+        delete[] psi;
+        delete[] datasq_;
+        //NC*NC matrices
         delete[] psixT;
         delete[] phixT;
         delete[] wmT;
@@ -371,7 +362,7 @@ void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, size_
     if(opt.S0==0) opt.S0=NF;
 
     //Allocate
-    ScalarType * white_data =  (ScalarType*)ALLOC_ALIGN(NC*NF*sizeof(ScalarType));
+    ScalarType * white_data =  new ScalarType[NC*NF];
     ScalarType * X = new ScalarType[N];
     std::memset(X,0,N*sizeof(ScalarType));
 
@@ -400,7 +391,7 @@ void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, size_
     std::memcpy(Weights, X,sizeof(ScalarType)*NC*NC);
 
     delete[] X;
-    FREE_ALIGN(white_data);
+    delete[] white_data;
 }
 
 template void ica<float>(float const * data, float* Weights, float* Sphere, size_t NC, size_t NF, neo_ica::options const & opt);

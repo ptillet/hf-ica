@@ -112,7 +112,7 @@ void sejnowski<float>::compute_phi_sse3(size_t offset, size_t sample_size, float
         for(; f < tools::round_to_next_multiple(offset,4); ++f)
           phi[c*NF_+f] = z1[c*NF_+f] + s*tanh(z1[c*NF_+f]);
         for(; f < tools::round_to_previous_multiple(offset+sample_size,4)  ; f+=4){
-            __m128 z2 = _mm_load_ps(&z1[c*NF_+f]);
+            __m128 z2 = _mm_loadu_ps(&z1[c*NF_+f]);
             //compute phi
             __m128 y = vtanh(z2);
             y = _mm_mul_ps(phi_signs,y);
@@ -136,7 +136,7 @@ void sejnowski<float>::compute_dphi_sse3(size_t offset, size_t sample_size, floa
           dphi[c*NF_+f] = (s>0)?2-y*y:y*y;
         }
         for(; f < tools::round_to_previous_multiple(offset+sample_size,4)  ; f+=4){
-            __m128 z2 = _mm_load_ps(&z1[c*NF_+f]);
+            __m128 z2 = _mm_loadu_ps(&z1[c*NF_+f]);
             __m128 y = vtanh(z2);
             __m128 val;
             if(s>0)
@@ -165,7 +165,7 @@ void sejnowski<float>::compute_means_logp_sse3(size_t offset, size_t sample_size
           sum+=(s<0)? - 0.693147 - 0.5*(z-1)*(z-1) + log(1+exp(-2*z)):-log(cosh(z))-0.5*z*z;
         }
         for(; f < tools::round_to_previous_multiple(offset+sample_size,4)  ; f+=4){
-            __m128 z2 = _mm_load_ps(&z1[c*NF_+f]);
+            __m128 z2 = _mm_loadu_ps(&z1[c*NF_+f]);
 
             //Computes mean_logp
             const __m128 _1 = _mm_set1_ps(1);
