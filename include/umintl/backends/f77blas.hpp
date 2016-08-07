@@ -12,6 +12,7 @@
 #define UMINTL_BACKENDS_BLAS_HPP
 
 #include <cstring>
+#include <algorithm>
 
 namespace umintl{
 
@@ -63,7 +64,7 @@ namespace umintl{
         static void syr2(size_t N, ScalarType  alpha, VectorType const & x, VectorType const & y, MatrixType & A)
         { FORTRAN_WRAPPER(ssyr2)((char*)&Lower,&N,&alpha,(vec_ref)x,(size_t*)&one_inc,(vec_ref)y,(size_t*)&one_inc,A,&N); }
         static void set_to_value(VectorType & V, ScalarType val, size_t N)
-        { std::memset(V, val, sizeof(ScalarType)*N); }
+        { std::fill(V, V+N, val); }
         static void set_to_diagonal(size_t N, MatrixType & A, ScalarType lambda) {
             std::memset(A,0,N*N*sizeof(ScalarType));
             for(size_t i = 0 ; i < N ; ++i){
@@ -113,7 +114,7 @@ namespace umintl{
         static void syr2(size_t N, ScalarType  alpha, VectorType const & x, VectorType const & y, MatrixType & A)
         { FORTRAN_WRAPPER(dsyr2)((char*)&Lower,&N,&alpha,(vec_ref)x,(size_t*)&one_inc,(vec_ref)y,(size_t*)&one_inc,A,&N); }
         static void set_to_value(VectorType & V, ScalarType val, size_t N)
-        { std::memset(V, val, sizeof(ScalarType)*N); }
+        { std::fill(V, V+N, val); }
         static void set_to_diagonal(size_t N, MatrixType & A, ScalarType lambda) {
             std::memset(A,0,N*N*sizeof(ScalarType));
             for(size_t i = 0 ; i < N ; ++i){

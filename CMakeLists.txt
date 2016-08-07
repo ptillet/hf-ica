@@ -25,9 +25,9 @@ add_subdirectory(tests)
 
 #FLAGS
 if(MSVC)
-    set(VECTOR_FLAG "/arch:SSE2")
+    #set(VECTOR_FLAG "/arch:SSE2")
     set(WARNING_FLAG "/W2")
-    set(STD_FLAG "/Qstd=c++11")
+    #set(STD_FLAG "/Qstd=c++11")
 else()
     set(VECTOR_FLAG "-msse4")
     set(WARNING_FLAG "-Wall -Wextra")

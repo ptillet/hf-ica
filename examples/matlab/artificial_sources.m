@@ -3,7 +3,7 @@ N=1000;
 
 %Generate artificial signals
 t = linspace(-10,10,N);
-X = [sin(2*t) ; cos(0.5*t) ; sawtooth(5*t) ; randn(1,N)];
+X = [sin(2*t) ; cos(0.5*t) ; cos(5*t) ; randn(1,N)];
 
 %Generate mixtures
 Z = rand(4,4)*X;

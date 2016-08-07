@@ -12,7 +12,7 @@
 #define UMINTL_BACKENDS_OPENBLAS_HPP
 
 #include <cstring>
-
+#include <algorithm> 
 #include "cblas.h"
 
 namespace umintl{
@@ -59,7 +59,7 @@ namespace umintl{
         static void syr2(size_t N, ScalarType const & alpha, VectorType const & x, VectorType const & y, MatrixType & A)
         { cblas_ssyr2(CblasRowMajor,CblasUpper,N,alpha,x,1,y,1,A,N); }
         static void set_to_value(VectorType & V, ScalarType val, size_t N)
-        { std::memset(V, val, sizeof(ScalarType)*N); }
+        { std::fill(V, V+N, val); }
         static void set_to_diagonal(size_t N, MatrixType & A, ScalarType lambda) {
             std::memset(A,0,N*N*sizeof(ScalarType));
             for(size_t i = 0 ; i < N ; ++i){
@@ -105,7 +105,7 @@ namespace umintl{
         static void syr2(size_t N, ScalarType const & alpha, VectorType const & x, VectorType const & y, MatrixType & A)
         { cblas_dsyr2(CblasRowMajor,CblasUpper,N,alpha,x,1,y,1,A,N); }
         static void set_to_value(VectorType & V, ScalarType val, size_t N)
-        { std::memset(V, val, sizeof(ScalarType)*N); }
+        { std::fill(V, V+N, val); }
         static void set_to_diagonal(size_t N, MatrixType & A, ScalarType lambda) {
             std::memset(A,0,N*N*sizeof(ScalarType));
             for(size_t i = 0 ; i < N ; ++i){

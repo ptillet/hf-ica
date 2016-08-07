@@ -69,7 +69,7 @@ private:
         VectorType & current_g = res.best_g;
         ScalarType & current_phi = res.best_phi;
         VectorType const & p = c.p();
-        ScalarType eps = 1e-8;
+        ScalarType eps = (ScalarType)1e-8;
         ScalarType alpha = 0;
         ScalarType dphi = 0;
         bool twice_close_to_boundary=false;
@@ -143,13 +143,13 @@ public:
     */
     void operator()(line_search_result<BackendType> & res, umintl::direction<BackendType> * direction, optimization_context<BackendType> & c) {
         ScalarType alpha;
-        c1_ = 1e-4;
+        c1_ = (ScalarType)1e-4;
         if(dynamic_cast<conjugate_gradient<BackendType>* >(direction) || dynamic_cast<steepest_descent<BackendType>* >(direction)){
-            c2_ = 0.2;
+            c2_ = (ScalarType)0.2;
             alpha = std::min((ScalarType)(1.0),1/BackendType::asum(c.N(),c.g()));
         }
         else{
-            c2_ = 0.9;
+            c2_ = (ScalarType)0.9;
             alpha = 1;
         }
 

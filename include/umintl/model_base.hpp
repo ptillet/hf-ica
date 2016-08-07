@@ -68,37 +68,6 @@ struct dynamically_sampled : public model_base<BackendType> {
     dynamically_sampled(double r, size_t S0, size_t dataset_size, double theta = 0.5) : theta_(theta), r_(r), S(std::min(S0,dataset_size)), offset_(0), H_offset_(0), N(dataset_size){ }
 
     bool update(optimization_context<BackendType> & c){
-//      {
-//        VectorType var = BackendType::create_vector(c.N());
-//        VectorType tmp = BackendType::create_vector(c.N());
-//        VectorType Hv = BackendType::create_vector(c.N());
-//        BackendType::set_to_value(var,0,c.N());
-//        c.fun().compute_hv_product(c.x(),c.g(),c.g(),Hv,hessian_vector_product(STOCHASTIC,S,offset_));
-
-//        for(size_t i = 0 ; i < S ; ++i){
-//          //tmp = (grad(xi) - grad(X)).^2
-//          //var += tmp
-//          c.fun().compute_hv_product(c.x(),c.g(),c.g(),tmp,hessian_vector_product(STOCHASTIC,1,offset_+i));
-//          for(size_t i = 0 ; i < c.N() ; ++i)
-//            var[i]+=std::pow(tmp[i]-Hv[i],2);
-//        }
-//        BackendType::scale(c.N(),(ScalarType)1/(S-1),var);
-//        for(size_t i = 0 ; i < c.N() ; ++i)
-//          std::cout << var[i] << " ";
-//        std::cout << std::endl;
-
-//        c.fun().compute_hv_product_variance(c.x(),c.g(), var, hv_product_variance(STOCHASTIC,S,offset_));
-
-//        for(size_t i = 0 ; i < c.N() ; ++i)
-//          std::cout << var[i] << " ";
-//        std::cout << std::endl;
-
-//        BackendType::delete_if_dynamically_allocated(var);
-//        BackendType::delete_if_dynamically_allocated(tmp);
-//        BackendType::delete_if_dynamically_allocated(Hv);
-//      }
-
-
       if(S==N){
         H_offset_=(H_offset_+(int)(r_*S))%(S - (int)(r_*S) + 1);
         return false;
@@ -116,7 +85,7 @@ struct dynamically_sampled : public model_base<BackendType> {
         //Update parameters
         //size_t old_S = S;
         if(is_descent_direction==false){
-          S = nrm1var/std::pow(theta_*nrm2grad,2);
+          S = (size_t)(nrm1var/std::pow(theta_*nrm2grad,2));
           S = std::min(S,N);
           if(S>N/2)
             S=N;
@@ -138,7 +107,7 @@ struct dynamically_sampled : public model_base<BackendType> {
     }
 
     hessian_vector_product get_hv_product_tag() const {
-      return hessian_vector_product(STOCHASTIC,r_*S,H_offset_+offset_);
+      return hessian_vector_product(STOCHASTIC, (size_t)r_*S, H_offset_+offset_);
     }
 private:
     double theta_;

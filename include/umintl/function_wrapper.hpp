@@ -137,7 +137,7 @@ namespace umintl{
                   ScalarType dummy;
                   VectorType tmp = BackendType::create_vector(N_);
                   VectorType Hvleft = BackendType::create_vector(N_);
-                  ScalarType h = 1e-7;
+                  ScalarType h = (ScalarType)1e-7;
 
                   //Hv = Grad(x+hb)
                   BackendType::copy(N_,x,tmp); //tmp = x + hb
@@ -162,7 +162,7 @@ namespace umintl{
                 {
                   ScalarType dummy;
                   VectorType tmp = BackendType::create_vector(N_);
-                  ScalarType h = 1e-7;
+                  ScalarType h = (ScalarType)1e-7;
 
                   BackendType::copy(N_,x,tmp); //tmp = x + hb
                   BackendType::axpy(N_,h,v,tmp);

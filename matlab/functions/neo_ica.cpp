@@ -78,7 +78,7 @@ void fill_options(mxArray* options_mx, neo_ica_options_type & options){
 
     /*-S0-*/
     if(mxArray * S0 = mxGetField(options_mx,0, "S0")){
-        options.opts.S0 = mxGetScalar(S0);
+        options.opts.S0 = (size_t)mxGetScalar(S0);
     }
 
     /*-Theta-*/
@@ -88,15 +88,15 @@ void fill_options(mxArray* options_mx, neo_ica_options_type & options){
 
     /*-Max Iter-*/
     if(mxArray * max_iter = mxGetField(options_mx,0, "maxIter"))
-        options.opts.max_iter = mxGetScalar(max_iter);
+        options.opts.max_iter = (size_t)mxGetScalar(max_iter);
 
     /*-Verbosity Level-*/
     if(mxArray * verbosity_level = mxGetField(options_mx,0, "verbosityLevel"))
-        options.opts.verbosity_level = mxGetScalar(verbosity_level);
+        options.opts.verbosity_level = (unsigned int)mxGetScalar(verbosity_level);
 
     /*-OMP NumThreads-*/
     if(mxArray * omp_num_threads = mxGetField(options_mx,0, "OMPNumThreads"))
-        options.opts.omp_num_threads = mxGetScalar(omp_num_threads);
+        options.opts.omp_num_threads = (int)mxGetScalar(omp_num_threads);
 }
 
 void printErrorExit(std::string const & str){
