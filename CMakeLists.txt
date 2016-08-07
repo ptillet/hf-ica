@@ -31,7 +31,7 @@ if(MSVC)
     set(VECTOR_FLAG "/arch:SSE2")
     set(WARNING_FLAG "/W2")
 else()
-    set(VECTOR_FLAG "-msse3")
+    set(VECTOR_FLAG "-msse4")
     set(WARNING_FLAG "-Wall -Wextra")
 endif()
 

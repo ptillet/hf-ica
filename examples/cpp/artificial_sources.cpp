@@ -33,7 +33,7 @@ int main(){
     for(unsigned int f=0 ; f< NF ; ++f){
         double t = (double)f/(NF-1)*T - T/2;
         src[0*NF + f] = std::sin(3*t) + std::cos(6*t);
-        src[1*NF + f] = std::cos(10*t);
+        src[1*NF + f] = std::max(.9, std::cos(10*t));
         src[2*NF + f] = std::sin(5*t);
         src[3*NF + f]  = rand()/(double)RAND_MAX;
     }

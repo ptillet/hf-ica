@@ -140,9 +140,11 @@ void sejnowski<float>::compute_dphi_sse3(size_t offset, size_t sample_size, floa
             __m128 y = vtanh(z2);
             __m128 val;
             if(s>0)
-                val =  _mm_set1_ps(2) - y*y;
+                // val = 2 - y^2
+                val = _mm_sub_ps(_mm_set1_ps(2), _mm_mul_ps(y, y));
             else
-                val = y*y;
+                // val = y^2
+                val = _mm_mul_ps(y, y);
             _mm_store_ps(&dphi[c*NF_+f],val);
         }
         for(; f < offset+sample_size ; ++f){
@@ -169,13 +171,27 @@ void sejnowski<float>::compute_means_logp_sse3(size_t offset, size_t sample_size
 
             //Computes mean_logp
             const __m128 _1 = _mm_set1_ps(1);
-            const __m128 _0_5 = _mm_set1_ps(0.5);
+            const __m128 _m0_5 = _mm_set1_ps(-0.5);
             const __m128 _2 = _mm_set1_ps(2);
             __m128 val;
-            if(s<0)
-                val = _mm_set1_ps((float)-0.693147) - _0_5*(z2 - _1)*(z2 - _1) + vlog(_1 + vexp(-_2*z2));
-            else
-                val = - vlog(vcosh(z2)) - _0_5*z2*z2;
+            if(s<0){
+                //val = -ln(2) - .5*(z - 1)^2 + log(1 + exp(-2*z2)
+                // u = -.5*(z-1)^2
+                __m128 u = _mm_sub_ps(z2, _1);
+                u = _mm_mul_ps(u, u);
+                u = _mm_mul_ps(_m0_5, u);
+                // v = log(1 + exp(-2z))
+                __m128 v = _mm_xor_ps(z2, _mm_set1_ps(-0.f));
+                v = vlog(_mm_add_ps(_1, vexp(_mm_mul_ps(_2, v))));
+                // val = -ln(2) + u + v
+                __m128 _mlog2 = _mm_set1_ps((float)-0.693147);
+                val = _mm_add_ps(u, v);
+                val = _mm_add_ps(val, _mlog2);
+            }
+            else{
+                val = _mm_mul_ps(_m0_5, _mm_mul_ps(z2,z2));
+                val = _mm_sub_ps(val, vlog(vcosh(z2)));
+            }
             vsum=_mm_add_pd(vsum,_mm_cvtps_pd(val));
             vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(val,val)));
         }
@@ -205,7 +221,10 @@ void sejnowski<double>::compute_phi_sse3(size_t offset, size_t sample_size, doub
             __m128d z2hi = _mm_load_pd(&z1[c*NF_+f+2]);
             __m128 z2 = _mm_movelh_ps(_mm_cvtpd_ps(z2lo), _mm_cvtpd_ps(z2hi));
 
-            __m128 v = z2 + phi_signs*vtanh(z2);
+            __m128 y = vtanh(z2);
+            y = _mm_mul_ps(phi_signs,y);
+            __m128 v = _mm_add_ps(z2,y);
+
             _mm_store_pd(&phi[c*NF_+f],_mm_cvtps_pd(v));
             _mm_store_pd(&phi[c*NF_+f+2],_mm_cvtps_pd(_mm_movehl_ps(v,v)));
         }
@@ -233,9 +252,11 @@ void sejnowski<double>::compute_dphi_sse3(size_t offset, size_t sample_size, dou
             __m128 y = vtanh(z2);
             __m128 val;
             if(s>0)
-                val =  _mm_set1_ps(2) - y*y;
+                // val = 2 - y^2
+                val = _mm_sub_ps(_mm_set1_ps(2), _mm_mul_ps(y, y));
             else
-                val = y*y;
+                // val = y^2
+                val = _mm_mul_ps(y, y);
             _mm_store_pd(&dphi[c*NF_+f],_mm_cvtps_pd(val));
             _mm_store_pd(&dphi[c*NF_+f+2],_mm_cvtps_pd(_mm_movehl_ps(val,val)));
         }
@@ -251,31 +272,45 @@ void sejnowski<double>::compute_means_logp_sse3(size_t offset, size_t sample_siz
     #pragma omp parallel for
     for(size_t c = 0 ; c < NC_ ; ++c){
         __m128d vsum = _mm_set1_pd((double)0);
-        int k = signs[c];
+        int s = signs[c];
         double sum = 0;
         size_t f = offset;
         for(; f < tools::round_to_next_multiple(offset,4); ++f){
           double z = z1[c*NF_+f];
-          sum+=(k<0)? - 0.693147 - 0.5*(z-1)*(z-1) + log(1+exp(-2*z)):-log(cosh(z))-0.5*z*z;
+          sum+=(s<0)? - 0.693147 - 0.5*(z-1)*(z-1) + log(1+exp(-2*z)):-log(cosh(z))-0.5*z*z;
         }
         for(; f < tools::round_to_previous_multiple(offset+sample_size,4) ; f+=4){
             __m128d z2lo = _mm_load_pd(&z1[c*NF_+f]);
             __m128d z2hi = _mm_load_pd(&z1[c*NF_+f+2]);
             __m128 z2 = _mm_movelh_ps(_mm_cvtpd_ps(z2lo), _mm_cvtpd_ps(z2hi));
             const __m128 _1 = _mm_set1_ps(1);
-            const __m128 _0_5 = _mm_set1_ps(0.5);
+            const __m128 _m0_5 = _mm_set1_ps(-0.5);
             const __m128 _2 = _mm_set1_ps(2);
             __m128 val;
-            if(k<0)
-                val = _mm_set1_ps(-0.693147) - _0_5*(z2 - _1)*(z2 - _1) + vlog(_1 + vexp(-_2*z2));
-            else
-                val = - vlog(vcosh(z2)) - _0_5*z2*z2;
+            if(s<0){
+                //val = -ln(2) - .5*(z - 1)^2 + log(1 + exp(-2*z2)
+                // u = -.5*(z-1)^2
+                __m128 u = _mm_sub_ps(z2, _1);
+                u = _mm_mul_ps(u, u);
+                u = _mm_mul_ps(_m0_5, u);
+                // v = log(1 + exp(-2z))
+                __m128 v = _mm_xor_ps(z2, _mm_set1_ps(-0.f));
+                v = vlog(_mm_add_ps(_1, vexp(_mm_mul_ps(_2, v))));
+                // val = -ln(2) + u + v
+                __m128 _mlog2 = _mm_set1_ps((float)-0.693147);
+                val = _mm_add_ps(_mlog2, u);
+                val = _mm_add_ps(val, v);
+            }
+            else{
+                val = _mm_mul_ps(_m0_5, _mm_mul_ps(z2,z2));
+                val = _mm_sub_ps(val, vlog(vcosh(z2)));
+            }
             vsum=_mm_add_pd(vsum,_mm_cvtps_pd(val));
             vsum=_mm_add_pd(vsum,_mm_cvtps_pd(_mm_movehl_ps(val,val)));
         }
         for(; f < offset+sample_size; ++f){
           double z = z1[c*NF_+f];
-          sum+=(k<0)? - 0.693147 - 0.5*(z-1)*(z-1) + log(1+exp(-2*z)):-log(cosh(z))-0.5*z*z;
+          sum+=(s<0)? - 0.693147 - 0.5*(z-1)*(z-1) + log(1+exp(-2*z)):-log(cosh(z))-0.5*z*z;
         }
         vsum = _mm_hadd_pd(vsum, vsum);
         _mm_store_sd(&sum, vsum);
