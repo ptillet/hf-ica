@@ -12,9 +12,6 @@ file( GLOB_RECURSE QtCreatorCompatibility_SRC
     *.hpp *.h *.cpp)
 add_custom_target( QtCreatorCompatibility SOURCES ${QtCreatorCompatibility_SRC} )
 
-#OpenBlas
-#find_package(OpenBlas)
-
 #Include
 include_directories(".")
 include_directories(${PROJECT_SOURCE_DIR}/include)
@@ -63,12 +60,10 @@ if(NOT WIN32)
     set_target_properties(neo_ica PROPERTIES COMPILE_FLAGS "-fPIC")
 endif()
 
-#Examples
-add_subdirectory(examples)
-
 #MATLAB
-set(MATLAB_ROOT "" CACHE STRING "Root of the MATLAB environment")
-find_package(MatlabMex)
-if(MATLAB_MEX_FOUND)
+find_package(Matlab)
+if(Matlab_FOUND)
     add_subdirectory(matlab)
+else()
+    add_subdirectory(examples)
 endif()

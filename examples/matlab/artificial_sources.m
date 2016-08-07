@@ -1,5 +1,5 @@
 %Number of sample points
-N=10000;
+N=1000;
 
 %Generate artificial signals
 t = linspace(-10,10,N);
@@ -28,8 +28,8 @@ options.maxIter = 200;
 options.verbosityLevel = 2;
 
 tic;
-%[W, Sphere] = dshf_ica(X); %Use defaults
-[W, Sphere] = dshf_ica(X, options);
+%[W, Sphere] = neo_ica(X); %Use defaults
+[W, Sphere] = neo_ica(X, options);
 toc;
 
 %Unmix
