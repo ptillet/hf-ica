@@ -61,7 +61,7 @@ if(NOT WIN32)
 endif()
 
 #MATLAB
-find_package(Matlab)
+find_package(Matlab COMPONENTS MX_LIBRARY ENG_LIBRARY)
 if(Matlab_FOUND)
     add_subdirectory(matlab)
 else()
