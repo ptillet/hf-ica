@@ -12,13 +12,6 @@ file( GLOB_RECURSE QtCreatorCompatibility_SRC
     *.hpp *.h *.cpp)
 add_custom_target( QtCreatorCompatibility SOURCES ${QtCreatorCompatibility_SRC} )
 
-#Cross-Compile
-option(BUILD_EXAMPLE "Build simple C++ example" OFF)
-option(MEX "Build MATLAB MEX file" ON)
-
-#Matlab ROOT
-set(MATLAB_ROOT "" CACHE STRING "Root of the MATLAB environment")
-
 #OpenBlas
 #find_package(OpenBlas)
 
@@ -33,31 +26,46 @@ include(CTest)
 enable_testing()
 add_subdirectory(tests)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3")
-set(CMAKE_CXX_FLAGS_RELEASE "-funroll-loops -O2")
-set(CMAKE_BUILD_TYPE Release)
+#FLAGS
+if(MSVC)
+    set(VECTOR_FLAG "/arch:SSE3")
+else()
+    set(VECTOR_FLAG "-msse3")
+endif()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${VECTOR_FLAG}")
+if(NOT MSVC)
+    set(CMAKE_CXX_FLAGS_RELEASE "-O2")
+endif()
 
-##OpenMP
+#Default to release
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING
+      "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel."
+      FORCE)
+endif(NOT CMAKE_BUILD_TYPE)
+
+#OpenMP
 find_package(OpenMP)
 if (OPENMP_FOUND)
     set (CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} ${OpenMP_C_FLAGS}")
     set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${OpenMP_CXX_FLAGS}")
 endif()
 
-##Sources
+#Sources
 set(NEO_ICA_SRC_PATH "${PROJECT_SOURCE_DIR}/src")
 file(GLOB_RECURSE NEO_ICA_SRC ${NEO_ICA_SRC_PATH}/*.cpp)
 
-##Adds static library and examples
-if(NOT _WIN32 AND NOT _WIN64)
-    add_library(neo_ica ${NEO_ICA_SRC})
+#Library
+add_library(neo_ica ${NEO_ICA_SRC})
+if(NOT WIN32)
     set_target_properties(neo_ica PROPERTIES COMPILE_FLAGS "-fPIC")
-    if(BUILD_EXAMPLE)
-        add_subdirectory(examples)
-    endif()
 endif()
 
-##MATLAB
+#Examples
+add_subdirectory(examples)
+
+#MATLAB
+set(MATLAB_ROOT "" CACHE STRING "Root of the MATLAB environment")
 find_package(MatlabMex)
 if(MATLAB_MEX_FOUND)
     add_subdirectory(matlab)
