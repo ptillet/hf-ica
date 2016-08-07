@@ -33,7 +33,7 @@ inline int omp_thread_count() {
 
 template<class _ScalarType, class NonlinearityType>
 struct ica_functor{
-    typedef _ScalarType ScalarType  __attribute__((aligned (16)));
+    typedef _ScalarType ScalarType;
     typedef ScalarType * VectorType;
 
 public:

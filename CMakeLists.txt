@@ -38,9 +38,6 @@ else()
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${STD_FLAG} ${WARNING_FLAG} ${VECTOR_FLAG}")
-if(NOT MSVC)
-    set(CMAKE_CXX_FLAGS_RELEASE "-O2")
-endif()
 
 #Default to release
 if(NOT CMAKE_BUILD_TYPE)
