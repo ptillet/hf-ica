@@ -14,7 +14,7 @@
 #include <cstring>
 #include <streambuf>
 #include <iostream>
-#include "neo_ica/neo_ica.h"
+#include "neo_ica/ica.h"
 
 
 static std::string USAGE_STR = "Usage : [W, Sphere] = neo_ica(data [, options])";
@@ -146,7 +146,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         double* data = mxGetPr(prhs[0]);
         transpose(data,NC,NF);
 
-        neo_ica::inplace_linear_ica(data, weights, sphere, NC, NF, options.opts);
+        neo_ica::ica(data, weights, sphere, NC, NF, options.opts);
 
         transpose(weights,NC,NC);
         transpose(sphere,NC,NC);
@@ -159,7 +159,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         float * sphere_float = new float[NC*NC];
         transpose(data,NC,NF);
 
-        neo_ica::inplace_linear_ica(data, weights_float, sphere_float, NC, NF, options.opts);
+        neo_ica::ica(data, weights_float, sphere_float, NC, NF, options.opts);
 
         for(size_t i = 0 ; i < NC ; ++i){
             for(size_t j = 0 ; j < NC ; ++j){

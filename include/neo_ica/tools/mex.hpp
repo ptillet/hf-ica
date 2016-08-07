@@ -11,7 +11,8 @@
 #define NEO_ICA_TOOLS_MEX_HPP_
 
 #include <cstddef>
-#include <tr1/random>
+#include <exception>
+#include <string>
 
 #ifdef USE_MEX
     #include "mex.h"
