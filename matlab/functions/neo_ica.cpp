@@ -12,6 +12,7 @@
 #include <mex.h>
 
 #include <cstring>
+#include <string>
 #include <streambuf>
 #include <iostream>
 #include "neo_ica/ica.h"
