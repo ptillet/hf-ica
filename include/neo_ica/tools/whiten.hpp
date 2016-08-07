@@ -17,7 +17,7 @@ namespace detail
 {
 
     template<class ScalarType>
-    static void inv_sqrtm(size_t C, ScalarType * in, ScalarType * out){
+    static void inv_sqrtm(int64_t C, ScalarType * in, ScalarType * out){
 
         ScalarType * D = new ScalarType[C];
         ScalarType * UD = new ScalarType[C*C];
@@ -25,9 +25,9 @@ namespace detail
         //in = U
         backend<ScalarType>::syev('V','U',C,in,C,D);
         //UD = U*diag(D)
-        for (size_t j=0; j<C; ++j) {
+        for (int64_t j=0; j<C; ++j) {
           ScalarType lambda = 1/std::sqrt(D[j]);
-          for (size_t i=0; i<C; ++i)
+          for (int64_t i=0; i<C; ++i)
               UD[j*C+i] = in[j*C+i]*lambda;
         }
 
@@ -41,11 +41,11 @@ namespace detail
 }
 
 template<class ScalarType>
-void compute_mean(ScalarType* A, size_t NC, size_t NF, ScalarType* x){
+void compute_mean(ScalarType* A, int64_t NC, int64_t NF, ScalarType* x){
     #pragma omp parallel for
-    for(size_t c = 0 ; c < NC ;++c){
+    for(int64_t c = 0 ; c < NC ;++c){
         ScalarType sum = 0;
-        for(size_t f = 0 ; f < NF ; ++f)
+        for(int64_t f = 0 ; f < NF ; ++f)
             sum += A[c*NF+f];
         x[c] = sum/(ScalarType)NF;
     }
@@ -54,7 +54,7 @@ void compute_mean(ScalarType* A, size_t NC, size_t NF, ScalarType* x){
 
 
 template<class ScalarType>
-void whiten(size_t NC, size_t DataNF, size_t NF, ScalarType const * constdata, ScalarType * Sphere, ScalarType * white_data){
+void whiten(int64_t NC, int64_t DataNF, int64_t NF, ScalarType const * constdata, ScalarType * Sphere, ScalarType * white_data){
     ScalarType * Cov = new ScalarType[NC*NC];
     ScalarType * means = new ScalarType[NC];
 
@@ -63,8 +63,8 @@ void whiten(size_t NC, size_t DataNF, size_t NF, ScalarType const * constdata, S
     compute_mean(data,NC,NF,means);
 
     //Substract mean
-    for(size_t c = 0 ; c < NC ;++c)
-        for(size_t f = 0 ; f < DataNF ; ++f)
+    for(int64_t c = 0 ; c < NC ;++c)
+        for(int64_t f = 0 ; f < DataNF ; ++f)
             data[c*DataNF+f] -= means[c];
 
     //Cov = 1/(N-1)*data_copy*data_copy'
@@ -74,15 +74,15 @@ void whiten(size_t NC, size_t DataNF, size_t NF, ScalarType const * constdata, S
 
     //Sphere = 2*inverse(sqrtm(Cov))
     detail::inv_sqrtm<ScalarType>(NC,Cov,Sphere);
-    for(size_t i = 0 ; i < NC*NC ;++i)
+    for(int64_t i = 0 ; i < NC*NC ;++i)
         Sphere[i]*=2;
 
     //white_data = sphere*data
     backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,1,data,DataNF,Sphere,NC,0,white_data,NF);
 
     //Readd mean
-    for(size_t c = 0 ; c < NC ;++c)
-        for(size_t f = 0 ; f < NF ; ++f)
+    for(int64_t c = 0 ; c < NC ;++c)
+        for(int64_t f = 0 ; f < NF ; ++f)
             data[c*DataNF+f] += means[c];
 
     delete[] means;

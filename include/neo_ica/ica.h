@@ -11,6 +11,7 @@
  * ===========================*/
 
 #include <cstddef>
+#include <cstdint>
 
 namespace neo_ica{
 
@@ -26,7 +27,7 @@ struct options{
 options make_default_options();
 
 template<class ScalarType>
-void ica(ScalarType const * data, ScalarType* W, ScalarType* S, size_t NC, size_t NF, options const & opt);
+void ica(ScalarType const * data, ScalarType* W, ScalarType* S, int64_t NC, int64_t NF, options const & opt);
 
 }
 

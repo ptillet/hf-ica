@@ -37,7 +37,7 @@ struct ica_functor{
     typedef ScalarType * VectorType;
 
 public:
-    ica_functor(ScalarType const * data, size_t NF, size_t NC, options const & opt) : data_(data), NC_(NC), NF_(NF), nonlinearity_(NC,NF){
+    ica_functor(ScalarType const * data, int64_t NF, int64_t NC, options const & opt) : data_(data), NC_(NC), NF_(NF), nonlinearity_(NC,NF){
         is_first_ = true;
 
         ipiv_ =  new typename backend<ScalarType>::size_t[NC_+1];
@@ -63,15 +63,15 @@ public:
 
         first_signs = new int[NC_];
 
-        for(size_t i = 0 ; i < NC_; ++i)
-            for(size_t j = 0; j < NF_; ++j)
+        for(int64_t i = 0 ; i < NC_; ++i)
+            for(int64_t j = 0; j < NF_; ++j)
                 datasq_[i*NF_+j] = data_[i*NF_+j]*data_[i*NF_+j];
 
 
         int n_subgauss = 0;
-        for(unsigned int c = 0 ; c < NC_ ; ++c){
+        for(int64_t c = 0 ; c < NC_ ; ++c){
             ScalarType m2 = 0, m4 = 0;
-            for(unsigned int f = 0; f < NF_ ; f++){
+            for(int64_t f = 0; f < NF_ ; f++){
                 ScalarType X = data_[c*NF_+f];
                 m2 += std::pow(X,2);
                 m4 += std::pow(X,4);
@@ -92,10 +92,10 @@ public:
     bool recompute_signs(){
         bool sign_change = false;
 
-        for(unsigned int c = 0 ; c < NC_ ; ++c){
+        for(int64_t c = 0 ; c < NC_ ; ++c){
             ScalarType m2 = 0, m4 = 0;
             //ScalarType b = b_[c];
-            for(unsigned int f = 0; f < NF_ ; f++){
+            for(int64_t f = 0; f < NF_ ; f++){
                 ScalarType X = Z[c*NF_+f];
                 m2 += std::pow(X,2);
                 m4 += std::pow(X,4);
@@ -134,8 +134,8 @@ public:
 
     /* Hessian-Vector product variance */
     void operator()(VectorType const & x, VectorType const & v, VectorType & variance, umintl::hv_product_variance tag) const{
-        size_t offset;
-        size_t sample_size;
+        int64_t offset;
+        int64_t sample_size;
         if(tag.model==umintl::DETERMINISTIC){
           offset = 0;
           sample_size = NF_;
@@ -154,26 +154,26 @@ public:
 
         //Psi = dphi(Z).*RZ
         nonlinearity_.compute_dphi(offset,sample_size,Z,first_signs,dphi);
-        for(unsigned int c = 0 ; c < NC_ ; ++c)
-            for(unsigned int f = offset; f < offset+sample_size ; ++f)
+        for(int64_t c = 0 ; c < NC_ ; ++c)
+            for(int64_t f = offset; f < offset+sample_size ; ++f)
                 psi[c*NF_+f] = dphi[c*NF_+f]*RZ[c*NF_+f];
         backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,psi+offset,NF_,0,psixT,NC_);
 
-        for(size_t i = 0 ; i < NC_; ++i)
-            for(size_t j = offset ; j < offset+sample_size; ++j)
+        for(int64_t i = 0 ; i < NC_; ++i)
+            for(int64_t j = offset ; j < offset+sample_size; ++j)
                 psi[i*NF_+j] = psi[i*NF_+j]*psi[i*NF_+j];
 
         backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size,1,datasq_+offset,NF_,psi+offset,NF_,0,variance,NC_);
 
-        for(size_t i = 0 ; i < NC_; ++i)
-            for(size_t j = 0 ; j < NC_; ++j)
+        for(int64_t i = 0 ; i < NC_; ++i)
+            for(int64_t j = 0 ; j < NC_; ++j)
               variance[i*NC_+j] = (ScalarType)1/(sample_size-1)*(variance[i*NC_+j] - psixT[i*NC_+j]*psixT[i*NC_+j]/(ScalarType)sample_size);
     }
 
     /* Hessian-Vector product */
     void operator()(VectorType const & x, VectorType const & v, VectorType & Hv, umintl::hessian_vector_product tag) const{
-        size_t offset;
-        size_t sample_size;
+        int64_t offset;
+        int64_t sample_size;
         if(tag.model==umintl::DETERMINISTIC){
           offset = 0;
           sample_size = NF_;
@@ -197,8 +197,8 @@ public:
 
         //Psi = dphi(Z).*RZ
         nonlinearity_.compute_dphi(offset,sample_size,Z,first_signs,dphi);
-        for(unsigned int c = 0 ; c < NC_ ; ++c)
-            for(unsigned int f = offset; f < offset+sample_size ; ++f)
+        for(int64_t c = 0 ; c < NC_ ; ++c)
+            for(int64_t f = offset; f < offset+sample_size ; ++f)
                 psi[c*NF_+f] = dphi[c*NF_+f]*RZ[c*NF_+f];
 
         //HV = (inv(W)*V*inv(w))' + 1/n*Psi*X'
@@ -207,14 +207,14 @@ public:
         backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,psi+offset,NF_,0,psixT,NC_);
 
         //Copy back
-        for(size_t i = 0 ; i < NC_*NC_; ++i)
+        for(int64_t i = 0 ; i < NC_*NC_; ++i)
             Hv[i] = HV[i] + psixT[i]/(ScalarType)sample_size;
     }
 
     /* Gradient variance */
     void operator()(VectorType const & x, VectorType & variance, umintl::gradient_variance tag){
-        size_t offset;
-        size_t sample_size;
+        int64_t offset;
+        int64_t sample_size;
         if(tag.model==umintl::DETERMINISTIC){
           offset = 0;
           sample_size = NF_;
@@ -232,13 +232,13 @@ public:
         backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,phi+offset,NF_,0,phixT,NC_);
 
         //GradVariance = 1/(N-1)[phi.^2*(x.^2)' - 1/N*phi*x']
-        for(size_t i = 0 ; i < NC_; ++i)
-            for(size_t j = offset ; j < offset+sample_size; ++j)
+        for(int64_t i = 0 ; i < NC_; ++i)
+            for(int64_t j = offset ; j < offset+sample_size; ++j)
                 phi[i*NF_+j] = phi[i*NF_+j]*phi[i*NF_+j];
 
         backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size,1,datasq_+offset,NF_,phi+offset,NF_,0,variance,NC_);
-        for(size_t i = 0 ; i < NC_; ++i)
-            for(size_t j = 0 ; j < NC_; ++j)
+        for(int64_t i = 0 ; i < NC_; ++i)
+            for(int64_t j = 0 ; j < NC_; ++j)
               variance[i*NC_+j] = (ScalarType)1/(sample_size-1)*(variance[i*NC_+j] - phixT[i*NC_+j]*phixT[i*NC_+j]/(ScalarType)sample_size);
     }
 
@@ -246,8 +246,8 @@ public:
     void operator()(VectorType const & x, ScalarType& value, VectorType & grad, umintl::value_gradient tag) const {
         throw_if_mex_and_ctrl_c();
 
-        size_t offset;
-        size_t sample_size;
+        int64_t offset;
+        int64_t sample_size;
         if(tag.model==umintl::DETERMINISTIC){
           offset = 0;
           sample_size = NF_;
@@ -272,12 +272,12 @@ public:
 
         //det = prod(diag(WLU))
         ScalarType abs_det = 1;
-        for(size_t i = 0 ; i < NC_ ; ++i)
+        for(int64_t i = 0 ; i < NC_ ; ++i)
             abs_det*=std::abs(WLU[i*NC_+i]);
 
         //H = log(abs(det(w))) + sum(means_logp);
         ScalarType H = std::log(abs_det);
-        for(size_t i = 0; i < NC_ ; ++i)
+        for(int64_t i = 0; i < NC_ ; ++i)
             H+=means_logp[i];
         value = -H;
 
@@ -289,12 +289,12 @@ public:
 
         //dweights = W^-T - 1/n*Phi*X'
         backend<ScalarType>::getri(NC_,WLU,NC_,ipiv_);
-        for(size_t i = 0 ; i < NC_; ++i)
-            for(size_t j = 0 ; j < NC_; ++j)
+        for(int64_t i = 0 ; i < NC_; ++i)
+            for(int64_t j = 0 ; j < NC_; ++j)
                 wmT[i*NC_+j] = WLU[j*NC_+i];
 
         //Copy back
-        for(size_t i = 0 ; i < NC_*NC_; ++i)
+        for(int64_t i = 0 ; i < NC_*NC_; ++i)
           grad[i] = - (wmT[i] - phixT[i]/(ScalarType)sample_size);
     }
 
@@ -302,8 +302,8 @@ private:
     ScalarType const * data_;
     int * first_signs;
 
-    size_t NC_;
-    size_t NF_;
+    int64_t NC_;
+    int64_t NF_;
 
 
     typename backend<ScalarType>::size_t *ipiv_;
@@ -349,16 +349,16 @@ options make_default_options(){
 }
 
 template<class ScalarType>
-void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, size_t NC, size_t DataNF, options const & optimization_options){
+void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, int64_t NC, int64_t DataNF, options const & optimization_options){
     typedef typename umintl_backend<ScalarType>::type BackendType;
     typedef ica_functor<ScalarType, dist::sejnowski<ScalarType> > IcaFunctorType;
 
     options opt(optimization_options);
 
     //Problem sizes
-    size_t padsize = 4;
-    size_t N = NC*NC;
-    size_t NF=(DataNF%padsize==0)?DataNF:(DataNF/padsize)*padsize;
+    int64_t padsize = 4;
+    int64_t N = NC*NC;
+    int64_t NF=(DataNF%padsize==0)?DataNF:(DataNF/padsize)*padsize;
     if(opt.S0==0) opt.S0=NF;
 
     //Allocate
@@ -372,7 +372,7 @@ void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, size_
     IcaFunctorType objective(white_data,NF,NC,opt);
 
     //Initial guess W_0 = I
-    for(unsigned int i = 0 ; i < NC; ++i)
+    for(int64_t i = 0 ; i < NC; ++i)
         X[i*(NC+1)] = 1;
 
     //Optimizer
@@ -394,8 +394,8 @@ void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, size_
     delete[] white_data;
 }
 
-template void ica<float>(float const * data, float* Weights, float* Sphere, size_t NC, size_t NF, neo_ica::options const & opt);
-template void ica<double>(double const * data, double* Weights, double* Sphere, size_t NC, size_t NF, neo_ica::options const & opt);
+template void ica<float>(float const * data, float* Weights, float* Sphere, int64_t NC, int64_t NF, neo_ica::options const & opt);
+template void ica<double>(double const * data, double* Weights, double* Sphere, int64_t NC, int64_t NF, neo_ica::options const & opt);
 
 }
 

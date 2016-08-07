@@ -30,19 +30,19 @@ using namespace math;
  * ---------------------------
  */
 template<>
-void sejnowski<float>::compute_phi_fb(size_t offset, size_t sample_size, float * z1, int const * signs, float* phi) const{
-    for(size_t c = 0 ; c < NC_ ; ++c){
+void sejnowski<float>::compute_phi_fb(int64_t offset, int64_t sample_size, float * z1, int const * signs, float* phi) const{
+    for(int64_t c = 0 ; c < NC_ ; ++c){
         int k = (signs[c]>0)?1:-1;
-        for(size_t f = offset ; f < offset + sample_size ; ++f)
+        for(int64_t f = offset ; f < offset + sample_size ; ++f)
           phi[c*NF_+f] = z1[c*NF_+f] + k*tanh(z1[c*NF_+f]);
     }
 }
 
 template<>
-void sejnowski<float>::compute_dphi_fb(size_t offset, size_t sample_size, float * z1, int const * signs, float* dphi) const {
-    for(size_t c = 0 ; c < NC_ ; ++c){
+void sejnowski<float>::compute_dphi_fb(int64_t offset, int64_t sample_size, float * z1, int const * signs, float* dphi) const {
+    for(int64_t c = 0 ; c < NC_ ; ++c){
         int s = signs[c];
-        for(size_t f = offset ; f < offset + sample_size ; ++f){
+        for(int64_t f = offset ; f < offset + sample_size ; ++f){
           float y = tanh(z1[c*NF_+f]);
           dphi[c*NF_+f] = (s>0)?2-y*y:y*y;
         }
@@ -50,11 +50,11 @@ void sejnowski<float>::compute_dphi_fb(size_t offset, size_t sample_size, float 
 }
 
 template<>
-void sejnowski<float>::compute_means_logp_fb(size_t offset, size_t sample_size, float * z1, int const * signs, float* means_logp) const {
-    for(size_t c = 0 ; c < NC_ ; ++c){
+void sejnowski<float>::compute_means_logp_fb(int64_t offset, int64_t sample_size, float * z1, int const * signs, float* means_logp) const {
+    for(int64_t c = 0 ; c < NC_ ; ++c){
         float sum = 0;
         int k = signs[c];
-        for(size_t f = offset ; f < offset + sample_size ; ++f){
+        for(int64_t f = offset ; f < offset + sample_size ; ++f){
           float z = z1[c*NF_+f];
           sum+=(k<0)? - 0.693147 - 0.5*(z-1)*(z-1) + log(1+exp(-2*z)):-log(cosh(z))-0.5*z*z;
         }
@@ -65,19 +65,19 @@ void sejnowski<float>::compute_means_logp_fb(size_t offset, size_t sample_size, 
 
 
 template<>
-void sejnowski<double>::compute_phi_fb(size_t offset, size_t sample_size, double * z1, int const * signs, double* phi) const {
-    for(size_t c = 0 ; c < NC_ ; ++c){
+void sejnowski<double>::compute_phi_fb(int64_t offset, int64_t sample_size, double * z1, int const * signs, double* phi) const {
+    for(int64_t c = 0 ; c < NC_ ; ++c){
         int k = (signs[c]>0)?1:-1;
-        for(size_t f = offset ; f < offset + sample_size ; ++f)
+        for(int64_t f = offset ; f < offset + sample_size ; ++f)
           phi[c*NF_+f] = z1[c*NF_+f] + k*tanh(z1[c*NF_+f]);
     }
 }
 
 template<>
-void sejnowski<double>::compute_dphi_fb(size_t offset, size_t sample_size, double * z1, int const * signs, double* dphi) const {
-    for(size_t c = 0 ; c < NC_ ; ++c){
+void sejnowski<double>::compute_dphi_fb(int64_t offset, int64_t sample_size, double * z1, int const * signs, double* dphi) const {
+    for(int64_t c = 0 ; c < NC_ ; ++c){
         int s = signs[c];
-        for(size_t f = offset ; f < offset + sample_size ; ++f){
+        for(int64_t f = offset ; f < offset + sample_size ; ++f){
           double y = tanh(z1[c*NF_+f]);
           dphi[c*NF_+f] = (s>0)?2-y*y:y*y;
         }
@@ -85,11 +85,11 @@ void sejnowski<double>::compute_dphi_fb(size_t offset, size_t sample_size, doubl
 }
 
 template<>
-void sejnowski<double>::compute_means_logp_fb(size_t offset, size_t sample_size, double * z1, int const * signs, double* means_logp) const {
-    for(size_t c = 0 ; c < NC_ ; ++c){
+void sejnowski<double>::compute_means_logp_fb(int64_t offset, int64_t sample_size, double * z1, int const * signs, double* means_logp) const {
+    for(int64_t c = 0 ; c < NC_ ; ++c){
         double sum = 0;
         int k = signs[c];
-        for(size_t f = offset ; f < offset + sample_size ; ++f){
+        for(int64_t f = offset ; f < offset + sample_size ; ++f){
           double z = z1[c*NF_+f];
           sum+=(k<0)? - 0.693147 - 0.5*(z-1)*(z-1) + log(1+exp(-2*z)):-log(cosh(z))-0.5*z*z;
         }
@@ -103,12 +103,12 @@ void sejnowski<double>::compute_means_logp_fb(size_t offset, size_t sample_size,
  * ---------------------------
  */
 template<>
-void sejnowski<float>::compute_phi_sse3(size_t offset, size_t sample_size, float * z1, int const * signs, float* phi) const {
+void sejnowski<float>::compute_phi_sse3(int64_t offset, int64_t sample_size, float * z1, int const * signs, float* phi) const {
     #pragma omp parallel for
-    for(size_t c = 0 ; c < NC_ ; ++c){
+    for(int64_t c = 0 ; c < NC_ ; ++c){
         int s = signs[c];
         __m128 phi_signs = _mm_set1_ps((float)s);
-        size_t f = offset;
+        int64_t f = offset;
         for(; f < tools::round_to_next_multiple(offset,4); ++f)
           phi[c*NF_+f] = z1[c*NF_+f] + s*tanh(z1[c*NF_+f]);
         for(; f < tools::round_to_previous_multiple(offset+sample_size,4)  ; f+=4){
@@ -126,11 +126,11 @@ void sejnowski<float>::compute_phi_sse3(size_t offset, size_t sample_size, float
 }
 
 template<>
-void sejnowski<float>::compute_dphi_sse3(size_t offset, size_t sample_size, float * z1, int const * signs, float* dphi) const {
+void sejnowski<float>::compute_dphi_sse3(int64_t offset, int64_t sample_size, float * z1, int const * signs, float* dphi) const {
     #pragma omp parallel for
-    for(size_t c = 0 ; c < NC_ ; ++c){
+    for(int64_t c = 0 ; c < NC_ ; ++c){
         int s = signs[c];
-        size_t f = offset;
+        int64_t f = offset;
         for(; f < tools::round_to_next_multiple(offset,4); ++f){
           float y = tanh(z1[c*NF_+f]);
           dphi[c*NF_+f] = (s>0)?2-y*y:y*y;
@@ -155,13 +155,13 @@ void sejnowski<float>::compute_dphi_sse3(size_t offset, size_t sample_size, floa
 }
 
 template<>
-void sejnowski<float>::compute_means_logp_sse3(size_t offset, size_t sample_size, float * z1, int const * signs, float* means_logp) const {
+void sejnowski<float>::compute_means_logp_sse3(int64_t offset, int64_t sample_size, float * z1, int const * signs, float* means_logp) const {
     #pragma omp parallel for
-    for(size_t c = 0 ; c < NC_ ; ++c){
+    for(int64_t c = 0 ; c < NC_ ; ++c){
         __m128d vsum = _mm_set1_pd((double)0);
         int s = signs[c];
         double sum = 0;
-        size_t f = offset;
+        int64_t f = offset;
         for(; f < tools::round_to_next_multiple(offset,4); ++f){
           float z = z1[c*NF_+f];
           sum+=(s<0)? - 0.693147 - 0.5*(z-1)*(z-1) + log(1+exp(-2*z)):-log(cosh(z))-0.5*z*z;
@@ -207,12 +207,12 @@ void sejnowski<float>::compute_means_logp_sse3(size_t offset, size_t sample_size
 }
 
 template<>
-void sejnowski<double>::compute_phi_sse3(size_t offset, size_t sample_size, double * z1, int const * signs, double* phi) const {
+void sejnowski<double>::compute_phi_sse3(int64_t offset, int64_t sample_size, double * z1, int const * signs, double* phi) const {
     #pragma omp parallel for
-    for(size_t c = 0 ; c < NC_ ; ++c){
+    for(int64_t c = 0 ; c < NC_ ; ++c){
         int k = (signs[c]>0)?1:-1;
         __m128 phi_signs = _mm_set1_ps((double)k);
-        size_t f = offset;
+        int64_t f = offset;
         for(; f < tools::round_to_next_multiple(offset,4); ++f)
           phi[c*NF_+f] = z1[c*NF_+f] + k*tanh(z1[c*NF_+f]);
 
@@ -236,11 +236,11 @@ void sejnowski<double>::compute_phi_sse3(size_t offset, size_t sample_size, doub
 
 
 template<>
-void sejnowski<double>::compute_dphi_sse3(size_t offset, size_t sample_size, double * z1, int const * signs, double* dphi) const {
+void sejnowski<double>::compute_dphi_sse3(int64_t offset, int64_t sample_size, double * z1, int const * signs, double* dphi) const {
     #pragma omp parallel for
-    for(size_t c = 0 ; c < NC_ ; ++c){
+    for(int64_t c = 0 ; c < NC_ ; ++c){
         int s = signs[c];
-        size_t f = offset;
+        int64_t f = offset;
         for(; f < tools::round_to_next_multiple(offset,4); ++f){
           double y = tanh(z1[c*NF_+f]);
           dphi[c*NF_+f] = (s>0)?2-y*y:y*y;
@@ -268,13 +268,13 @@ void sejnowski<double>::compute_dphi_sse3(size_t offset, size_t sample_size, dou
 }
 
 template<>
-void sejnowski<double>::compute_means_logp_sse3(size_t offset, size_t sample_size, double * z1, int const * signs, double* means_logp) const {
+void sejnowski<double>::compute_means_logp_sse3(int64_t offset, int64_t sample_size, double * z1, int const * signs, double* means_logp) const {
     #pragma omp parallel for
-    for(size_t c = 0 ; c < NC_ ; ++c){
+    for(int64_t c = 0 ; c < NC_ ; ++c){
         __m128d vsum = _mm_set1_pd((double)0);
         int s = signs[c];
         double sum = 0;
-        size_t f = offset;
+        int64_t f = offset;
         for(; f < tools::round_to_next_multiple(offset,4); ++f){
           double z = z1[c*NF_+f];
           sum+=(s<0)? - 0.693147 - 0.5*(z-1)*(z-1) + log(1+exp(-2*z)):-log(cosh(z))-0.5*z*z;
@@ -319,7 +319,7 @@ void sejnowski<double>::compute_means_logp_sse3(size_t offset, size_t sample_siz
 }
 
 template<class T>
-void sejnowski<T>::compute_means_logp(size_t offset, size_t sample_size, T * z1, int const * signs, T * means_logp) const
+void sejnowski<T>::compute_means_logp(int64_t offset, int64_t sample_size, T * z1, int const * signs, T * means_logp) const
 {
     if(cpu.HW_SSE3)
         compute_means_logp_sse3(offset, sample_size, z1, signs, means_logp);
@@ -328,7 +328,7 @@ void sejnowski<T>::compute_means_logp(size_t offset, size_t sample_size, T * z1,
 }
 
 template<class T>
-void sejnowski<T>::compute_phi(size_t offset, size_t sample_size, T * z1, int const * signs, T* phi) const
+void sejnowski<T>::compute_phi(int64_t offset, int64_t sample_size, T * z1, int const * signs, T* phi) const
 {
     if(cpu.HW_SSE3)
         compute_phi_sse3(offset, sample_size, z1, signs, phi);
@@ -337,7 +337,7 @@ void sejnowski<T>::compute_phi(size_t offset, size_t sample_size, T * z1, int co
 }
 
 template<class T>
-void sejnowski<T>::compute_dphi(size_t offset, size_t sample_size, T * z1, int const * signs, T* dphi) const
+void sejnowski<T>::compute_dphi(int64_t offset, int64_t sample_size, T * z1, int const * signs, T* dphi) const
 {
     if(cpu.HW_SSE3)
         compute_dphi_sse3(offset, sample_size, z1, signs, dphi);

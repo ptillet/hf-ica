@@ -11,6 +11,7 @@
 #define NONLINEARITIES_EXTENDED_INFOMAX_ICA_H_
 
 #include <cstddef>
+#include <stdint.h>
 
 namespace neo_ica{
 namespace dist{
@@ -20,23 +21,23 @@ class sejnowski{
 
 private:
     //Fallback
-    void compute_means_logp_fb(size_t offset, size_t sample_size, ScalarType * z1, int const * signs, ScalarType * means_logp) const;
-    void compute_phi_fb(size_t offset, size_t sample_size, ScalarType * z1, int const * signs, ScalarType* phi) const;
-    void compute_dphi_fb(size_t offset, size_t sample_size, ScalarType * z1, int const * signs, ScalarType* dphi) const;
+    void compute_means_logp_fb(int64_t offset, int64_t sample_size, ScalarType * z1, int const * signs, ScalarType * means_logp) const;
+    void compute_phi_fb(int64_t offset, int64_t sample_size, ScalarType * z1, int const * signs, ScalarType* phi) const;
+    void compute_dphi_fb(int64_t offset, int64_t sample_size, ScalarType * z1, int const * signs, ScalarType* dphi) const;
     //SSE3
-    void compute_means_logp_sse3(size_t offset, size_t sample_size, ScalarType * z1, int const * signs, ScalarType * means_logp) const;
-    void compute_phi_sse3(size_t offset, size_t sample_size, ScalarType * z1, int const * signs, ScalarType* phi) const;
-    void compute_dphi_sse3(size_t offset, size_t sample_size, ScalarType * z1, int const * signs, ScalarType* dphi) const;
+    void compute_means_logp_sse3(int64_t offset, int64_t sample_size, ScalarType * z1, int const * signs, ScalarType * means_logp) const;
+    void compute_phi_sse3(int64_t offset, int64_t sample_size, ScalarType * z1, int const * signs, ScalarType* phi) const;
+    void compute_dphi_sse3(int64_t offset, int64_t sample_size, ScalarType * z1, int const * signs, ScalarType* dphi) const;
 
 public:
-    sejnowski(size_t NC, size_t NF) : NC_(NC), NF_(NF){}
-    void compute_means_logp(size_t offset, size_t sample_size, ScalarType * z1, int const * signs, ScalarType * means_logp) const;
-    void compute_phi(size_t offset, size_t sample_size, ScalarType * z1, int const * signs, ScalarType* phi) const;
-    void compute_dphi(size_t offset, size_t sample_size, ScalarType * z1, int const * signs, ScalarType* dphi) const;
+    sejnowski(int64_t NC, int64_t NF) : NC_(NC), NF_(NF){}
+    void compute_means_logp(int64_t offset, int64_t sample_size, ScalarType * z1, int const * signs, ScalarType * means_logp) const;
+    void compute_phi(int64_t offset, int64_t sample_size, ScalarType * z1, int const * signs, ScalarType* phi) const;
+    void compute_dphi(int64_t offset, int64_t sample_size, ScalarType * z1, int const * signs, ScalarType* dphi) const;
 
 private:
-    size_t NC_;
-    size_t NF_;
+    int64_t NC_;
+    int64_t NF_;
 };
 
 }
