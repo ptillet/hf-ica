@@ -107,7 +107,7 @@ struct dynamically_sampled : public model_base<BackendType> {
     }
 
     hessian_vector_product get_hv_product_tag() const {
-      return hessian_vector_product(STOCHASTIC, (size_t)r_*S, H_offset_+offset_);
+      return hessian_vector_product(STOCHASTIC,(size_t)(r_*S),H_offset_+offset_);
     }
 private:
     double theta_;
