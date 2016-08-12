@@ -5,31 +5,28 @@
 
 namespace py = pybind11;
 
-std::tuple<py::array, py::array, py::array> ica(py::array & data, py::array & weights, py::array & sphere,
+std::tuple<py::array, py::array, py::array> ica(py::array & data,
          int iter, unsigned int verbosity, int nthreads, float rho, int fbatch, float theta)
 {
     //options
-    neo_ica::options opt;
-    opt.iter = iter;
-    opt.verbosity = verbosity;
-    opt.nthreads = nthreads;
-    opt.rho = rho;
-    opt.fbatch = fbatch;
-    opt.theta = theta;
+    neo_ica::options opt(iter, verbosity, theta, rho, fbatch, nthreads);
     //buffer
     py::buffer_info X = data.request();
-    py::buffer_info W = weights.request();
-    py::buffer_info Sphere = sphere.request();
+    size_t NC = X.shape[0];
+    size_t NF = X.shape[1];
+
+    py::buffer_info W(malloc(NC*NC), X.itemsize, X.format, 2, {NC, NC}, {X.itemsize, NC*X.itemsize});
+    py::buffer_info Sphere(malloc(NC*NC), W.itemsize, W.format, W.ndim, W.shape, W.strides);
     //dtype
     if(X.format == "Zf"){
         typedef float T;
-        neo_ica::ica<T>((T*)X.ptr, (T*)W.ptr, (T*)Sphere.ptr, X.shape[0], X.shape[1], opt);
+        neo_ica::ica((T*)X.ptr, (T*)W.ptr, (T*)Sphere.ptr, NC, NF, opt);
     }
     else if(X.format == "Zd"){
         typedef double T;
-        neo_ica::ica<T>((T*)X.ptr, (T*)W.ptr, (T*)Sphere.ptr, X.shape[0], X.shape[1], opt);
+        neo_ica::ica((T*)X.ptr, (T*)W.ptr, (T*)Sphere.ptr, NC, NF, opt);
     }
-    return std::make_tuple(data, weights, sphere);
+    return std::make_tuple(data, py::array(W), py::array(Sphere));
 }
 
 PYBIND11_PLUGIN(_ica) {
@@ -37,7 +34,7 @@ PYBIND11_PLUGIN(_ica) {
     using namespace neo_ica::dflt;
     m.def("ica", &ica,
           "Performs independent component analysis on the data provided",
-          py::arg("data"), py::arg("weights"), py::arg("sphere"),
+          py::arg("data"),
           py::arg("iter")=iter, py::arg("verbosity")=verbosity,
           py::arg("theta")=theta, py::arg("rho")=rho, py::arg("fbatch")=fbatch,
           py::arg("nthreads")=nthreads);
