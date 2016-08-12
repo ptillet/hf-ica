@@ -12,22 +12,39 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 
 namespace neo_ica{
 
+
+namespace dflt{
+    static const size_t iter = 500;
+    static const unsigned int verbosity = 0;
+    static const double theta = 0.5;
+    static const double rho = 0.1;
+    static const size_t fbatch = 0;
+    static const int nthreads = 0;
+}
+
 struct options{
-    size_t max_iter;
-    unsigned int verbosity_level;
+    options(size_t _iter = dflt::iter,
+            unsigned int _verbosity = dflt::verbosity,
+            double _theta = dflt::theta,
+            double _rho = dflt::rho,
+            double _fbatch = dflt::fbatch,
+            double _nthreads = dflt::nthreads):
+        iter(_iter), verbosity(_verbosity), theta(_theta), rho(_rho), fbatch(_fbatch), nthreads(_nthreads){}
+
+    size_t iter;
+    unsigned int verbosity;
     double theta;
-    double RS;
-    size_t S0;
-    int omp_num_threads;
+    double rho;
+    size_t fbatch;
+    int nthreads;
 };
 
-options make_default_options();
-
 template<class ScalarType>
-void ica(ScalarType const * data, ScalarType* W, ScalarType* S, int64_t NC, int64_t NF, options const & opt);
+void ica(ScalarType const * data, ScalarType* W, ScalarType* S, int64_t NC, int64_t NF, options const & opt = options());
 
 }
 

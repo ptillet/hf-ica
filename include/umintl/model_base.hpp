@@ -65,7 +65,7 @@ struct dynamically_sampled : public model_base<BackendType> {
     typedef typename BackendType::VectorType VectorType;
 
   public:
-    dynamically_sampled(double r, size_t S0, size_t dataset_size, double theta = 0.5) : theta_(theta), r_(r), S(std::min(S0,dataset_size)), offset_(0), H_offset_(0), N(dataset_size){ }
+    dynamically_sampled(double r, size_t fbatch, size_t dataset_size, double theta = 0.5) : theta_(theta), r_(r), S(std::min(fbatch,dataset_size)), offset_(0), H_offset_(0), N(dataset_size){ }
 
     bool update(optimization_context<BackendType> & c){
       if(S==N){

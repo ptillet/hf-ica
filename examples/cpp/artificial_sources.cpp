@@ -10,10 +10,10 @@
 #include <cmath>
 #include <cstdlib>
 #include <algorithm>
+#include "benchmark-utils.hpp"
 
 #include "neo_ica/ica.h"
 #include "neo_ica/backend/backend.hpp"
-#include "tests/benchmark-utils.hpp"
 
 #define BENCHMARK_COUNT 1
 
@@ -47,11 +47,8 @@ int main(){
 
     neo_ica::backend<ScalarType>::gemm('N','N',NF,NC,NC,1,src,NF,mixing,NC,0,mixed_src,NF);
 
-    neo_ica::options options = neo_ica::make_default_options();
-    options.verbosity_level = 2;
-    options.max_iter=100;
-    options.RS = 0.1;
-    options.S0 = 10000;
+    neo_ica::options options;
+    options.verbosity = 2;
     Timer t;
     t.start();
     for(unsigned int i = 0 ; i < BENCHMARK_COUNT ; ++i){

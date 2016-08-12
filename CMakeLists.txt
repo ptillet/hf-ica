@@ -21,9 +21,8 @@ include_directories(${PROJECT_SOURCE_DIR}/external/include)
 #Tests
 include(CTest)
 enable_testing()
-add_subdirectory(tests)
 
-#FLAGS
+#Flags
 if(MSVC)
     #set(VECTOR_FLAG "/arch:SSE2")
     set(WARNING_FLAG "/W2")
@@ -51,7 +50,7 @@ if (OPENMP_FOUND)
 endif()
 
 #Sources
-set(NEO_ICA_SRC_PATH "${PROJECT_SOURCE_DIR}/src")
+set(NEO_ICA_SRC_PATH "lib")
 file(GLOB_RECURSE NEO_ICA_SRC ${NEO_ICA_SRC_PATH}/*.cpp)
 
 #Library
@@ -66,8 +65,7 @@ if(Matlab_FOUND)
     add_subdirectory(matlab)
 endif()
 
-find_package(BLAS)
 find_package(LAPACK)
-if(BLAS_FOUND AND LAPACK_FOUND)
+if(LAPACK_FOUND)
     add_subdirectory(examples)
 endif()

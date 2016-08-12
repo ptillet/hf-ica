@@ -89,16 +89,16 @@ struct truncated_newton : public direction<BackendType>{
     };
 
   public:
-    truncated_newton(tag::truncated_newton::stopping_criterion _stop = tag::truncated_newton::STOP_RESIDUAL_TOLERANCE, size_t _max_iter = 0) : max_iter(_max_iter), stop(_stop){ }
+    truncated_newton(tag::truncated_newton::stopping_criterion _stop = tag::truncated_newton::STOP_RESIDUAL_TOLERANCE, size_t _iter = 0) : iter(_iter), stop(_stop){ }
 
     virtual std::string info() const{
         return "Truncated Newton";
     }
 
     void operator()(optimization_context<BackendType> & c){
-      if(max_iter==0) max_iter = c.N();
+      if(iter==0) iter = c.N();
 
-      linear::conjugate_gradient<BackendType> solver(max_iter, new compute_Ab(c.x(), c.g(),c.model(),c.fun()));
+      linear::conjugate_gradient<BackendType> solver(iter, new compute_Ab(c.x(), c.g(),c.model(),c.fun()));
       if(stop==tag::truncated_newton::STOP_RESIDUAL_TOLERANCE){
           ScalarType tol = std::min((ScalarType)0.5,std::sqrt(BackendType::nrm2(c.N(),c.g())))*BackendType::nrm2(c.N(),c.g());
           solver.stop = new linear::conjugate_gradient_detail::residual_norm<BackendType>(tol);
@@ -121,7 +121,7 @@ struct truncated_newton : public direction<BackendType>{
       BackendType::delete_if_dynamically_allocated(minus_g);
     }
 
-    size_t max_iter;
+    size_t iter;
     tag::truncated_newton::stopping_criterion stop;
 };
 

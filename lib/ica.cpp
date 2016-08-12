@@ -83,7 +83,7 @@ public:
             if(first_signs[c] < 0) n_subgauss++;
         }
 
-        if(opt.verbosity_level>0){
+        if(opt.verbosity>0){
             std::cout << "Number of subgaussian sources: " << n_subgauss << std::endl;
             std::cout << "Number of OMP Threads : " << omp_thread_count() << std::endl;
         }
@@ -242,7 +242,7 @@ public:
               variance[i*NC_+j] = (ScalarType)1/(sample_size-1)*(variance[i*NC_+j] - phixT[i*NC_+j]*phixT[i*NC_+j]/(ScalarType)sample_size);
     }
 
-    /* Gradient variance */
+    /* Gradient */
     void operator()(VectorType const & x, ScalarType& value, VectorType & grad, umintl::value_gradient tag) const {
         throw_if_mex_and_ctrl_c();
 
@@ -261,10 +261,10 @@ public:
         std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
         std::memcpy(WLU,W,sizeof(ScalarType)*NC_*NC_);
 
-        //z1 = W*data_;
+        //Z = X*W;
         backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
 
-        //phi = mean(mata.*abs(z2).^(mata-1).*sign(z2),2);
+        //means_logp = mean(mata.*abs(Z).^(mata-1).*sign(Z),2);
         nonlinearity_.compute_means_logp(offset,sample_size,Z,first_signs,means_logp);
 
         //LU Decomposition
@@ -335,31 +335,18 @@ private:
     mutable bool is_first_;
 };
 
-
-
-options make_default_options(){
-    options opt;
-    opt.max_iter = 500;
-    opt.omp_num_threads = 0;
-    opt.verbosity_level = 2;
-    opt.RS = 0.1;
-    opt.S0 = 0;
-    opt.theta = 0.5;
-    return opt;
-}
-
 template<class ScalarType>
-void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, int64_t NC, int64_t DataNF, options const & optimization_options){
+void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, int64_t NC, int64_t DataNF, options const & conf){
     typedef typename umintl_backend<ScalarType>::type BackendType;
     typedef ica_functor<ScalarType, dist::sejnowski<ScalarType> > IcaFunctorType;
 
-    options opt(optimization_options);
+    options opt(conf);
 
     //Problem sizes
     int64_t padsize = 4;
     int64_t N = NC*NC;
     int64_t NF=(DataNF%padsize==0)?DataNF:(DataNF/padsize)*padsize;
-    if(opt.S0==0) opt.S0=NF;
+    if(opt.fbatch==0) opt.fbatch=NF;
 
     //Allocate
     ScalarType * white_data =  new ScalarType[NC*NF];
@@ -378,10 +365,10 @@ void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, int64
     //Optimizer
     umintl::minimizer<BackendType> minimizer;
     minimizer.hessian_vector_product_computation = umintl::PROVIDED;
-    minimizer.model = new umintl::dynamically_sampled<BackendType>(opt.RS,opt.S0,NF,opt.theta);
+    minimizer.model = new umintl::dynamically_sampled<BackendType>(opt.rho,opt.fbatch,NF,opt.theta);
     minimizer.direction = new umintl::truncated_newton<BackendType>(umintl::tag::truncated_newton::STOP_HV_VARIANCE);
-    minimizer.verbosity_level = opt.verbosity_level;
-    minimizer.max_iter = opt.max_iter;
+    minimizer.verbosity = opt.verbosity;
+    minimizer.iter = opt.iter;
     minimizer.stopping_criterion = new umintl::parameter_change_threshold<BackendType>(1e-6);
     do{
         minimizer(X,objective,X,N);

@@ -99,10 +99,10 @@ bool cpu_x86::detect_OS_AVX(){
     int cpuInfo[4];
     cpuid(cpuInfo, 1);
 
-    bool osUsesXSAVE_XRSTORE = (cpuInfo[2] & (1 << 27)) != 0;
+    bool osUsesXSAVE_XrhoTORE = (cpuInfo[2] & (1 << 27)) != 0;
     bool cpuAVXSuport = (cpuInfo[2] & (1 << 28)) != 0;
 
-    if (osUsesXSAVE_XRSTORE && cpuAVXSuport)
+    if (osUsesXSAVE_XrhoTORE && cpuAVXSuport)
     {
         uint64_t xcrFeatureMask = xgetbv(_XCR_XFEATURE_ENABLED_MASK);
         avxSupported = (xcrFeatureMask & 0x6) == 0x6;

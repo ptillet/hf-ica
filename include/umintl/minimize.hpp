@@ -44,18 +44,18 @@ namespace umintl{
          *
          * @param _direction the descent direction used by the minimizer
          * @param _stopping_criterion the stopping criterion
-         * @param _max_iter the maximum number of iterations
-         * @param _verbosity_level the verbosity level
+         * @param _iter the maximum number of iterations
+         * @param _verbosity the verbosity level
          */
         minimizer(umintl::direction<BackendType> * _direction = new quasi_newton<BackendType>()
                              , umintl::stopping_criterion<BackendType> * _stopping_criterion = new gradient_treshold<BackendType>()
-                             , unsigned int _max_iter = 1024, unsigned int _verbosity_level = 0) :
+                             , unsigned int _iter = 1024, unsigned int _verbosity = 0) :
             direction(_direction)
           , line_search(new strong_wolfe_powell<BackendType>())
           , stopping_criterion(_stopping_criterion)
           , model(new deterministic<BackendType>())
           , hessian_vector_product_computation(CENTERED_DIFFERENCE)
-          , verbosity_level(_verbosity_level), max_iter(_max_iter){
+          , verbosity(_verbosity), iter(_iter){
 
         }
 
@@ -67,8 +67,8 @@ namespace umintl{
 
         double tolerance;
 
-        unsigned int verbosity_level;
-        unsigned int max_iter;
+        unsigned int verbosity;
+        unsigned int iter;
 
     private:
 
@@ -78,8 +78,8 @@ namespace umintl{
          */
         std::string info() const{
           std::ostringstream oss;
-          oss << "Verbosity Level : " << verbosity_level << std::endl;
-          oss << "Maximum number of iterations : " << max_iter << std::endl;
+          oss << "Verbosity Level : " << verbosity << std::endl;
+          oss << "Maximum number of iterations : " << iter << std::endl;
           oss << "Direction : " << direction->info() << std::endl;
           return oss.str();
         }
@@ -127,7 +127,7 @@ namespace umintl{
 
             init_all(c);
 
-            if(verbosity_level >= 1)
+            if(verbosity >= 1)
                 std::cout << info() << std::endl;
 
 
@@ -139,8 +139,8 @@ namespace umintl{
 
             //Main loop
             c.fun().compute_value_gradient(c.x(), c.val(), c.g(), c.model().get_value_gradient_tag());
-            for( ; c.iter() < max_iter ; ++c.iter()){
-                if(verbosity_level >= 2 ){
+            for( ; c.iter() < iter ; ++c.iter()){
+                if(verbosity >= 2 ){
                     std::cout << "Ieration  " << c.iter()
                               << "| cost : " << c.val()
                               << "| NVal : " << c.fun().n_value_computations()

@@ -56,7 +56,12 @@ void sejnowski<float>::compute_means_logp_fb(int64_t offset, int64_t sample_size
         int k = signs[c];
         for(int64_t f = offset ; f < offset + sample_size ; ++f){
           float z = z1[c*NF_+f];
-          sum+=(k<0)? - 0.693147 - 0.5*(z-1)*(z-1) + log(1+exp(-2*z)):-log(cosh(z))-0.5*z*z;
+          //subgaussian
+          if(k<0)
+              sum += - 0.693147 - 0.5*(z-1)*(z-1) + log(1+exp(-2*z));
+          //supergaussian
+          else
+              sum += -log(cosh(z))-0.5*z*z;
         }
         means_logp[c] = 1/(float)sample_size*sum;
     }

@@ -124,10 +124,10 @@ namespace umintl{
 
       public:
 
-        conjugate_gradient(size_t _max_iter
+        conjugate_gradient(size_t _iter
                           , conjugate_gradient_detail::compute_Ab<BackendType> * _compute_Ab
                           , conjugate_gradient_detail::stopping_criterion<BackendType> * _stop = new umintl::linear::conjugate_gradient_detail::residual_norm<BackendType>)
-          : max_iter(_max_iter), compute_Ab(_compute_Ab), stop(_stop){ }
+          : iter(_iter), compute_Ab(_compute_Ab), stop(_stop){ }
 
 
         optimization_result operator()(size_t N, VectorType const & x0, VectorType const & b, VectorType & x)
@@ -158,7 +158,7 @@ namespace umintl{
 
           ScalarType rso = BackendType::dot(N,r,r);
 
-          for(size_t i = 0 ; i < max_iter ; ++i){
+          for(size_t i = 0 ; i < iter ; ++i){
             (*compute_Ab)(N,p,Ap);
             BackendType::axpy(N,lambda*nrm_b,b,Ap);
 
@@ -190,10 +190,10 @@ namespace umintl{
             BackendType::axpy(N,1,r,p);
             rso = rsn;
           }
-          return clear_terminate(FAILURE,max_iter);
+          return clear_terminate(FAILURE,iter);
         }
 
-        size_t max_iter;
+        size_t iter;
         tools::shared_ptr<linear::conjugate_gradient_detail::compute_Ab<BackendType> > compute_Ab;
         tools::shared_ptr<linear::conjugate_gradient_detail::stopping_criterion<BackendType> > stop;
       private:
