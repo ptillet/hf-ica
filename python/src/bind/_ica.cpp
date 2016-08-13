@@ -30,13 +30,21 @@ std::tuple<py::array, py::array, py::array> ica(py::array& data, py::array& weig
 
 PYBIND11_PLUGIN(_ica) {
     py::module m("_ica", "C++ wrapper for neo-ica");
-    using namespace neo_ica::dflt;
     m.def("ica", &ica,
           "Performs independent component analysis on the data provided",
           py::arg("data"), py::arg("weights"), py::arg("sphere"),
-          py::arg("iter")=iter, py::arg("verbosity")=verbosity,  
-          py::arg("nthreads")=nthreads, py::arg("rho")=rho,
-          py::arg("fbatch")=fbatch, py::arg("theta")=theta);
+          py::arg("iter"), py::arg("verbosity"),
+          py::arg("nthreads"), py::arg("rho"),
+          py::arg("fbatch"), py::arg("theta"));
+
+    py::module df = m.def_submodule("default", "Default values for parameters");
+    using namespace neo_ica::dflt;
+    df.attr("iter") = py::int_(iter);
+    df.attr("verbosity") = py::int_(verbosity);
+    df.attr("nthreads") = py::int_(nthreads);
+    df.attr("rho") = py::float_(rho);
+    df.attr("fbatch") = py::int_(fbatch);
+    df.attr("theta") = py::float_(theta);
 
     return m.ptr();
 }
