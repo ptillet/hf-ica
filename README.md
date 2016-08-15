@@ -3,32 +3,32 @@ Newton Entropy Optimization (NEO) ICA
 
 Large-scale Infomax-ICA using Truncated Newton (a.k.a Hessian-Free) optimization.
 
-* Quadratic convergence
+**Quadratic convergence**
 
 Faster and better convergence using Truncated Newton (a.k.a Hessian-free) optimization.
 
 http://www.sciencedirect.com/science/article/pii/S037704270000426X
 http://www.cs.toronto.edu/~jmartens/docs/Deep_HessianFree.pdf
 
-* Adaptive minibatch size
+**Adaptive minibatch size**
 
 Uses the variance of the approximate likelihood's gradient/hessian-vector product
 to adjust the mini-batch size across iterations.
 
 http://www.optimization-online.org/DB_FILE/2011/11/3226.pdf
 
-* Fast implementation
+**Fast implementation**
 
 The algorithm was implemented for CPUs using BLAS, OpenMP and SSE intrinsics.
 Approximate math is used when possible (https://github.com/herumi/fmath).
 
 If your hardware does not support SSE intrinsics, NEO-ICA falls back to non-vectorized code.
 
-* Multi-Languages
+**Multi-Languages**
 
 C++, Python and MATLAB are supported. 
 
-* Lightweight and portable
+**Lightweight and portable**
 
 Compiles with both GCC 4.8+  and MSVC 2015.
 
