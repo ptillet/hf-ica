@@ -5,7 +5,7 @@
 
 namespace py = pybind11;
 
-std::tuple<py::array, py::array, py::array> ica(py::array& data, py::array& weights, py::array& sphere,
+std::tuple<py::array, py::array> ica(py::array& data, py::array& weights, py::array& sphere,
          int iter, unsigned int verbosity, int nthreads, float rho, int fbatch, float theta)
 {
     //options
@@ -25,7 +25,7 @@ std::tuple<py::array, py::array, py::array> ica(py::array& data, py::array& weig
         typedef double T;
         neo_ica::ica((T*)X.ptr, (T*)W.ptr, (T*)Sphere.ptr, NC, NF, opt);
     }
-    return std::make_tuple(data, weights, sphere);
+    return std::make_tuple(weights, sphere);
 }
 
 PYBIND11_PLUGIN(_ica) {

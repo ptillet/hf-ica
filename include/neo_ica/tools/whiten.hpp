@@ -54,12 +54,12 @@ void compute_mean(ScalarType* A, int64_t NC, int64_t NF, ScalarType* x){
 
 
 template<class ScalarType>
-void whiten(int64_t NC, int64_t DataNF, int64_t NF, ScalarType const * constdata, ScalarType * Sphere, ScalarType * white_data){
+void whiten(int64_t NC, int64_t DataNF, int64_t NF, ScalarType const * cdata, ScalarType * Sphere, ScalarType * white_data){
     ScalarType * Cov = new ScalarType[NC*NC];
     ScalarType * means = new ScalarType[NC];
 
     //We remove constness here to normalize the data (and add the mean back afterwards)
-    ScalarType * data = const_cast<ScalarType *>(constdata);
+    ScalarType * data = const_cast<ScalarType *>(cdata);
     compute_mean(data,NC,NF,means);
 
     //Substract mean

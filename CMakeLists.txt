@@ -67,5 +67,5 @@ endif()
 
 find_package(LAPACK)
 if(LAPACK_FOUND)
-    add_subdirectory(examples)
+    add_subdirectory(tests)
 endif()

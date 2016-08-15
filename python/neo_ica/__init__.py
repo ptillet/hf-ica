@@ -9,5 +9,8 @@ def ica(data, iter=df.iter, verbosity=df.verbosity, nthreads=df.nthreads,
     NC = X.shape[0]
     weights = np.empty((NC, NC), dtype=X.dtype)
     sphere = np.empty((NC, NC), dtype=X.dtype)
-    return _ica.ica(data, weights, sphere, iter, verbosity, 
+    _ica.ica(data, weights, sphere, iter, verbosity, 
                     nthreads, rho, fbatch, theta)
+    A = np.dot(weights, sphere)
+    sources = np.dot(A, data)
+    return sources, A

@@ -354,7 +354,7 @@ void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, int64
     std::memset(X,0,N*sizeof(ScalarType));
 
     //Whiten Data
-    whiten<ScalarType>(NC, DataNF, NF, data,Sphere,white_data);
+    whiten<ScalarType>(NC, DataNF, NF, data, Sphere, white_data);
     shuffle(white_data,NC,NF);
     IcaFunctorType objective(white_data,NF,NC,opt);
 
