@@ -1,11 +1,12 @@
 Newton Entropy Optimization (NEO) ICA
 =====
 
-Large-scale Infomax-ICA using Truncated Newton (a.k.a Hessian-Free) optimization.
+Large-scale Infomax-ICA using second-order optimization.
 
 **Quadratic convergence**
 
 Faster and better convergence using Truncated Newton (a.k.a Hessian-free) optimization.
+This has the same memory cost as usual gradient descent methods.
 
 http://www.sciencedirect.com/science/article/pii/S037704270000426X
 http://www.cs.toronto.edu/~jmartens/docs/Deep_HessianFree.pdf
