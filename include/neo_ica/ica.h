@@ -22,7 +22,7 @@ namespace dflt{
     static const unsigned int verbosity = 0;
     static const double theta = 0.5;
     static const double rho = 0.1;
-    static const size_t fbatch = 0;
+    static const size_t fbatch = 1024;
     static const int nthreads = 0;
 }
 

@@ -17,6 +17,7 @@
 #include "umintl/debug.hpp"
 #include "umintl/minimize.hpp"
 #include "umintl/stopping_criterion/parameter_change_threshold.hpp"
+#include "umintl/stopping_criterion/gradient_treshold.hpp"
 
 #include "omp.h"
 
@@ -45,9 +46,6 @@ public:
         //NC*NF matrices
         Z = new ScalarType[NC_*NF_];
         RZ = new ScalarType[NC_*NF_];
-        dphi = new ScalarType[NC_*NF_];
-        phi = new ScalarType[NC_*NF_];
-        psi = new ScalarType[NC_*NF_];
         datasq_ = new ScalarType[NC_*NF_];
 
         //NC*NC matrices
@@ -89,8 +87,10 @@ public:
         }
     }
 
-    bool recompute_signs(){
+    bool recompute_signs(ScalarType* x){
         bool sign_change = false;
+        std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
+        backend<ScalarType>::gemm(NoTrans,NoTrans,NF_,NC_,NC_,1,data_,NF_,W,NC_,0,Z,NF_);
 
         for(int64_t c = 0 ; c < NC_ ; ++c){
             ScalarType m2 = 0, m4 = 0;
@@ -116,9 +116,6 @@ public:
         //NC*NF matrices
         delete[] Z;
         delete[] RZ;
-        delete[] dphi;
-        delete[] phi;
-        delete[] psi;
         delete[] datasq_;
         //NC*NC matrices
         delete[] psixT;
@@ -145,26 +142,30 @@ public:
           sample_size = tag.sample_size;
         }
 
+        //Z = X*W
         std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
-        std::memcpy(WLU,x,sizeof(ScalarType)*NC_*NC_);
         backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
 
+        //RZ = X*V
         std::memcpy(V, v,sizeof(ScalarType)*NC_*NC_);
         backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,V,NC_,0,RZ+offset,NF_);
 
         //Psi = dphi(Z).*RZ
+        //Reuse Z's buffer because not needed anymore after and elementwise
+        ScalarType* psi = Z;
+        ScalarType* dphi = Z;
         nonlinearity_.compute_dphi(offset,sample_size,Z,first_signs,dphi);
         for(int64_t c = 0 ; c < NC_ ; ++c)
             for(int64_t f = offset; f < offset+sample_size ; ++f)
                 psi[c*NF_+f] = dphi[c*NF_+f]*RZ[c*NF_+f];
         backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,psi+offset,NF_,0,psixT,NC_);
 
+
+        //Variance = 1/(N-1)[psi.^2*(x.^2)' - 1/N*psi*x']
         for(int64_t i = 0 ; i < NC_; ++i)
             for(int64_t j = offset ; j < offset+sample_size; ++j)
                 psi[i*NF_+j] = psi[i*NF_+j]*psi[i*NF_+j];
-
         backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size,1,datasq_+offset,NF_,psi+offset,NF_,0,variance,NC_);
-
         for(int64_t i = 0 ; i < NC_; ++i)
             for(int64_t j = 0 ; j < NC_; ++j)
               variance[i*NC_+j] = (ScalarType)1/(sample_size-1)*(variance[i*NC_+j] - psixT[i*NC_+j]*psixT[i*NC_+j]/(ScalarType)sample_size);
@@ -184,11 +185,8 @@ public:
         }
 
         std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
-        std::memcpy(WLU,x,sizeof(ScalarType)*NC_*NC_);
 
         //Z = X*W
-        backend<ScalarType>::getrf(NC_,NC_,WLU,NC_,ipiv_);
-        backend<ScalarType>::getri(NC_,WLU,NC_,ipiv_);
         backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
 
         //RZ = X*V
@@ -196,12 +194,18 @@ public:
         backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,V,NC_,0,RZ+offset,NF_);
 
         //Psi = dphi(Z).*RZ
+        //Reuse Z's buffer because not needed anymore after and elementwise
+        ScalarType* psi = Z;
+        ScalarType* dphi = Z;
         nonlinearity_.compute_dphi(offset,sample_size,Z,first_signs,dphi);
         for(int64_t c = 0 ; c < NC_ ; ++c)
             for(int64_t f = offset; f < offset+sample_size ; ++f)
                 psi[c*NF_+f] = dphi[c*NF_+f]*RZ[c*NF_+f];
 
         //HV = (inv(W)*V*inv(w))' + 1/n*Psi*X'
+        std::memcpy(WLU,x,sizeof(ScalarType)*NC_*NC_);
+        backend<ScalarType>::getrf(NC_,NC_,WLU,NC_,ipiv_);
+        backend<ScalarType>::getri(NC_,WLU,NC_,ipiv_);
         backend<ScalarType>::gemm(Trans,Trans,NC_,NC_,NC_ ,1,WLU,NC_,V,NC_,0,WinvV,NC_);
         backend<ScalarType>::gemm(NoTrans,Trans,NC_,NC_,NC_ ,1,WinvV,NC_,WLU,NC_,0,HV,NC_);
         backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,psi+offset,NF_,0,psixT,NC_);
@@ -228,6 +232,7 @@ public:
 
         backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
 
+        ScalarType* phi = Z;
         nonlinearity_.compute_phi(offset,sample_size,Z,first_signs,phi);
         backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,phi+offset,NF_,0,phixT,NC_);
 
@@ -235,7 +240,6 @@ public:
         for(int64_t i = 0 ; i < NC_; ++i)
             for(int64_t j = offset ; j < offset+sample_size; ++j)
                 phi[i*NF_+j] = phi[i*NF_+j]*phi[i*NF_+j];
-
         backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size,1,datasq_+offset,NF_,phi+offset,NF_,0,variance,NC_);
         for(int64_t i = 0 ; i < NC_; ++i)
             for(int64_t j = 0 ; j < NC_; ++j)
@@ -259,7 +263,6 @@ public:
 
         //Rerolls the variables into the appropriates datastructures
         std::memcpy(W, x,sizeof(ScalarType)*NC_*NC_);
-        std::memcpy(WLU,W,sizeof(ScalarType)*NC_*NC_);
 
         //Z = X*W;
         backend<ScalarType>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
@@ -268,20 +271,23 @@ public:
         nonlinearity_.compute_means_logp(offset,sample_size,Z,first_signs,means_logp);
 
         //LU Decomposition
+        std::memcpy(WLU,W,sizeof(ScalarType)*NC_*NC_);
         backend<ScalarType>::getrf(NC_,NC_,WLU,NC_,ipiv_);
 
         //det = prod(diag(WLU))
-        ScalarType abs_det = 1;
-        for(int64_t i = 0 ; i < NC_ ; ++i)
-            abs_det*=std::abs(WLU[i*NC_+i]);
+        ScalarType logabsdet = 0;
+        for(int64_t i = 0 ; i < NC_ ; ++i){
+            logabsdet += std::log(std::abs(WLU[i*NC_+i]));
+        }
 
         //H = log(abs(det(w))) + sum(means_logp);
-        ScalarType H = std::log(abs_det);
+        ScalarType H = logabsdet;
         for(int64_t i = 0; i < NC_ ; ++i)
             H+=means_logp[i];
         value = -H;
 
         /* Gradient */
+        ScalarType* phi = Z;
         nonlinearity_.compute_phi(offset,sample_size,Z,first_signs,phi);
 
         //Grad = - (wmT - 1/S*phixT)
@@ -312,12 +318,7 @@ private:
     ScalarType* Z ;
     ScalarType* RZ;
 
-    ScalarType* dphi;
-
-    ScalarType* phi;
     ScalarType* phixT;
-
-    ScalarType* psi;
     ScalarType* psixT;
 
     ScalarType* datasq_;
@@ -346,7 +347,9 @@ void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, int64
     int64_t padsize = 4;
     int64_t N = NC*NC;
     int64_t NF=(DataNF%padsize==0)?DataNF:(DataNF/padsize)*padsize;
-    if(opt.fbatch==0) opt.fbatch=NF;
+    opt.fbatch=std::min(opt.fbatch, (size_t)NF);
+    if(opt.fbatch==0)
+        opt.fbatch=NF;
 
     //Allocate
     ScalarType * white_data =  new ScalarType[NC*NF];
@@ -372,7 +375,7 @@ void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, int64
     minimizer.stopping_criterion = new umintl::parameter_change_threshold<BackendType>(1e-6);
     do{
         minimizer(X,objective,X,N);
-    }while(objective.recompute_signs());
+    }while(objective.recompute_signs(X));
 
     //Copies into datastructures
     std::memcpy(Weights, X,sizeof(ScalarType)*NC*NC);
