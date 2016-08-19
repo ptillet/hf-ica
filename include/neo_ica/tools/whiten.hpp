@@ -26,7 +26,8 @@ namespace detail
         backend<ScalarType>::syev('V','U',C,in,C,D);
         //UD = U*diag(D)
         for (int64_t j=0; j<C; ++j) {
-          ScalarType lambda = 1/std::sqrt(D[j]);
+          ScalarType dj = std::max<ScalarType>(1e-6, D[j]);
+          ScalarType lambda = 1/std::sqrt(dj);
           for (int64_t i=0; i<C; ++i)
               UD[j*C+i] = in[j*C+i]*lambda;
         }
