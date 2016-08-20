@@ -274,34 +274,27 @@ public:
         std::memcpy(WLU,W,sizeof(ScalarType)*NC_*NC_);
         backend<ScalarType>::getrf(NC_,NC_,WLU,NC_,ipiv_);
 
-        //det = prod(diag(WLU))
-        ScalarType logabsdet = 0;
-        for(int64_t i = 0 ; i < NC_ ; ++i){
-            logabsdet += std::log(std::abs(WLU[i*NC_+i]));
-        }
-
         //H = log(abs(det(w))) + sum(means_logp);
+        ScalarType logabsdet = 0;
+        for(int64_t i = 0 ; i < NC_ ; ++i)
+            logabsdet += std::log(std::abs(WLU[i*NC_+i]));
         ScalarType H = logabsdet;
         for(int64_t i = 0; i < NC_ ; ++i)
             H+=means_logp[i];
-        value = -H;
-
-        /* Gradient */
-        ScalarType* phi = Z;
-        nonlinearity_.compute_phi(offset,sample_size,Z,first_signs,phi);
-
-        //Grad = - (wmT - 1/S*phixT)
-        backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,phi+offset,NF_,0,phixT,NC_);
 
         //dweights = W^-T - 1/n*Phi*X'
+        ScalarType* phi = Z;
+        nonlinearity_.compute_phi(offset,sample_size,Z,first_signs,phi);
+        backend<ScalarType>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,phi+offset,NF_,0,phixT,NC_);
         backend<ScalarType>::getri(NC_,WLU,NC_,ipiv_);
         for(int64_t i = 0 ; i < NC_; ++i)
             for(int64_t j = 0 ; j < NC_; ++j)
                 wmT[i*NC_+j] = WLU[j*NC_+i];
 
-        //Copy back
+        //Reverse sign and copy
+        value = -H;
         for(int64_t i = 0 ; i < NC_*NC_; ++i)
-          grad[i] = - (wmT[i] - phixT[i]/(ScalarType)sample_size);
+          grad[i] = - (wmT[i] - phixT[i]/sample_size);
     }
 
 private:
