@@ -31,16 +31,16 @@ using namespace math;
  * ---------------------------
  */
 template<class T>
-void sejnowski<T>::compute_phi_fb(int64_t off, int64_t NS, T* pz, int const * pk, T* res) const{
+void sejnowski<T>::compute_phi_fb(int64_t off, int64_t NS, T* pz, T* pk, T* res) const{
     for(int64_t c = 0 ; c < NC_ ; ++c){
-        int k = pk[c];
+        T k = pk[c];
         for(int64_t f = off ; f < off + NS ; ++f)
           res[c*NF_+f] = pz[c*NF_+f] + k*tanh(pz[c*NF_+f]);
     }
 }
 
 template<class T>
-void sejnowski<T>::compute_dphi_fb(int64_t off, int64_t NS, T * pz, int const * pk, T* res) const {
+void sejnowski<T>::compute_dphi_fb(int64_t off, int64_t NS, T * pz, T* pk, T* res) const {
     for(int64_t c = 0 ; c < NC_ ; ++c){
         int k = pk[c];
         for(int64_t f = off ; f < off + NS ; ++f){
@@ -51,10 +51,10 @@ void sejnowski<T>::compute_dphi_fb(int64_t off, int64_t NS, T * pz, int const * 
 }
 
 template<class T>
-void sejnowski<T>::compute_means_logp_fb(int64_t off, int64_t NS, T * pz, int const * pk, T* res) const {
+void sejnowski<T>::compute_means_logp_fb(int64_t off, int64_t NS, T * pz, T* pk, T* res) const {
     for(int64_t c = 0 ; c < NC_ ; ++c){
         double sum = 0;
-        int k = pk[c];
+        T k = pk[c];
         for(int64_t f = off ; f < off + NS ; ++f){
           T z = pz[c*NF_+f];
           sum += .5*z*z + k*(log_1pe(-2*z) - M_LN2 + z);
@@ -99,10 +99,10 @@ void cast_f32_store<double>(double* ptr, __m128 x)
  * ---------------------------
  */
 template<class T>
-void sejnowski<T>::compute_phi_sse3(int64_t off, int64_t NS, T* pz, int const * pk, T* res) const {
+void sejnowski<T>::compute_phi_sse3(int64_t off, int64_t NS, T* pz, T* pk, T* res) const {
     #pragma omp parallel for
     for(int64_t c = 0 ; c < NC_ ; ++c){
-        int k = pk[c];
+        T k = pk[c];
         __m128 vk = _mm_set1_ps((T)k);
         int64_t f = off;
         for(; f < tools::round_to_next_multiple(off,4); ++f)
@@ -118,10 +118,10 @@ void sejnowski<T>::compute_phi_sse3(int64_t off, int64_t NS, T* pz, int const * 
 }
 
 template<class T>
-void sejnowski<T>::compute_dphi_sse3(int64_t off, int64_t NS, T* pz, int const * pk, T* res) const {
+void sejnowski<T>::compute_dphi_sse3(int64_t off, int64_t NS, T* pz, T* pk, T* res) const {
     #pragma omp parallel for
     for(int64_t c = 0 ; c < NC_ ; ++c){
-        int k = pk[c];
+        T k = pk[c];
         __m128 vk = _mm_set1_ps(k);
         int64_t f = off;
         for(; f < tools::round_to_next_multiple(off,4); ++f){
@@ -144,11 +144,11 @@ void sejnowski<T>::compute_dphi_sse3(int64_t off, int64_t NS, T* pz, int const *
 }
 
 template<class T>
-void sejnowski<T>::compute_means_logp_sse3(int64_t off, int64_t NS, T* pz, int const * pk, T* res) const {
+void sejnowski<T>::compute_means_logp_sse3(int64_t off, int64_t NS, T* pz, T* pk, T* res) const {
     #pragma omp parallel for
     for(int64_t c = 0 ; c < NC_ ; ++c){
         __m128d vsum = _mm_set1_pd((double)0);
-        int k = pk[c];
+        T k = pk[c];
         __m128 vk = _mm_set1_ps(k);
         double sum = 0;
         int64_t f = off;
@@ -180,7 +180,7 @@ void sejnowski<T>::compute_means_logp_sse3(int64_t off, int64_t NS, T* pz, int c
 
 
 template<class T>
-void sejnowski<T>::compute_means_logp(int64_t off, int64_t NS, T * z1, int const * signs, T * means_logp) const
+void sejnowski<T>::compute_means_logp(int64_t off, int64_t NS, T * z1, T* signs, T * means_logp) const
 {
     if(cpu.HW_SSE3)
         compute_means_logp_sse3(off, NS, z1, signs, means_logp);
@@ -189,7 +189,7 @@ void sejnowski<T>::compute_means_logp(int64_t off, int64_t NS, T * z1, int const
 }
 
 template<class T>
-void sejnowski<T>::compute_phi(int64_t off, int64_t NS, T * z1, int const * signs, T* phi) const
+void sejnowski<T>::compute_phi(int64_t off, int64_t NS, T * z1, T* signs, T* phi) const
 {
     if(cpu.HW_SSE3)
         compute_phi_sse3(off, NS, z1, signs, phi);
@@ -198,7 +198,7 @@ void sejnowski<T>::compute_phi(int64_t off, int64_t NS, T * z1, int const * sign
 }
 
 template<class T>
-void sejnowski<T>::compute_dphi(int64_t off, int64_t NS, T * z1, int const * signs, T* dphi) const
+void sejnowski<T>::compute_dphi(int64_t off, int64_t NS, T * z1, T* signs, T* dphi) const
 {
     if(cpu.HW_SSE3)
         compute_dphi_sse3(off, NS, z1, signs, dphi);
