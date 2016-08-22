@@ -37,7 +37,7 @@ struct ica_functor{
     typedef T * VectorType;
 
 public:
-    ica_functor(T const * data, int64_t NF, int64_t NC, options const & opt) : data_(data), NC_(NC), NF_(NF), nonlinearity_(NC,NF){
+    ica_functor(T const * data, int64_t NF, int64_t NC, options const &) : data_(data), NC_(NC), NF_(NF), nonlinearity_(NC,NF){
         is_first_ = true;
 
         ipiv_ =  new typename backend<T>::size_t[NC_+1];
@@ -64,7 +64,6 @@ public:
                 datasq_[i*NF_+j] = data_[i*NF_+j]*data_[i*NF_+j];
 
 
-        int n_subgauss = 0;
         for(int64_t c = 0 ; c < NC_ ; ++c){
             T m2 = 0, m4 = 0;
             for(int64_t f = 0; f < NF_ ; f++){
@@ -76,12 +75,6 @@ public:
             m4 = 1/(T)NF_*m4;
             T k = m4/m2 - 3;
             first_signs[c] = (T)((k+0.02>0)?1:-1);
-            if(first_signs[c] < 0) n_subgauss++;
-        }
-
-        if(opt.verbosity>0){
-            std::cout << "Number of subgaussian sources: " << n_subgauss << std::endl;
-            std::cout << "Number of OMP Threads : " << omp_thread_count() << std::endl;
         }
     }
 
@@ -363,7 +356,7 @@ void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, int64
     minimizer.direction = new umintl::truncated_newton<BackendType>(umintl::tag::truncated_newton::STOP_HV_VARIANCE);
     minimizer.verbosity = opt.verbosity;
     minimizer.iter = opt.iter;
-    minimizer.stopping_criterion = new umintl::parameter_change_threshold<BackendType>(1e-6);
+    minimizer.stopping_criterion = new umintl::parameter_change_threshold<BackendType>(1e-4);
     do{
         minimizer(X,objective,X,N);
     }while(objective.recompute_signs(X));

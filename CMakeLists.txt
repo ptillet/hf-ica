@@ -29,7 +29,7 @@ if(MSVC)
     #set(STD_FLAG "/Qstd=c++11")
 else()
     set(VECTOR_FLAG "-msse4")
-    set(WARNING_FLAG "-Wall -Wextra")
+    set(WARNING_FLAG "-Wall -Wextra -pedantic")
     set(STD_FLAG "-std=c++11")
 endif()
 

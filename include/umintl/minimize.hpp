@@ -38,6 +38,27 @@ namespace umintl{
      */
     template<class BackendType>
     class minimizer{
+
+        class IosFlagSaver {
+        public:
+            explicit IosFlagSaver(std::ostream& _ios):
+                ios(_ios),
+                f(nullptr)
+            {
+                f.copyfmt(ios);
+            }
+            ~IosFlagSaver() {
+                ios.copyfmt(f);
+            }
+
+            IosFlagSaver(const IosFlagSaver &rhs) = delete;
+            IosFlagSaver& operator= (const IosFlagSaver& rhs) = delete;
+
+        private:
+            std::ostream& ios;
+            std::ios f;
+        };
+
     public:
 
         /** @brief The constructor
@@ -121,15 +142,13 @@ namespace umintl{
     public:
         template<class Fun>
         optimization_result operator()(typename BackendType::VectorType & res, Fun & fun, typename BackendType::VectorType const & x0, size_t N){
+            IosFlagSaver flags_saver(std::cout);
+
             tools::shared_ptr<umintl::direction<BackendType> > steepest_descent(new umintl::steepest_descent<BackendType>());
             line_search_result<BackendType> search_res(N);
             optimization_context<BackendType> c(x0, N, *model, new detail::function_wrapper_impl<BackendType, Fun>(fun,N,hessian_vector_product_computation));
 
             init_all(c);
-
-            if(verbosity >= 1)
-                std::cout << info() << std::endl;
-
 
             tools::shared_ptr<umintl::direction<BackendType> > current_direction;
             if(dynamic_cast<truncated_newton<BackendType> * >(direction.get()))
@@ -140,15 +159,15 @@ namespace umintl{
             //Main loop
             c.fun().compute_value_gradient(c.x(), c.val(), c.g(), c.model().get_value_gradient_tag());
             for( ; c.iter() < iter ; ++c.iter()){
-                if(verbosity >= 2 ){
-                    std::cout << "Ieration  " << c.iter()
-                              << "| cost : " << c.val()
-                              << "| NVal : " << c.fun().n_value_computations()
-                              << "| NGrad : " << c.fun().n_gradient_computations();
-                    if(unsigned int NHv = c.fun().n_hessian_vector_product_computations())
-                     std::cout<< "| NHv : " << NHv ;
+                if(verbosity >= 1 ){
+                    std::cout << "Iteration " << std::setw(4) << c.iter()
+                              << ": cost=" << std::fixed << std::setw(6) << std::setprecision(4) << c.val()
+                              << "; NV=" << std::setw(4) << c.fun().n_value_computations()
+                              << "; NG=" << std::setw(4) << c.fun().n_gradient_computations();
+                    if(dynamic_cast<truncated_newton<BackendType>*>(direction.get()))
+                        std::cout<< "; NH=" << std::setw(4) << c.fun().n_hessian_vector_product_computations() ;
                     if(unsigned int ND = c.fun().n_datapoints_accessed())
-                     std::cout << "| NAccesses " << (float)ND;
+                     std::cout << "; NPoints=" << std::scientific << std::setprecision(3) << (float)ND;
                     std::cout << std::endl;
                 }
 
