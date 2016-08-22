@@ -1,12 +1,9 @@
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from neo_ica import ica
+from neo_ica import ica, match, normalize
+from sklearn.decomposition import FastICA
 
-def normalize(X):
-    range = np.max(X,1) - np.min(X,1)
-    return (X - np.mean(X,1,keepdims=True))/range[:,np.newaxis]
-    
 def sawtooth(t):
     return t - np.floor(t)
 
@@ -28,9 +25,11 @@ NC = X.shape[0]
 Y = np.dot(np.random.rand(4, 4), X)
 # Unmix
 S, _ = ica(Y[:,:])
+#S = FastICA().fit_transform(Y.T).T
 # Plot
 X = normalize(X)
 S = normalize(S)
+S, error = match(S, X)
 plt.subplot(3,1,1)
 plt.title('True sources')
 for i, color in zip(range(NC), ['r', 'g', 'b', 'm']):
@@ -41,6 +40,6 @@ for i, color in zip(range(NC), ['r', 'g', 'b', 'm']):
     plt.plot(Y[i,:], color)
 plt.subplot(3,1,3)
 plt.title('Recovered')
-for i, color in zip(range(NC), ['r', 'm', 'g', 'b']):
+for i, color in zip(range(NC), ['r', 'g', 'b', 'm']):
     plt.plot(S[i,:], color)
 plt.show()

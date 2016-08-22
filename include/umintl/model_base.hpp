@@ -80,7 +80,7 @@ struct dynamically_sampled : public model_base<BackendType> {
         ScalarType nrm1var = BackendType::asum(c.N(),var);
         ScalarType nrm2grad = BackendType::nrm2(c.N(),c.g());
         //std::gradient_variance << nrm1var*scal << " " << std::pow(theta_,2)*std::pow(nrm2grad,2) << std::endl;
-        bool is_descent_direction = (nrm1var/S <= (std::pow(theta_,2)*std::pow(nrm2grad,2)));
+        bool is_descent_direction = (nrm1var/S*(N-S)/(N-1) <= (std::pow(theta_,2)*std::pow(nrm2grad,2)));
 
         //Update parameters
         //size_t old_S = S;

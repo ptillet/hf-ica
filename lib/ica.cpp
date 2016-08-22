@@ -320,6 +320,38 @@ private:
     mutable bool is_first_;
 };
 
+template<class BackendType>
+class stop_ica: public umintl::stopping_criterion<BackendType>
+{
+    typedef typename BackendType::ScalarType T;
+public:
+    stop_ica(T tol, int64_t NC): NC_(NC){}
+
+    bool operator()(umintl::optimization_context<BackendType> & c)
+    {
+        using namespace std;
+        T * W = new T[NC_*NC_];
+        T * Wm1 = new T[NC_*NC_];
+        T * tmp = new T[NC_*NC_];
+        std::memcpy(W, c.x(),sizeof(T)*NC_*NC_);
+        std::memcpy(Wm1, c.xm1(),sizeof(T)*NC_*NC_);
+        //diff = max(abs(abs(diag(Wm1*W')) - 1))
+        backend<T>::gemm(Trans,NoTrans,NC_,NC_,NC_ ,1,Wm1,NC_,W,NC_,0,tmp,NC_);
+        T diff = 0;
+        for(size_t i = 0 ; i < NC_ ; ++i)
+            diff = max(diff, abs(abs(tmp[i*(NC_+1)]) - 1));
+        delete[] W;
+        delete[] Wm1;
+        delete[] tmp;
+        return diff < tol_;
+    }
+private:
+    T tol_;
+    int64_t NC_;
+};
+
+//lim = max(abs(abs(np.diag(fast_dot(W1, W.T))) - 1))
+
 template<class ScalarType>
 void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, int64_t NC, int64_t DataNF, options const & conf){
     typedef typename umintl_backend<ScalarType>::type BackendType;

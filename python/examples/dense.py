@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from neo_ica import ica
+from neo_ica import ica, amari_error, match, normalize
+from sklearn.decomposition import FastICA
+from time import time
 
 np.random.seed(0)
 
@@ -18,7 +20,7 @@ def _random_signal(start, stop, npoints, ncoeffs, minp, maxp, nsigs):
     sig = a0 + np.sum(an*np.cos(nt/Pc + phic),0) + np.sum(bn*np.sin(nt/Ps + phis),0)
     return sig.T
 
-def random_signal(start, stop, npoints, ncoeffs, minp, maxp, nsigs, tile=4):
+def random_signal(start, stop, npoints, ncoeffs, minp, maxp, nsigs, tile=32):
     sig = np.empty((nsigs, npoints))
     i = 0
     for i in range(0, nsigs - tile, tile):
@@ -26,10 +28,42 @@ def random_signal(start, stop, npoints, ncoeffs, minp, maxp, nsigs, tile=4):
     sig[i:, :] = _random_signal(start,stop,npoints,ncoeffs,minp,maxp,nsigs-i)
     return sig
 
-#sig = random_signal(start=-50, stop=50, npoints=200000, ncoeffs=10, minp=.1, maxp=10, nsigs=128)
-#np.save('sig.npy', sig)
-sig = np.load('sig.npy')
-sig = sig.astype(np.float32)
-S, _ = ica(sig, verbosity=2, iter=100)
-#plt.plot(sig.T)
+def skewness(X, axis=1):
+    mu, std = np.mean(X, axis=axis, keepdims=True), np.std(X, axis=axis, keepdims=True)
+    return np.mean(((X - mu)/std)**3, axis=axis)
+
+def sort_skewness(X, axis=1):
+    return np.sort(X, axis=axis, order=skewness(X, axis=axis))
+
+ntrials = 10
+tneo, errneo = np.empty(ntrials),np.empty(ntrials)
+tfast, errfast = np.empty(ntrials),np.empty(ntrials)
+fastica = FastICA()
+for i in range(ntrials):
+    print 'Trial ', i
+    #Sources
+    X = random_signal(start=0, stop=100, npoints=10000, ncoeffs=10, minp=.1, maxp=5, nsigs=32)
+    #np.save('X.npy', X)
+    #X = np.load('X.npy')
+    X = X.astype(np.float32)
+    #Observations
+    d = X.shape[0]
+    A = np.random.rand(d, d)
+    Y = np.dot(A, X)
+    #Restored - NEO-ICA
+    start = time()
+    S, W = ica(Y, verbosity=0, iter=200)
+    tneo[i], errneo[i] = time() - start, amari_error(W, A)
+    #Restored - FAST-ICA
+    start = time()
+    S = fastica.fit_transform(Y.T).T
+    W = fastica.components_
+    tfast[i], errfast[i] = time() - start, amari_error(W, A)
+#Display
+print 'NEO-ICA: {:.3f} / {:.3f} [{:.3f}s]'.format(np.mean(errneo), np.std(errneo), np.mean(tneo))
+print 'FAST-ICA: {:.3f} / {:.3f} [{:.3f}s]'.format(np.mean(errfast), np.std(errfast), np.mean(tfast))
+#plt.subplot(2,1,1)
+#plt.plot(X.T)
+#plt.subplot(2,1,2)
+#plt.plot(S.T)
 #plt.show()
