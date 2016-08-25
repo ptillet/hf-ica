@@ -8,7 +8,7 @@
  * ===========================*/
 
 #include "neo_ica/ica.h"
-#include "neo_ica/dist/sejnowski.h"
+#include "neo_ica/dist.h"
 #include "neo_ica/backend/backend.hpp"
 #include "neo_ica/tools/mex.hpp"
 #include "neo_ica/tools/shuffle.hpp"
@@ -32,7 +32,7 @@ inline int omp_thread_count() {
     return n;
 }
 
-template<class T, class NonlinearityType>
+template<class T, template<class> class F>
 struct ica_functor{
     typedef T * VectorType;
 
@@ -71,14 +71,14 @@ public:
                 m2 += std::pow(X,2);
                 m4 += std::pow(X,4);
             }
-            m2 = std::pow(1/(T)NF_*m2,2);
-            m4 = 1/(T)NF_*m4;
+            m2 = std::pow(m2/NF_,2);
+            m4 = m4/NF_;
             T k = m4/m2 - 3;
             first_signs[c] = (T)((k+0.02>0)?1:-1);
         }
     }
 
-    bool recompute_signs(T* x){
+    bool resigns(T* x){
         bool sign_change = false;
         std::memcpy(W, x,sizeof(T)*NC_*NC_);
         backend<T>::gemm(NoTrans,NoTrans,NF_,NC_,NC_,1,data_,NF_,W,NC_,0,Z,NF_);
@@ -145,7 +145,7 @@ public:
         //Reuse Z's buffer because not needed anymore after and elementwise
         T* psi = Z;
         T* dphi = Z;
-        nonlinearity_.compute_dphi(offset,sample_size,Z,first_signs,dphi);
+        nonlinearity_.dphi(offset,sample_size,Z,first_signs,dphi);
         for(int64_t c = 0 ; c < NC_ ; ++c)
             for(int64_t f = offset; f < offset+sample_size ; ++f)
                 psi[c*NF_+f] = dphi[c*NF_+f]*RZ[c*NF_+f];
@@ -188,7 +188,7 @@ public:
         //Reuse Z's buffer because not needed anymore after and elementwise
         T* psi = Z;
         T* dphi = Z;
-        nonlinearity_.compute_dphi(offset,sample_size,Z,first_signs,dphi);
+        nonlinearity_.dphi(offset,sample_size,Z,first_signs,dphi);
         for(int64_t c = 0 ; c < NC_ ; ++c)
             for(int64_t f = offset; f < offset+sample_size ; ++f)
                 psi[c*NF_+f] = dphi[c*NF_+f]*RZ[c*NF_+f];
@@ -224,7 +224,7 @@ public:
         backend<T>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
 
         T* phi = Z;
-        nonlinearity_.compute_phi(offset,sample_size,Z,first_signs,phi);
+        nonlinearity_.phi(offset,sample_size,Z,first_signs,phi);
         backend<T>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,phi+offset,NF_,0,phixT,NC_);
 
         //GradVariance = 1/(N-1)[phi.^2*(x.^2)' - 1/N*phi*x']
@@ -259,7 +259,7 @@ public:
         backend<T>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
 
         //means_logp = mean(mata.*abs(Z).^(mata-1).*sign(Z),2);
-        nonlinearity_.compute_means_logp(offset,sample_size,Z,first_signs,means_logp);
+        nonlinearity_.mean_logp(offset,sample_size,Z,first_signs,means_logp);
 
         //LU Decomposition
         std::memcpy(WLU,W,sizeof(T)*NC_*NC_);
@@ -275,7 +275,7 @@ public:
 
         //dweights = W^-T - 1/n*Phi*X'
         T* phi = Z;
-        nonlinearity_.compute_phi(offset,sample_size,Z,first_signs,phi);
+        nonlinearity_.phi(offset,sample_size,Z,first_signs,phi);
         backend<T>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,phi+offset,NF_,0,phixT,NC_);
         backend<T>::getri(NC_,WLU,NC_,ipiv_);
         for(int64_t i = 0 ; i < NC_; ++i)
@@ -315,7 +315,7 @@ private:
     T* WLU;
     T* means_logp;
 
-    NonlinearityType nonlinearity_;
+    dist<T, F> nonlinearity_;
 
     mutable bool is_first_;
 };
@@ -355,7 +355,7 @@ private:
 template<class ScalarType>
 void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, int64_t NC, int64_t DataNF, options const & conf){
     typedef typename umintl_backend<ScalarType>::type BackendType;
-    typedef ica_functor<ScalarType, dist::sejnowski<ScalarType> > IcaFunctorType;
+    typedef ica_functor<ScalarType, extended_infomax> IcaFunctorType;
 
     options opt(conf);
 
@@ -391,7 +391,7 @@ void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, int64
     minimizer.stopping_criterion = new umintl::parameter_change_threshold<BackendType>(1e-4);
     do{
         minimizer(X,objective,X,N);
-    }while(objective.recompute_signs(X));
+    }while(objective.resigns(X));
 
     //Copies into datastructures
     std::memcpy(Weights, X,sizeof(ScalarType)*NC*NC);
