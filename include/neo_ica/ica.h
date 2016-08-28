@@ -19,7 +19,7 @@ namespace neo_ica{
 
 namespace dflt{
     static const size_t iter = 500;
-    static const unsigned int verbosity = 0;
+    static const unsigned int verbose = 0;
     static const double theta = 0.5;
     static const double rho = 0.1;
     static const size_t fbatch = 1024;
@@ -29,16 +29,16 @@ namespace dflt{
 
 struct options{
     options(size_t _iter = dflt::iter,
-            unsigned int _verbosity = dflt::verbosity,
+            unsigned int _verbose = dflt::verbose,
             double _theta = dflt::theta,
             double _rho = dflt::rho,
             double _fbatch = dflt::fbatch,
             double _nthreads = dflt::nthreads,
             bool _extended = dflt::extended):
-        iter(_iter), verbosity(_verbosity), theta(_theta), rho(_rho), fbatch(_fbatch), nthreads(_nthreads), extended(_extended){}
+        iter(_iter), verbose(_verbose), theta(_theta), rho(_rho), fbatch(_fbatch), nthreads(_nthreads), extended(_extended){}
 
     size_t iter;
-    unsigned int verbosity;
+    unsigned int verbose;
     double theta;
     double rho;
     size_t fbatch;

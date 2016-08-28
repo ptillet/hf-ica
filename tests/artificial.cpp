@@ -48,7 +48,7 @@ int main(){
     neo_ica::backend<ScalarType>::gemm('N','N',NF,NC,NC,1,src,NF,mixing,NC,0,mixed_src,NF);
 
     neo_ica::options options;
-    options.verbosity = 2;
+    options.verbose = 1;
     Timer t;
     t.start();
     for(unsigned int i = 0 ; i < BENCHMARK_COUNT ; ++i){

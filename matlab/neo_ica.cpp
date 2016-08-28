@@ -71,31 +71,17 @@ inline void transpose(ScalarType *m, int w, int h)
 }
 
 void fill_options(mxArray* options_mx, neo_ica_options_type & options){
-    /*-rho-*/
-    if(mxArray * rho = mxGetField(options_mx,0, "rho")){
+    if(mxArray * rho = mxGetField(options_mx,0, "rho"))
         options.opts.rho = mxGetScalar(rho);
-    }
-
-    /*-fbatch-*/
-    if(mxArray * fbatch = mxGetField(options_mx,0, "fbatch")){
+    if(mxArray * fbatch = mxGetField(options_mx,0, "fbatch"))
         options.opts.fbatch = (size_t)mxGetScalar(fbatch);
-    }
-
-    /*-Theta-*/
-    if(mxArray * theta = mxGetField(options_mx,0, "theta")){
+    if(mxArray * theta = mxGetField(options_mx,0, "theta"))
         options.opts.theta = mxGetScalar(theta);
-    }
-
-    /*-Max Iter-*/
-    if(mxArray * iter = mxGetField(options_mx,0, "maxIter"))
+    if(mxArray * iter = mxGetField(options_mx,0, "iter"))
         options.opts.iter = (size_t)mxGetScalar(iter);
-
-    /*-Verbosity Level-*/
-    if(mxArray * verbosity = mxGetField(options_mx,0, "verbosityLevel"))
-        options.opts.verbosity = (unsigned int)mxGetScalar(verbosity);
-
-    /*-OMP NumThreads-*/
-    if(mxArray * nthreads = mxGetField(options_mx,0, "OMPNumThreads"))
+    if(mxArray * verbose = mxGetField(options_mx,0, "verbose"))
+        options.opts.verbose = (unsigned int)mxGetScalar(verbose);
+    if(mxArray * nthreads = mxGetField(options_mx,0, "nthreads"))
         options.opts.nthreads = (int)mxGetScalar(nthreads);
 }
 

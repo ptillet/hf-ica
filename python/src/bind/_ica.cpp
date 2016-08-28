@@ -6,10 +6,10 @@
 namespace py = pybind11;
 
 std::tuple<py::array, py::array> ica(py::array& data, py::array& weights, py::array& sphere,
-         int iter, unsigned int verbosity, int nthreads, float rho, int fbatch, float theta, bool extended)
+         int iter, unsigned int verbose, int nthreads, float rho, int fbatch, float theta, bool extended)
 {
     //options
-    neo_ica::options opt(iter, verbosity, theta, rho, fbatch, nthreads, extended);
+    neo_ica::options opt(iter, verbose, theta, rho, fbatch, nthreads, extended);
     //buffer
     py::buffer_info const & X = data.request();
     py::buffer_info const & W = weights.request();
@@ -33,14 +33,14 @@ PYBIND11_PLUGIN(_ica) {
     m.def("ica", &ica,
           "Performs independent component analysis on the data provided",
           py::arg("data"), py::arg("weights"), py::arg("sphere"),
-          py::arg("iter"), py::arg("verbosity"),
+          py::arg("iter"), py::arg("verbose"),
           py::arg("nthreads"), py::arg("rho"),
           py::arg("fbatch"), py::arg("theta"), py::arg("extended"));
 
     py::module df = m.def_submodule("default", "Default values for parameters");
     using namespace neo_ica::dflt;
     df.attr("iter") = py::int_(iter);
-    df.attr("verbosity") = py::int_(verbosity);
+    df.attr("verbose") = py::int_(verbose);
     df.attr("nthreads") = py::int_(nthreads);
     df.attr("rho") = py::float_(rho);
     df.attr("fbatch") = py::int_(fbatch);

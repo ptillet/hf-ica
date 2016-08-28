@@ -66,17 +66,17 @@ namespace umintl{
          * @param _direction the descent direction used by the minimizer
          * @param _stopping_criterion the stopping criterion
          * @param _iter the maximum number of iterations
-         * @param _verbosity the verbosity level
+         * @param _verbose the verbose level
          */
         minimizer(umintl::direction<BackendType> * _direction = new quasi_newton<BackendType>()
                              , umintl::stopping_criterion<BackendType> * _stopping_criterion = new gradient_treshold<BackendType>()
-                             , unsigned int _iter = 1024, unsigned int _verbosity = 0) :
+                             , unsigned int _iter = 1024, unsigned int _verbose = 0) :
             direction(_direction)
           , line_search(new strong_wolfe_powell<BackendType>())
           , stopping_criterion(_stopping_criterion)
           , model(new deterministic<BackendType>())
           , hessian_vector_product_computation(CENTERED_DIFFERENCE)
-          , verbosity(_verbosity), iter(_iter){
+          , verbose(_verbose), iter(_iter){
 
         }
 
@@ -88,18 +88,18 @@ namespace umintl{
 
         double tolerance;
 
-        unsigned int verbosity;
+        unsigned int verbose;
         unsigned int iter;
 
     private:
 
         /** @brief Get a brief info string on the minimizer
          *
-         *  @return String containing the verbosity level, maximum number of iteration, and the direction used
+         *  @return String containing the verbose level, maximum number of iteration, and the direction used
          */
         std::string info() const{
           std::ostringstream oss;
-          oss << "Verbosity Level : " << verbosity << std::endl;
+          oss << "Verbosity Level : " << verbose << std::endl;
           oss << "Maximum number of iterations : " << iter << std::endl;
           oss << "Direction : " << direction->info() << std::endl;
           return oss.str();
@@ -159,7 +159,7 @@ namespace umintl{
             //Main loop
             c.fun().compute_value_gradient(c.x(), c.val(), c.g(), c.model().get_value_gradient_tag());
             for( ; c.iter() < iter ; ++c.iter()){
-                if(verbosity >= 1 ){
+                if(verbose >= 1 ){
                     std::cout << "Iteration " << std::setw(4) << c.iter()
                               << ": cost=" << std::fixed << std::setw(6) << std::setprecision(4) << c.val()
                               << "; NV=" << std::setw(4) << c.fun().n_value_computations()
