@@ -142,7 +142,6 @@ namespace umintl{
     public:
         template<class Fun>
         optimization_result operator()(typename BackendType::VectorType & res, Fun & fun, typename BackendType::VectorType const & x0, size_t N){
-            IosFlagSaver flags_saver(std::cout);
 
             tools::shared_ptr<umintl::direction<BackendType> > steepest_descent(new umintl::steepest_descent<BackendType>());
             line_search_result<BackendType> search_res(N);
@@ -160,6 +159,7 @@ namespace umintl{
             c.fun().compute_value_gradient(c.x(), c.val(), c.g(), c.model().get_value_gradient_tag());
             for( ; c.iter() < iter ; ++c.iter()){
                 if(verbose >= 1 ){
+                    IosFlagSaver flags_saver(std::cout);
                     std::cout << "Iteration " << std::setw(4) << c.iter()
                               << ": cost=" << std::fixed << std::setw(6) << std::setprecision(4) << c.val()
                               << "; NV=" << std::setw(4) << c.fun().n_value_computations()
@@ -184,12 +184,8 @@ namespace umintl{
 
                 (*line_search)(search_res, current_direction.get(), c);
 
-                if(search_res.has_failed){
+                if(search_res.has_failed)
                     return terminate(optimization_result::LINE_SEARCH_FAILED, res, N, c);
-                }
-
-//                BackendType::copy(c.N(), c.x(), search_res.best_x);
-//                BackendType::axpy(c.N(),0.0001,c.p(),search_res.best_x);
 
                 c.alpha() = search_res.best_alpha;
 

@@ -216,18 +216,18 @@ void dist<T, F>::mu(int64_t off, int64_t NS, T * z1, T* signs, T * mu) const
 template<class T, template<class> class F>
 void dist<T, F>::phi(int64_t off, int64_t NS, T * z1, T* signs, T* phi) const
 {
-    if(cpu.HW_SSE3)
-        phi_sse3(off, NS, z1, signs, phi);
-    else
+//    if(cpu.HW_SSE3)
+//        phi_sse3(off, NS, z1, signs, phi);
+//    else
         phi_fb(off, NS, z1, signs, phi);
 }
 
 template<class T, template<class> class F>
 void dist<T, F>::dphi(int64_t off, int64_t NS, T * z1, T* signs, T* dphi) const
 {
-    if(cpu.HW_SSE3)
-        dphi_sse3(off, NS, z1, signs, dphi);
-    else
+//    if(cpu.HW_SSE3)
+//        dphi_sse3(off, NS, z1, signs, dphi);
+//    else
         dphi_fb(off, NS, z1, signs, dphi);
 }
 

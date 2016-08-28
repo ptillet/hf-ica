@@ -70,7 +70,7 @@ inline __m128 log_1pe(__m128 x)
     __m128 xifpos = _mm_and_ps(mask, x);
     __m128 xneg = _mm_or_ps(_m0, x);
     //xifpos + log(_1 + exp(xneg));
-    return _mm_add_ps(xifpos, log(_mm_add_ps(_1, exp(xneg))));
+    return xifpos + log(_1 + exp(xneg));
 }
 
 //sigmoid

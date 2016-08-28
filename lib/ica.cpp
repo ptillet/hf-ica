@@ -388,13 +388,14 @@ void ica(T const * data, T* Weights, T* Sphere, int64_t NC, int64_t DataNF, opti
     umintl::minimizer<BackendType> minimizer;
     minimizer.hessian_vector_product_computation = umintl::PROVIDED;
     minimizer.model = new umintl::dynamically_sampled<BackendType>(opt.rho,opt.fbatch,NF,opt.theta);
+
     minimizer.direction = new umintl::truncated_newton<BackendType>(umintl::tag::truncated_newton::STOP_HV_VARIANCE);
     minimizer.verbose = opt.verbose;
     minimizer.iter = opt.iter;
     minimizer.stopping_criterion = new umintl::parameter_change_threshold<BackendType>(1e-4);
     do{
         minimizer(X,objective,X,N);
-    }while(objective.resigns(X));
+    }while(opt.extended && objective.resigns(X));
 
     //Copies into datastructures
     std::memcpy(Weights, X,sizeof(T)*NC*NC);
