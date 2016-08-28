@@ -355,7 +355,7 @@ private:
 template<class ScalarType>
 void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, int64_t NC, int64_t DataNF, options const & conf){
     typedef typename umintl_backend<ScalarType>::type BackendType;
-    typedef ica_functor<ScalarType, extended_infomax> IcaFunctorType;
+    typedef ica_functor<ScalarType, infomax> IcaFunctorType;
 
     options opt(conf);
 

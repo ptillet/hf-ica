@@ -16,17 +16,21 @@
 
 namespace neo_ica{
 
-template<class T>
-struct extended_infomax
-{
-    inline static T logp(T z, T k);
-    inline static T phi(T z, T k);
-    inline static T dphi(T z, T k);
+#define DECLARE_NONLINEARITY(NAME) \
+    template<class T>\
+    struct NAME\
+    {\
+        inline static T logp(T z, T k);\
+        inline static T phi(T z, T k);\
+        inline static T dphi(T z, T k);\
+\
+        inline static __m128 logp(__m128 const &  z, __m128 const &  k);\
+        inline static __m128 phi(__m128 const &  z, __m128 const &  k);\
+        inline static __m128 dphi(__m128 const & z, __m128 const &  k);\
+    }
 
-    inline static __m128 logp(__m128 const &  z, __m128 const &  k);
-    inline static __m128 phi(__m128 const &  z, __m128 const &  k);
-    inline static __m128 dphi(__m128 const & z, __m128 const &  k);
-};
+DECLARE_NONLINEARITY(infomax);
+DECLARE_NONLINEARITY(extended_infomax);
 
 template<class T, template<class> class F>
 class dist{

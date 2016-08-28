@@ -21,11 +21,52 @@
 
 namespace neo_ica{
 
-using namespace std;
 using namespace math;
 using namespace tools;
 
-//
+
+/*
+ * ---------------------------
+ * Infomax ICA
+ * ---------------------------
+ */
+
+template<class T>
+T infomax<T>::logp(T z, T)
+{ return log_1pe(z);}
+
+template<class T>
+T infomax<T>::phi(T z, T)
+{ return sigmoid(z); }
+
+template<class T>
+T infomax<T>::dphi(T z, T)
+{
+    T y = sigmoid(z);
+    return y*(1-y);
+}
+
+template<class T>
+__m128 infomax<T>::logp(__m128 const & z, __m128 const &)
+{   return log_1pe(z); }
+
+template<class T>
+__m128 infomax<T>::phi(__m128 const &  z, __m128 const &)
+{  return sigmoid(z); }
+
+template<class T>
+__m128 infomax<T>::dphi(__m128 const &  z, __m128 const &)
+{
+    __m128 y = sigmoid(z);
+    return _mm_mul_ps(y, _mm_sub_ps(_1, y));
+}
+
+/*
+ * ---------------------------
+ * Extended Infomax ICA
+ * ---------------------------
+ */
+
 template<class T>
 T extended_infomax<T>::logp(T z, T k)
 { return .5*z*z + k*(log_1pe(-2*z) - M_LN2 + z);}
@@ -41,7 +82,6 @@ T extended_infomax<T>::dphi(T z, T k)
     return (1 + k) - k*y*y;
 }
 
-//
 template<class T>
 __m128 extended_infomax<T>::logp(__m128 const & z, __m128 const &  k)
 {
@@ -55,12 +95,12 @@ __m128 extended_infomax<T>::logp(__m128 const & z, __m128 const &  k)
 
 template<class T>
 __m128 extended_infomax<T>::phi(__m128 const &  z, __m128 const &  k)
-{  return _mm_add_ps(z, _mm_mul_ps(k, vtanh(z))); }
+{  return _mm_add_ps(z, _mm_mul_ps(k, tanh(z))); }
 
 template<class T>
 __m128 extended_infomax<T>::dphi(__m128 const &  z, __m128 const &  k)
 {
-    __m128 y = vtanh(z);
+    __m128 y = tanh(z);
     //res = (1 + k) - k*y*y;
     return _mm_sub_ps(_mm_add_ps(_1, k),
                       _mm_mul_ps(k, _mm_mul_ps(y, y)));
@@ -191,7 +231,8 @@ void dist<T, F>::dphi(int64_t off, int64_t NS, T * z1, T* signs, T* dphi) const
         dphi_fb(off, NS, z1, signs, dphi);
 }
 
-
+template class dist<float, infomax>;
+template class dist<double, infomax>;
 template class dist<float, extended_infomax>;
 template class dist<double, extended_infomax>;
 
