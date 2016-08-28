@@ -22,6 +22,7 @@
 #include "omp.h"
 
 #include <stdlib.h>
+#include <memory>
 
 namespace neo_ica{
 
@@ -32,14 +33,12 @@ inline int omp_thread_count() {
     return n;
 }
 
-template<class T, template<class> class F>
-struct ica_functor{
+template<class T>
+struct log_likelihood{
     typedef T * VectorType;
 
 public:
-    ica_functor(T const * data, int64_t NF, int64_t NC, options const &) : data_(data), NC_(NC), NF_(NF), nonlinearity_(NC,NF){
-        is_first_ = true;
-
+    log_likelihood(T const * data, int64_t NF, int64_t NC, dist_base<T>* fn) : data_(data), NC_(NC), NF_(NF), fn_(fn){
         ipiv_ =  new typename backend<T>::size_t[NC_+1];
 
         //NC*NF matrices
@@ -56,7 +55,7 @@ public:
         V = new T[NC_*NC_];
         HV = new T[NC_*NC_];
         WinvV = new T[NC_*NC_];
-        means_logp = new T[NC_];
+        mu = new T[NC_];
         first_signs = new T[NC_];
 
         for(int64_t i = 0 ; i < NC_; ++i)
@@ -102,7 +101,7 @@ public:
         return sign_change;
     }
 
-    ~ica_functor(){
+    ~log_likelihood(){
         delete[] ipiv_;
         //NC*NF matrices
         delete[] Z;
@@ -117,7 +116,7 @@ public:
         delete[] W;
         delete[] WLU;
         delete[] WinvV;
-        delete[] means_logp;
+        delete[] mu;
     }
 
     /* Hessian-Vector product variance */
@@ -145,7 +144,7 @@ public:
         //Reuse Z's buffer because not needed anymore after and elementwise
         T* psi = Z;
         T* dphi = Z;
-        nonlinearity_.dphi(offset,sample_size,Z,first_signs,dphi);
+        fn_->dphi(offset,sample_size,Z,first_signs,dphi);
         for(int64_t c = 0 ; c < NC_ ; ++c)
             for(int64_t f = offset; f < offset+sample_size ; ++f)
                 psi[c*NF_+f] = dphi[c*NF_+f]*RZ[c*NF_+f];
@@ -188,7 +187,7 @@ public:
         //Reuse Z's buffer because not needed anymore after and elementwise
         T* psi = Z;
         T* dphi = Z;
-        nonlinearity_.dphi(offset,sample_size,Z,first_signs,dphi);
+        fn_->dphi(offset,sample_size,Z,first_signs,dphi);
         for(int64_t c = 0 ; c < NC_ ; ++c)
             for(int64_t f = offset; f < offset+sample_size ; ++f)
                 psi[c*NF_+f] = dphi[c*NF_+f]*RZ[c*NF_+f];
@@ -224,7 +223,7 @@ public:
         backend<T>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
 
         T* phi = Z;
-        nonlinearity_.phi(offset,sample_size,Z,first_signs,phi);
+        fn_->phi(offset,sample_size,Z,first_signs,phi);
         backend<T>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,phi+offset,NF_,0,phixT,NC_);
 
         //GradVariance = 1/(N-1)[phi.^2*(x.^2)' - 1/N*phi*x']
@@ -258,24 +257,24 @@ public:
         //Z = X*W;
         backend<T>::gemm(NoTrans,NoTrans,sample_size,NC_,NC_,1,data_+offset,NF_,W,NC_,0,Z+offset,NF_);
 
-        //means_logp = mean(mata.*abs(Z).^(mata-1).*sign(Z),2);
-        nonlinearity_.mean_logp(offset,sample_size,Z,first_signs,means_logp);
+        //mu = mean(mata.*abs(Z).^(mata-1).*sign(Z),2);
+        fn_->mu(offset,sample_size,Z,first_signs,mu);
 
         //LU Decomposition
         std::memcpy(WLU,W,sizeof(T)*NC_*NC_);
         backend<T>::getrf(NC_,NC_,WLU,NC_,ipiv_);
 
-        //H = log(abs(det(w))) + sum(means_logp);
+        //H = log(abs(det(w))) + sum(mu);
         T logabsdet = 0;
         for(int64_t i = 0 ; i < NC_ ; ++i)
             logabsdet += std::log(std::abs(WLU[i*NC_+i]));
         T H = logabsdet;
         for(int64_t i = 0; i < NC_ ; ++i)
-            H+=means_logp[i];
+            H+=mu[i];
 
         //dweights = W^-T - 1/n*Phi*X'
         T* phi = Z;
-        nonlinearity_.phi(offset,sample_size,Z,first_signs,phi);
+        fn_->phi(offset,sample_size,Z,first_signs,phi);
         backend<T>::gemm(Trans,NoTrans,NC_,NC_,sample_size ,1,data_+offset,NF_,phi+offset,NF_,0,phixT,NC_);
         backend<T>::getri(NC_,WLU,NC_,ipiv_);
         for(int64_t i = 0 ; i < NC_; ++i)
@@ -313,11 +312,9 @@ private:
     T* WinvV;
     T* W;
     T* WLU;
-    T* means_logp;
+    T* mu;
 
-    dist<T, F> nonlinearity_;
-
-    mutable bool is_first_;
+    std::shared_ptr<dist_base<T>> fn_;
 };
 
 template<class BackendType>
@@ -352,10 +349,9 @@ private:
 
 //lim = max(abs(abs(np.diag(fast_dot(W1, W.T))) - 1))
 
-template<class ScalarType>
-void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, int64_t NC, int64_t DataNF, options const & conf){
-    typedef typename umintl_backend<ScalarType>::type BackendType;
-    typedef ica_functor<ScalarType, infomax> IcaFunctorType;
+template<class T>
+void ica(T const * data, T* Weights, T* Sphere, int64_t NC, int64_t DataNF, options const & conf){
+    typedef typename umintl_backend<T>::type BackendType;
 
     options opt(conf);
 
@@ -368,14 +364,21 @@ void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, int64
         opt.fbatch=NF;
 
     //Allocate
-    ScalarType * white_data =  new ScalarType[NC*NF];
-    ScalarType * X = new ScalarType[N];
-    std::memset(X,0,N*sizeof(ScalarType));
+    T * white_data =  new T[NC*NF];
+    T * X = new T[N];
+    std::memset(X,0,N*sizeof(T));
 
     //Whiten Data
-    whiten<ScalarType>(NC, DataNF, NF, data, Sphere, white_data);
+    whiten<T>(NC, DataNF, NF, data, Sphere, white_data);
     shuffle(white_data,NC,NF);
-    IcaFunctorType objective(white_data,NF,NC,opt);
+
+    //Objective
+    dist_base<T>* fn;
+    if(opt.extended)
+        fn = new dist<T, extended_infomax>(NC, NF);
+    else
+        fn = new dist<T, infomax>(NC, NF);
+    log_likelihood<T> objective(white_data,NF,NC,fn);
 
     //Initial guess W_0 = I
     for(int64_t i = 0 ; i < NC; ++i)
@@ -394,7 +397,7 @@ void ica(ScalarType const * data, ScalarType* Weights, ScalarType* Sphere, int64
     }while(objective.resigns(X));
 
     //Copies into datastructures
-    std::memcpy(Weights, X,sizeof(ScalarType)*NC*NC);
+    std::memcpy(Weights, X,sizeof(T)*NC*NC);
 
     delete[] X;
     delete[] white_data;

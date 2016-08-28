@@ -131,7 +131,7 @@ void dist<T, F>::dphi_fb(int64_t off, int64_t NS, T * pz, T* pk, T* res) const {
 }
 
 template<class T, template<class> class F>
-void dist<T, F>::mean_logp_fb(int64_t off, int64_t NS, T * pz, T* pk, T* res) const {
+void dist<T, F>::mu_fb(int64_t off, int64_t NS, T * pz, T* pk, T* res) const {
     for(int64_t c = 0 ; c < NC_ ; ++c){
         double sum = 0;
         T k = pk[c];
@@ -180,7 +180,7 @@ void dist<T, F>::dphi_sse3(int64_t off, int64_t NS, T* pz, T* pk, T* res) const 
 
 
 template<class T, template<class> class F>
-void dist<T, F>::mean_logp_sse3(int64_t off, int64_t NS, T* pz, T* pk, T* res) const {
+void dist<T, F>::mu_sse3(int64_t off, int64_t NS, T* pz, T* pk, T* res) const {
     #pragma omp parallel for
     for(int64_t c = 0 ; c < NC_ ; ++c){
         __m128d vsum = _mm_set1_pd((double)0);
@@ -205,12 +205,12 @@ void dist<T, F>::mean_logp_sse3(int64_t off, int64_t NS, T* pz, T* pk, T* res) c
 
 
 template<class T, template<class> class F>
-void dist<T, F>::mean_logp(int64_t off, int64_t NS, T * z1, T* signs, T * mean_logp) const
+void dist<T, F>::mu(int64_t off, int64_t NS, T * z1, T* signs, T * mu) const
 {
     if(cpu.HW_SSE3)
-        mean_logp_sse3(off, NS, z1, signs, mean_logp);
+        mu_sse3(off, NS, z1, signs, mu);
     else
-        mean_logp_fb(off, NS, z1, signs, mean_logp);
+        mu_fb(off, NS, z1, signs, mu);
 }
 
 template<class T, template<class> class F>

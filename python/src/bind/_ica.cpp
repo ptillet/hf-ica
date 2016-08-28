@@ -6,10 +6,10 @@
 namespace py = pybind11;
 
 std::tuple<py::array, py::array> ica(py::array& data, py::array& weights, py::array& sphere,
-         int iter, unsigned int verbosity, int nthreads, float rho, int fbatch, float theta)
+         int iter, unsigned int verbosity, int nthreads, float rho, int fbatch, float theta, bool extended)
 {
     //options
-    neo_ica::options opt(iter, verbosity, theta, rho, fbatch, nthreads);
+    neo_ica::options opt(iter, verbosity, theta, rho, fbatch, nthreads, extended);
     //buffer
     py::buffer_info const & X = data.request();
     py::buffer_info const & W = weights.request();
@@ -35,7 +35,7 @@ PYBIND11_PLUGIN(_ica) {
           py::arg("data"), py::arg("weights"), py::arg("sphere"),
           py::arg("iter"), py::arg("verbosity"),
           py::arg("nthreads"), py::arg("rho"),
-          py::arg("fbatch"), py::arg("theta"));
+          py::arg("fbatch"), py::arg("theta"), py::arg("extended"));
 
     py::module df = m.def_submodule("default", "Default values for parameters");
     using namespace neo_ica::dflt;
@@ -45,6 +45,6 @@ PYBIND11_PLUGIN(_ica) {
     df.attr("rho") = py::float_(rho);
     df.attr("fbatch") = py::int_(fbatch);
     df.attr("theta") = py::float_(theta);
-
+    df.attr("extended") = py::bool_(extended);
     return m.ptr();
 }

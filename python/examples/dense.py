@@ -35,13 +35,13 @@ def skewness(X, axis=1):
 def sort_skewness(X, axis=1):
     return np.sort(X, axis=axis, order=skewness(X, axis=axis))
 
-ntrials = 10
-tneo, errneo = np.empty(ntrials),np.empty(ntrials)
-tfast, errfast = np.empty(ntrials),np.empty(ntrials)
+ntrials = 20
+tneo, errneo = [], []
+tfast, errfast = [], []
 fastica = FastICA()
 for i in range(ntrials):
     #Sources
-    X = random_signal(start=0, stop=20, npoints=10000, ncoeffs=10, minp=0, maxp=1, nsigs=4)
+    X = random_signal(start=0, stop=20, npoints=100000, ncoeffs=10, minp=0, maxp=1, nsigs=32)
     #np.save('X.npy', X)
     #X = np.load('X.npy')
     X = X.astype(np.float32)
@@ -51,16 +51,19 @@ for i in range(ntrials):
     Y = np.dot(A, X)
     #Restored - NEO-ICA
     start = time()
-    S, W = ica(Y, verbosity=0, iter=200)
-    tneo[i], errneo[i] = time() - start, amari_error(W, A)
+    S, W = ica(Y, verbosity=0, extended=False)
+    tneo.append(time() - start)
+    errneo.append(amari_error(W, A))
     #Restored - FAST-ICA
     start = time()
     S = fastica.fit_transform(Y.T).T
     W = fastica.components_
-    tfast[i], errfast[i] = time() - start, amari_error(W, A)
-#Display
-print 'NEO-ICA: {:.3f}, {:.3f}, {:.3f} / {:.3f} [{:.3f}s]'.format(np.mean(errneo), np.min(errneo), np.max(errneo), np.std(errneo), np.mean(tneo))
-print 'FAST-ICA: {:.3f}, {:.3f}, {:.3f} / {:.3f} [{:.3f}s]'.format(np.mean(errfast), np.min(errfast), np.max(errfast), np.std(errfast), np.mean(tfast))
+    tfast.append(time() - start)
+    errfast.append(amari_error(W, A))
+    #Display
+    print 'NEO-ICA: {:.3f}, {:.3f}, {:.3f} / {:.3f} [{:.3f}s]'.format(np.mean(errneo), np.min(errneo), np.max(errneo), np.std(errneo), np.mean(tneo))
+    print 'FAST-ICA: {:.3f}, {:.3f}, {:.3f} / {:.3f} [{:.3f}s]'.format(np.mean(errfast), np.min(errfast), np.max(errfast), np.std(errfast), np.mean(tfast))
+    print '------------'
 #plt.subplot(2,1,1)
 #plt.plot(X.T)
 #plt.subplot(2,1,2)
