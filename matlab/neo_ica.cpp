@@ -83,6 +83,10 @@ void fill_options(mxArray* options_mx, neo_ica_options_type & options){
         options.opts.verbose = (unsigned int)mxGetScalar(verbose);
     if(mxArray * nthreads = mxGetField(options_mx,0, "nthreads"))
         options.opts.nthreads = (int)mxGetScalar(nthreads);
+    if(mxArray * extended = mxGetField(options_mx,0,"extended"))
+        options.opts.extended = (bool)mxGetScalar(extended);
+    if(mxArray * tol = mxGetField(options_mx, 0, "tol"))
+        options.opts.tol = mxGetScalar(tol);
 }
 
 void printErrorExit(std::string const & str){

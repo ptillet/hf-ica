@@ -355,6 +355,7 @@ void ica(T const * data, T* Weights, T* Sphere, int64_t NC, int64_t DataNF, opti
 
     options opt(conf);
 
+
     //Problem sizes
     int64_t padsize = 4;
     int64_t N = NC*NC;
@@ -392,7 +393,7 @@ void ica(T const * data, T* Weights, T* Sphere, int64_t NC, int64_t DataNF, opti
     minimizer.direction = new umintl::truncated_newton<BackendType>(umintl::tag::truncated_newton::STOP_HV_VARIANCE);
     minimizer.verbose = opt.verbose;
     minimizer.iter = opt.iter;
-    minimizer.stopping_criterion = new umintl::parameter_change_threshold<BackendType>(1e-4);
+    minimizer.stopping_criterion = new umintl::parameter_change_threshold<BackendType>(opt.tol);
     do{
         minimizer(X,objective,X,N);
     }while(opt.extended && objective.resigns(X));

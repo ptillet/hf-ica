@@ -9,6 +9,7 @@
 
 
 #include "neo_ica/backend/backend.hpp"
+#include <iostream>
 
 namespace neo_ica
 {
@@ -73,10 +74,10 @@ void whiten(int64_t NC, int64_t DataNF, int64_t NF, ScalarType const * cdata, Sc
     backend<ScalarType>::gemm(Trans,NoTrans,NC,NC,DataNF,alpha,data,DataNF,data,DataNF,0,Cov,NC);
 
 
-    //Sphere = 2*inverse(sqrtm(Cov))
+    //Sphere = inverse(sqrtm(Cov))
     detail::inv_sqrtm<ScalarType>(NC,Cov,Sphere);
-    for(int64_t i = 0 ; i < NC*NC ;++i)
-        Sphere[i]*=2;
+//    for(int64_t i = 0 ; i < NC*NC ;++i)
+//        Sphere[i]*=2;  Not sure why EEGLAB multiplies the sphere by 2
 
     //white_data = sphere*data
     backend<ScalarType>::gemm(NoTrans,NoTrans,NF,NC,NC,1,data,DataNF,Sphere,NC,0,white_data,NF);

@@ -31,34 +31,65 @@ using namespace tools;
  * ---------------------------
  */
 
+//template<class T>
+//T infomax<T>::logp(T z, T)
+//{ return 2*log_1pe(z) - z;}
+
+//template<class T>
+//T infomax<T>::phi(T z, T)
+//{ T y = sigmoid(z);
+//  return 2*y - 1; }
+
+//template<class T>
+//T infomax<T>::dphi(T z, T)
+//{
+//    T y = sigmoid(z);
+//    return 2*y*(1 - y);
+//}
+
+//template<class T>
+//__m128 infomax<T>::logp(__m128 const & z, __m128 const &)
+//{   return 2*log_1pe(z) - z; }
+
+//template<class T>
+//__m128 infomax<T>::phi(__m128 const &  z, __m128 const &)
+//{  return _2*sigmoid(z) - 1; }
+
+//template<class T>
+//__m128 infomax<T>::dphi(__m128 const &  z, __m128 const &)
+//{
+//    __m128 y = sigmoid(z);
+//    return 2*y*(1 - y);
+//}
+
 template<class T>
 T infomax<T>::logp(T z, T)
-{ return log_1pe(z);}
+{ return std::log(std::cosh(z));}
 
 template<class T>
 T infomax<T>::phi(T z, T)
-{ return sigmoid(z); }
+{ return std::tanh(z); }
 
 template<class T>
 T infomax<T>::dphi(T z, T)
 {
-    T y = sigmoid(z);
-    return y*(1-y);
+    T y = std::tanh(z);
+    return 1 - y*y;
 }
 
 template<class T>
 __m128 infomax<T>::logp(__m128 const & z, __m128 const &)
-{   return log_1pe(z); }
+{   return  _mm_add_ps(log_1pe(_mm_mul_ps(_m2, z)), _mm_add_ps(_mlog2, z)); }
 
 template<class T>
 __m128 infomax<T>::phi(__m128 const &  z, __m128 const &)
-{  return sigmoid(z); }
+{  return tanh(z); }
 
 template<class T>
 __m128 infomax<T>::dphi(__m128 const &  z, __m128 const &)
 {
-    __m128 y = sigmoid(z);
-    return _mm_mul_ps(y, _mm_sub_ps(_1, y));
+    __m128 y = tanh(z);
+    return 1 - y*y;
 }
 
 /*
@@ -153,7 +184,7 @@ void dist<T, F>::phi_sse3(int64_t off, int64_t NS, T* pz, T* pk, T* res) const {
         T k = pk[c];
         __m128 vk = _mm_set1_ps((T)k);
         int64_t f = off;
-        for(; f < round_to_previous_multiple(off+NS,4)  ; f+=4){
+        for(; f < round_to_previous_multiple(off+NS-3,4)  ; f+=4){
             __m128 z = load_cast_f32<T>(&pz[c*NF_+f]);
             cast_f32_store<T>(&res[c*NF_+f],F<T>::phi(z, vk));
         }
@@ -169,7 +200,7 @@ void dist<T, F>::dphi_sse3(int64_t off, int64_t NS, T* pz, T* pk, T* res) const 
         T k = pk[c];
         __m128 vk = _mm_set1_ps(k);
         int64_t f = off;
-        for(; f < round_to_previous_multiple(off+NS,4)  ; f+=4){
+        for(; f < round_to_previous_multiple(off+NS-3,4)  ; f+=4){
             __m128 z = load_cast_f32<T>(&pz[c*NF_+f]);
             cast_f32_store<T>(&res[c*NF_+f],F<T>::dphi(z, vk));
         }
@@ -188,7 +219,7 @@ void dist<T, F>::mu_sse3(int64_t off, int64_t NS, T* pz, T* pk, T* res) const {
         __m128 vk = _mm_set1_ps(k);
         double sum = 0;
         int64_t f = off;
-        for(; f < round_to_previous_multiple(off+NS,4)  ; f+=4){
+        for(; f < round_to_previous_multiple(off+NS-3,4)  ; f+=4){
             __m128 z = load_cast_f32<T>(&pz[c*NF_+f]);
             __m128 logp = F<T>::logp(z, vk);
             //sum += logp[0] + logp[1] + logp[2] + logp[3]
@@ -216,18 +247,18 @@ void dist<T, F>::mu(int64_t off, int64_t NS, T * z1, T* signs, T * mu) const
 template<class T, template<class> class F>
 void dist<T, F>::phi(int64_t off, int64_t NS, T * z1, T* signs, T* phi) const
 {
-//    if(cpu.HW_SSE3)
-//        phi_sse3(off, NS, z1, signs, phi);
-//    else
+    if(cpu.HW_SSE3)
+        phi_sse3(off, NS, z1, signs, phi);
+    else
         phi_fb(off, NS, z1, signs, phi);
 }
 
 template<class T, template<class> class F>
 void dist<T, F>::dphi(int64_t off, int64_t NS, T * z1, T* signs, T* dphi) const
 {
-//    if(cpu.HW_SSE3)
-//        dphi_sse3(off, NS, z1, signs, dphi);
-//    else
+    if(cpu.HW_SSE3)
+        dphi_sse3(off, NS, z1, signs, dphi);
+    else
         dphi_fb(off, NS, z1, signs, dphi);
 }
 

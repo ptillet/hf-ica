@@ -17,9 +17,9 @@
 
 #define BENCHMARK_COUNT 1
 
-typedef double ScalarType;
+typedef float ScalarType;
 static const unsigned int NC=4;
-static const unsigned int NF=100000;
+static const unsigned int NF=10000;
 static const unsigned int T=20;
 
 int main(){
@@ -49,6 +49,7 @@ int main(){
 
     neo_ica::options options;
     options.verbose = 1;
+    options.extended = false;
     Timer t;
     t.start();
     for(unsigned int i = 0 ; i < BENCHMARK_COUNT ; ++i){

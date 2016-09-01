@@ -67,8 +67,8 @@ template<>
 inline __m128 log_1pe(__m128 x)
 {
     __m128 mask = _mm_cmpge_ps(x, _m0);
-    __m128 xifpos = _mm_and_ps(mask, x);
-    __m128 xneg = _mm_or_ps(_m0, x);
+    __m128 xifpos = _mm_and_ps(x, mask);
+    __m128 xneg = _mm_or_ps(x, _m0);
     //xifpos + log(_1 + exp(xneg));
     return xifpos + log(_1 + exp(xneg));
 }

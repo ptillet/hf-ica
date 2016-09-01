@@ -21,9 +21,10 @@ namespace dflt{
     static const size_t iter = 500;
     static const unsigned int verbose = 0;
     static const double theta = 0.5;
-    static const double rho = 0.1;
+    static const double rho = 0.25;
     static const size_t fbatch = 1024;
     static const int nthreads = 0;
+    static const double tol = 1e-5;
     static const bool extended = true;
 }
 
@@ -34,8 +35,10 @@ struct options{
             double _rho = dflt::rho,
             double _fbatch = dflt::fbatch,
             double _nthreads = dflt::nthreads,
-            bool _extended = dflt::extended):
-        iter(_iter), verbose(_verbose), theta(_theta), rho(_rho), fbatch(_fbatch), nthreads(_nthreads), extended(_extended){}
+            bool _extended = dflt::extended,
+            double _tol = dflt::tol):
+        iter(_iter), verbose(_verbose), theta(_theta), rho(_rho),
+        fbatch(_fbatch), nthreads(_nthreads), extended(_extended), tol(_tol){}
 
     size_t iter;
     unsigned int verbose;
@@ -44,6 +47,7 @@ struct options{
     size_t fbatch;
     int nthreads;
     bool extended;
+    double tol;
 };
 
 template<class ScalarType>

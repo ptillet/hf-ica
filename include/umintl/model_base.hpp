@@ -19,7 +19,6 @@ struct model_base{
     virtual bool update(optimization_context<BackendType> & context) = 0;
     virtual value_gradient get_value_gradient_tag() const = 0;
     virtual hessian_vector_product get_hv_product_tag() const = 0;
-    virtual bool is_batch() const = 0;
 };
 
 /** @brief The deterministic class
@@ -32,7 +31,6 @@ struct deterministic : public model_base<BackendType> {
     bool update(optimization_context<BackendType> &){ return false; }
     value_gradient get_value_gradient_tag() const { return value_gradient(DETERMINISTIC,0,0); }
     hessian_vector_product get_hv_product_tag() const { return hessian_vector_product(DETERMINISTIC,0,0); }
-    bool is_batch() const { return true; }
 };
 
 template<class BackendType>
@@ -45,7 +43,6 @@ struct mini_batch : public model_base<BackendType> {
     }
     value_gradient get_value_gradient_tag() const { return value_gradient(STOCHASTIC,dataset_size_,0); }
     hessian_vector_product get_hv_product_tag() const { return hessian_vector_product(STOCHASTIC,sample_size_,offset_); }
-    bool is_batch() const { return false; }
 private:
     size_t sample_size_;
     size_t offset_;
@@ -71,7 +68,7 @@ struct dynamically_sampled : public model_base<BackendType> {
     dynamically_sampled(double r, size_t fbatch, size_t dataset_size, double theta = 0.5) : theta_(theta), r_(r), S(std::min(fbatch,dataset_size)), offset_(0), H_offset_(0), N(dataset_size){ }
 
     bool update(optimization_context<BackendType> & c){
-      if(is_batch()){
+      if(S==N){
         H_offset_=(H_offset_+(int)(r_*S))%(S - (int)(r_*S) + 1);
         return false;
       }
@@ -86,7 +83,7 @@ struct dynamically_sampled : public model_base<BackendType> {
         bool is_descent_direction = (nrm1var/S*(N-S)/(N-1) <= (std::pow(theta_,2)*std::pow(nrm2grad,2)));
 
         //Update parameters
-        //size_t old_S = S;
+//        size_t old_S = S;
         if(is_descent_direction==false){
           S = (size_t)(nrm1var/std::pow(theta_*nrm2grad,2));
           S = std::min(S,N);
@@ -100,13 +97,10 @@ struct dynamically_sampled : public model_base<BackendType> {
         else
           H_offset_=(H_offset_+S)%(S - (int)(r_*S) + 1);
 
+//        std::cout << old_S << " => " << S << std::endl;
         BackendType::delete_if_dynamically_allocated(var);
         return true;
       }
-    }
-
-    bool is_batch() const{
-        return S==N;
     }
 
     value_gradient get_value_gradient_tag() const {

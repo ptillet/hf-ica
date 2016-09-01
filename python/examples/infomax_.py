@@ -153,8 +153,10 @@ def infomax(raw_data, weights=None, l_rate=None, block=None, w_change=1e-12,
     from scipy.linalg import sqrtm
     
     rng = check_random_state(random_state)
-    sphere = 2*np.linalg.inv(sqrtm(np.cov(raw_data.T)))
-    data = np.dot(raw_data, sphere.T)
+    data = raw_data - np.mean(raw_data, 0, keepdims=True)
+    sphere = 2*np.linalg.inv(sqrtm(np.cov(data.T)))
+    data = np.dot(data, sphere)
+    #print data[0,0], data[0,1], data[1,0]
 
     # define some default parameters
     max_weight = 1e8
@@ -217,6 +219,7 @@ def infomax(raw_data, weights=None, l_rate=None, block=None, w_change=1e-12,
     olddelta, oldchange = 1., 0.
     while step < max_iter:
 
+        Z = np.dot(data, weights)
         # shuffle data at each step
         permute = random_permutation(n_samples, rng)
 
@@ -359,6 +362,10 @@ def infomax(raw_data, weights=None, l_rate=None, block=None, w_change=1e-12,
             else:
                 raise ValueError('Error in Infomax ICA: unmixing_matrix matrix'
                                  'might not be invertible!')
+        if verbose:
+            cost = -(np.linalg.slogdet(weights)[1] - np.sum(np.mean(2*np.log(1 + np.exp(Z)) - Z, 0)))
+            print 'step {}: cost = {:.4f}'.format(step, cost)
+
 
     # prepare return values
     return np.dot(weights.T, sphere)

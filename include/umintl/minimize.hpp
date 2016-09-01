@@ -151,7 +151,7 @@ namespace umintl{
 
             tools::shared_ptr<umintl::direction<BackendType> > current_direction;
             if(dynamic_cast<truncated_newton<BackendType> * >(direction.get()))
-              current_direction = steepest_descent;
+              current_direction = direction;
             else
               current_direction = steepest_descent;
 
@@ -175,7 +175,7 @@ namespace umintl{
 
                 c.dphi_0() = BackendType::dot(N,c.p(),c.g());
                 //Not a descent direction...
-                if(c.dphi_0()>0){
+                if(c.dphi_0()>=0){
                     //current_direction->reset(c);
                     current_direction = steepest_descent;
                     (*current_direction)(c);

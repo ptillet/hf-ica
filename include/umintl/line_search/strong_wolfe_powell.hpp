@@ -63,8 +63,8 @@ private:
     }
 
     void zoom(line_search_result<BackendType> & res, ScalarType alpha_low, ScalarType phi_alpha_low, ScalarType dphi_alpha_low
-              ,ScalarType alpha_high, ScalarType phi_alpha_high, ScalarType dphi_alpha_high
-              ,optimization_context<BackendType> & c, unsigned int eval_offset) const{
+              , ScalarType alpha_high, ScalarType phi_alpha_high, ScalarType dphi_alpha_high
+              , optimization_context<BackendType> & c, unsigned int eval_offset) const{
         VectorType & current_x = res.best_x;
         VectorType & current_g = res.best_g;
         ScalarType & current_phi = res.best_phi;
@@ -153,7 +153,7 @@ public:
             alpha = 1;
         }
 
-        ScalarType alpham1 = 1e-3;
+        ScalarType alpham1 = 0;
         ScalarType phi_0 = c.val();
         ScalarType dphi_0 = c.dphi_0();
         ScalarType last_phi = phi_0;

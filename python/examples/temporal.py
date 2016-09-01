@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from neo_ica import ica, match, normalize
+from neo_ica import ica, mean_corr, reorder, normalize
 from sklearn.decomposition import FastICA
 
 def sawtooth(t):
@@ -22,14 +22,14 @@ X[2,:] = sawtooth(t)
 X[3,:] = np.random.rand(N)
 NC = X.shape[0]
 # Mix
-Y = np.dot(np.random.rand(4, 4), X)
+A = np.random.rand(4, 4)
+Y = np.dot(A, X)
 # Unmix
-S, _ = ica(Y[:,:])
+S, W = ica(Y[:,:])
 #S = FastICA().fit_transform(Y.T).T
 # Plot
 X = normalize(X)
-S = normalize(S)
-S, error = match(S, X)
+S = normalize(reorder(S, W, A))
 plt.subplot(3,1,1)
 plt.title('True sources')
 for i, color in zip(range(NC), ['r', 'g', 'b', 'm']):
